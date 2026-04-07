@@ -1,3 +1,11 @@
 functions:
-  - name: hello_world
-    target: test/hello_world.py:hello_world
+  - name: hello_world_func
+    target: test/hello_world_func.py:hello_world
+  
+  - name: hello_world_script
+    target: test/hello_world_script.py
+    args:
+      - n:
+        type: int
+        default: 1
+      

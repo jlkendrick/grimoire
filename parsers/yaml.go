@@ -7,18 +7,33 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+
 type Config struct {
 	Functions []Function `yaml:"functions"`
 }
 
+
 type Function struct {
-	Name string   `yaml:"name"`
+	Name 	 string `yaml:"name"`
 	Target string `yaml:"target"`
+	Args   []Arg   `yaml:"args"`
 }
 
 func (f Function) String() string {
-	return fmt.Sprintf("Function{Name: %s, Target: %s}", f.Name, f.Target)
+	return fmt.Sprintf("Function{\n\tName: %s,\n\tTarget: %s,\n\tArgs: %v\n}", f.Name, f.Target, f.Args)
 }
+
+
+type Arg struct {
+	Name 		string `yaml:"name"`
+	Type 		string `yaml:"type"`
+	Default any 	 `yaml:"default"`
+}
+
+func (a Arg) String() string {
+	return fmt.Sprintf("Arg{\n\t\tName: %s,\n\t\tType: %s,\n\t\tDefault: %v\n\t}", a.Name, a.Type, a.Default)
+}
+
 
 func ParseYAML(path string) ([]Function, error) {
 	yamlStr, err := os.ReadFile(path)
