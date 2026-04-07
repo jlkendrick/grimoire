@@ -1,0 +1,3 @@
+functions:
+  - name: hello_world
+    target: test/hello_world.py:hello_world
