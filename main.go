@@ -11,7 +11,7 @@ func main() {
 
 	// Parse the user's configuration file
 	// This will contain basic information about the functions we want to support
-	functions, err := config.ParseUserYAML(config_path)
+	user_config, err := config.ParseUserConfig(config_path)
 	if err != nil {
 		fmt.Println("Error parsing YAML:", err)
 		return
@@ -21,11 +21,15 @@ func main() {
 	// This will later be used to validate the arguments passed to the function
 	generator := config.ConfigGenerator{
 		ConfigPath: config_path,
-		Functions: functions,
+		Config:     user_config,
 	}
 	err = generator.GenerateTypedYAML()
+	if err != nil {
+		fmt.Println("Error generating typed YAML:", err)
+		return
+	}
 
-	for _, function := range functions {
+	for _, function := range user_config.Functions {
 		fmt.Println(function)
 	}
 
