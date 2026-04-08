@@ -1,13 +1,13 @@
 functions:
 - name: hello_world_func
-  path: test/hello_world_func.py
+  path: sample/hello_world_func.py
   function: hello_world
   args:
   - name: "n"
     type: int
     default: "1"
 - name: hello_world_script
-  path: test/hello_world_script.py
+  path: sample/hello_world_script.py
   function: ""
   args:
   - name: "n"

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"fmt"
+	"strconv"
 	"strings"
 
 	types "github.com/jlkendrick/sigil/types"
@@ -26,6 +27,36 @@ func ParseUserConfig(path string) (*types.Config, error) {
 	var user_config types.Config
 	if err := yaml.Unmarshal([]byte(yamlStr), &user_config); err != nil {
 		return nil, err
+	}
+
+	// Cast the default values to the appropriate type
+	for i, function := range user_config.Functions {
+		for j, arg := range function.Args {
+			switch arg.Type {
+			case "string":
+				user_config.Functions[i].Args[j].Default = arg.Default.(string)
+			case "int":
+				int_default, err := strconv.Atoi(arg.Default.(string))
+				if err != nil {
+					return nil, fmt.Errorf("error converting default value to int: %v", err)
+				}
+				user_config.Functions[i].Args[j].Default = int_default
+			case "bool":
+				bool_default, err := strconv.ParseBool(arg.Default.(string))
+				if err != nil {
+					return nil, fmt.Errorf("error converting default value to bool: %v", err)
+				}
+				user_config.Functions[i].Args[j].Default = bool_default
+			case "float":
+				float_default, err := strconv.ParseFloat(arg.Default.(string), 64)
+				if err != nil {
+					return nil, fmt.Errorf("error converting default value to float: %v", err)
+				}
+				user_config.Functions[i].Args[j].Default = float_default
+			default:
+				return nil, fmt.Errorf("unsupported type: %s", arg.Type)
+			}
+		}
 	}
 
 	return &user_config, nil
