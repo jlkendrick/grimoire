@@ -13,17 +13,26 @@ type Config struct {
 }
 
 type Function struct {
-	Name 	 string `yaml:"name"`
-	Target string `yaml:"target"`
-	Args   []Arg  `yaml:"args"`
+	Name 	 			   string `yaml:"name"`
+	TargetFile 	   string `yaml:"file"`
+	TargetFunction string `yaml:"function"`
+	Args  		  	 []Arg  `yaml:"args"`
 }
 
 func (f Function) String() string {
-	return fmt.Sprintf("Function{\n\tName: %s,\n\tTarget: %s,\n\tArgs: %v\n}", f.Name, f.Target, f.Args)
+	return fmt.Sprintf("Function{\n\tName: %s,\n\tTargetFile: %s,\n\tTargetFunction: %s,\n\tArgs: %v\n}", f.Name, f.TargetFile, f.TargetFunction, f.Args)
 }
 
 func (f Function) GenerateYAML() string {
-	return fmt.Sprintf("  - name: %s\n    target: %s\n    args: %v\n", f.Name, f.Target, f.Args)
+	return fmt.Sprintf("  - name: %s\n    file: %s\n    function: %s\n    args: %v\n", f.Name, f.TargetFile, f.TargetFunction, f.Args)
+}
+
+func (f Function) LoadSourceCode() string {
+	source_code, err := os.ReadFile(f.TargetFile)
+	if err != nil {
+		return ""
+	}
+	return string(source_code)
 }
 
 // func (f Function) ValidateArgs(args map[string]any) error {
@@ -101,22 +110,16 @@ func ParseUserYAML(path string) ([]Function, error) {
 }
 
 func (g *ConfigGenerator) GenerateTypedYAML() error {
-	yaml_str := ""
+	var yaml_str strings.Builder
 
 	for _, function := range g.Functions {
 			var analyzer LanguageAnalyzer
-	
-			target_parts := strings.Split(function.Target, ":")
-			if len(target_parts) == 0 {
-				return fmt.Errorf("invalid target: %s", function.Target)
+		
+			if !strings.HasSuffix(function.TargetFile, ".py") {
+				return fmt.Errorf("unsupported file type: %s", function.TargetFile)
 			}
 	
-			file_path := target_parts[0]
-			if !strings.HasSuffix(file_path, ".py") {
-				return fmt.Errorf("unsupported file type: %s", file_path)
-			}
-	
-			file_extension := strings.Split(file_path, ".")[1]
+			file_extension := strings.Split(function.TargetFile, ".")[1]
 			switch file_extension {
 			case "py":
 				analyzer = &PythonAnalyzer{}
@@ -135,10 +138,10 @@ func (g *ConfigGenerator) GenerateTypedYAML() error {
 		if err != nil {
 			return err
 		}
-		yaml_str += string(func_yaml)
+		yaml_str .WriteString(string(func_yaml))
 	}
 
-	err := os.WriteFile(g.ConfigPath, []byte(yaml_str), 0644)
+	err := os.WriteFile(g.ConfigPath, []byte(yaml_str.String()), 0644)
 	if err != nil {
 		return err
 	}
