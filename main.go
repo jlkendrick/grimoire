@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	config "github.com/jlkendrick/janus/config"
+	config "github.com/jlkendrick/sigil/config"
 )
 
 func main() {
-	config_path := "janus.yaml"
+	config_path := "sigil.yaml"
 
 	// Parse the user's configuration file
 	// This will contain basic information about the functions we want to support

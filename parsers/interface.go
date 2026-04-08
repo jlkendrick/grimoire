@@ -1,7 +1,7 @@
 package parsers
 
 import (
-	types "github.com/jlkendrick/janus/types"
+	types "github.com/jlkendrick/sigil/types"
 )
 
 type LanguageAnalyzer interface {

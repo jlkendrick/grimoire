@@ -1,4 +1,4 @@
-module github.com/jlkendrick/janus
+module github.com/jlkendrick/sigil
 
 go 1.23.0
 

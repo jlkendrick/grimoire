@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"context"
 
-	types "github.com/jlkendrick/janus/types"
+	types "github.com/jlkendrick/sigil/types"
+	
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/python"
 )
