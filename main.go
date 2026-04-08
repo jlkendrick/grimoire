@@ -19,6 +19,7 @@ func main() {
 
 	// By default, we will automatically generate the 'args' field for the user's functions
 	// This will later be used to validate the arguments passed to the function
+	// For raw scripts (no function name), we will leave the 'args' field as-is
 	generator := config.ConfigGenerator{
 		ConfigPath: config_path,
 		Config:     user_config,
@@ -34,6 +35,4 @@ func main() {
 	}
 
 	fmt.Println("Functions parsed successfully")
-	fmt.Println("Simulating running hello_world_func")
-	
 }

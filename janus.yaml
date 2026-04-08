@@ -6,3 +6,10 @@ functions:
   - name: "n"
     type: int
     default: "1"
+- name: hello_world_script
+  path: test/hello_world_script.py
+  function: ""
+  args:
+  - name: "n"
+    type: int
+    default: "1"

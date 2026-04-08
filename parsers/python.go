@@ -42,7 +42,7 @@ func (a *PythonAnalyzer) ExtractSignature(function types.Function) ([]types.Arg,
 		return []types.Arg{}, nil
 	}
 
-	var args []types.Arg
+	args := []types.Arg{}
 	for i := 0; i < int(params_node.ChildCount()); i++ {
 		param_node := params_node.NamedChild(i)
 		if param_node == nil {
@@ -73,10 +73,10 @@ func findFunctionNode(root *sitter.Node, source_code []byte, function_name strin
 				return node
 			}
 
-			// Fallback to searching children
-			for i := 0; i < int(node.ChildCount()); i++ {
+			// Fallback to searching named children
+			for i := 0; i < int(node.NamedChildCount()); i++ {
 				child := node.NamedChild(i)
-				if child.Type() == "identifier" && string(child.Content(source_code)) == function_name {
+				if child != nil && child.Type() == "identifier" && string(child.Content(source_code)) == function_name {
 					return node
 				}
 			}
@@ -135,20 +135,22 @@ func extractArgFromParamNode(n *sitter.Node, source_code []byte) (types.Arg, boo
 
 	case "typed_parameter":
 			// def f(x: int):
-			// Fields: name (identifier), type
-			nameNode := n.ChildByFieldName("name")
-			typeNode := n.ChildByFieldName("type")
-
-			if nameNode == nil {
+			// First named child is the identifier; remaining named child is the type.
+			var name, typ string
+			for i := 0; i < int(n.NamedChildCount()); i++ {
+					child := n.NamedChild(i)
+					if child == nil {
+							continue
+					}
+					if child.Type() == "identifier" {
+							name = string(child.Content(source_code))
+					} else {
+							typ = string(child.Content(source_code))
+					}
+			}
+			if name == "" {
 					return types.Arg{}, false
 			}
-
-			name := string(nameNode.Content(source_code))
-			var typ string
-			if typeNode != nil {
-					typ = string(typeNode.Content(source_code))
-			}
-
 			return types.Arg{
 					Name:    name,
 					Type:    typ,
@@ -183,10 +185,10 @@ func extractArgFromParamNode(n *sitter.Node, source_code []byte) (types.Arg, boo
 			}, true
 
 	case "list_splat_pattern": // *args
-			ident := n.ChildByFieldName("name")
-			if ident == nil {
+			if n.NamedChildCount() == 0 {
 					return types.Arg{}, false
 			}
+			ident := n.NamedChild(0)
 			return types.Arg{
 					Name:    "*" + string(ident.Content(source_code)),
 					Type:    "",
@@ -194,10 +196,10 @@ func extractArgFromParamNode(n *sitter.Node, source_code []byte) (types.Arg, boo
 			}, true
 
 	case "dictionary_splat_pattern": // **kwargs
-			ident := n.ChildByFieldName("name")
-			if ident == nil {
+			if n.NamedChildCount() == 0 {
 					return types.Arg{}, false
 			}
+			ident := n.NamedChild(0)
 			return types.Arg{
 					Name:    "**" + string(ident.Content(source_code)),
 					Type:    "",

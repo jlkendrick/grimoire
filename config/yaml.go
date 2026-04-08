@@ -36,20 +36,25 @@ func (g *ConfigGenerator) GenerateTypedYAML() error {
 
 	// For each function in the configuration, generate the typed YAML
 	for i, function := range g.Config.Functions {
-			var analyzer parsers.LanguageAnalyzer
-		
-			if !strings.Contains(function.TargetFile, ".") {
-				return fmt.Errorf("no file extension found: %s", function.TargetFile)
-			}
+		if function.TargetFunction == "" {
+			continue
+		}
 
-			// Determine the file extension and use the appropriate analyzer
-			file_extension := strings.Split(function.TargetFile, ".")[1]
-			switch file_extension {
-			case "py":
-				analyzer = &parsers.PythonAnalyzer{}
-			default:
-				return fmt.Errorf("unsupported file extension: %s", file_extension)
-			}
+		var analyzer parsers.LanguageAnalyzer
+	
+		if !strings.Contains(function.TargetFile, ".") {
+			return fmt.Errorf("no file extension found: %s", function.TargetFile)
+		}
+
+		// Determine the file extension and use the appropriate analyzer
+		file_extensions := strings.Split(function.TargetFile, ".")
+		file_extension := file_extensions[len(file_extensions)-1]
+		switch file_extension {
+		case "py":
+			analyzer = &parsers.PythonAnalyzer{}
+		default:
+			return fmt.Errorf("unsupported file extension: %s", file_extension)
+		}
 
 		// Extract the function signature from the source code
 		args, err := analyzer.ExtractSignature(function)
