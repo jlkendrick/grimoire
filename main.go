@@ -2,22 +2,28 @@ package main
 
 import (
 	"fmt"
-	"github.com/jlkendrick/janus/parsers"
+
+	config "github.com/jlkendrick/janus/config"
 )
 
 func main() {
+	config_path := "janus.yaml"
 
-	functions, err := parsers.ParseYAML("janus.yaml")
+	// Parse the user's configuration file
+	// This will contain basic information about the functions we want to support
+	functions, err := config.ParseUserYAML(config_path)
 	if err != nil {
 		fmt.Println("Error parsing YAML:", err)
 		return
 	}
 
-	err = functions[0].InferArgs()
-	if err != nil {
-		fmt.Println("Error inferring arguments:", err)
-		return
+	// By default, we will automatically generate the 'args' field for the user's functions
+	// This will later be used to validate the arguments passed to the function
+	generator := config.ConfigGenerator{
+		ConfigPath: config_path,
+		Functions: functions,
 	}
+	err = generator.GenerateTypedYAML()
 
 	for _, function := range functions {
 		fmt.Println(function)
@@ -25,18 +31,5 @@ func main() {
 
 	fmt.Println("Functions parsed successfully")
 	fmt.Println("Simulating running hello_world_func")
-
-	arg_map := map[string]any{
-		"n": "hello",
-	}
-	function := functions[0] // hello_world_func
-	err = function.ValidateArgs(arg_map)
-	if err != nil {
-		fmt.Println("Error validating arguments:", err)
-		return
-	}
-	fmt.Println("Arguments validated successfully")
-	fmt.Println("Running function:", function.Name)
 	
-
 }

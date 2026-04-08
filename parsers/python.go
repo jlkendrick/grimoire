@@ -1,5 +1,6 @@
 package parsers
 
-func (f Function) InferArgs() error {
-	return nil
-}
+import (
+	tsPython "github.com/smacker/go-tree-sitter/python"
+)
+
