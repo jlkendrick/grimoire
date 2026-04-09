@@ -24,12 +24,12 @@ func ParseConfig(path string) (*types.Config, error) {
 		return nil, err
 	}
 
-	var user_config types.Config
-	if err := yaml.Unmarshal([]byte(yamlStr), &user_config); err != nil {
+	var config types.Config
+	if err := yaml.Unmarshal([]byte(yamlStr), &config); err != nil {
 		return nil, err
 	}
 
-	return &user_config, nil
+	return &config, nil
 }
 
 // Generate the typed YAML file, extracting the function signatures from the source code for validation

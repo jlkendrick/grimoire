@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 
+	core "github.com/jlkendrick/sigil/core"
 	types "github.com/jlkendrick/sigil/types"
 )
 
@@ -14,7 +15,7 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 		command := &cobra.Command{
 			Use: function.Name,
 			Run: func(cmd *cobra.Command, args []string) {
-				fmt.Println("Running function: ", function.Name)
+				core.ExecuteFunction(function, args)
 			},
 		}
 

@@ -5,14 +5,13 @@ import (
 	"context"
 
 	types "github.com/jlkendrick/sigil/types"
-	
 	sitter "github.com/smacker/go-tree-sitter"
+
 	"github.com/smacker/go-tree-sitter/python"
 )
 
 
 type PythonAnalyzer struct {}
-
 
 // Extract and parse the signature of a function into Args
 func (a *PythonAnalyzer) ExtractSignature(function types.Function) ([]types.Arg, error) {

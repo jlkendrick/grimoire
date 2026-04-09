@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"bytes"
 	"io"
 	"os"
+	"bytes"
 	"strings"
 	"testing"
 )
