@@ -10,9 +10,12 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init [config_path]",
 	Short: "Parses a config file and generates the sigil.yaml manifest",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		config_path := args[0]
+		config_path := "sigil.yaml"
+		if len(args) > 0 {
+			config_path = args[0]
+		}
 		raw_config, err := config.ParseConfig(config_path)
 		if err != nil {
 			fmt.Printf("Error parsing config file: %v\n", err)

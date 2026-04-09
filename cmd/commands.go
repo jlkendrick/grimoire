@@ -16,7 +16,7 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 		command := &cobra.Command{
 			Use: function.Name,
 			Run: func(cmd *cobra.Command, args []string) {
-				payload := buildPayload(function, cmd, args)
+				payload := buildPayload(function, cmd)
 
 				result, err := core.ExecuteFunction(function, payload)
 				if err != nil {
@@ -67,7 +67,7 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 	return commands, nil
 }
 
-func buildPayload(function types.Function, cmd *cobra.Command, args []string) map[string]interface{} {
+func buildPayload(function types.Function, cmd *cobra.Command) map[string]interface{} {
 	// Initialize the dynamic payload map
 	payload := make(map[string]interface{})
 

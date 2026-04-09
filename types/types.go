@@ -1,9 +1,11 @@
 package types
 
 import (
-	"os"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 
@@ -27,10 +29,30 @@ func (f Function) GenerateYAML() string {
 	return fmt.Sprintf("  - name: %s\n    file: %s\n    function: %s\n    args: %v\n", f.Name, f.TargetFile, f.TargetFunction, f.Args)
 }
 
+// ExpandUserPath replaces a leading "~" or "~/" with the current user's home
+// directory. Go does not expand shell tildes; paths like "~/foo" are literal.
+func ExpandUserPath(path string) (string, error) {
+	if path == "~" {
+		return os.UserHomeDir()
+	}
+	if strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, path[2:]), nil
+	}
+	return path, nil
+}
+
 func (f Function) LoadSourceCode() ([]byte, error) {
-	source_code, err := os.ReadFile(f.TargetFile)
+	p, err := ExpandUserPath(f.TargetFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error resolving path: %w", err)
+	}
+	source_code, err := os.ReadFile(p)
+	if err != nil {
+		return nil, fmt.Errorf("error loading source code: %v", err)
 	}
 	return source_code, nil
 }
