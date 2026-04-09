@@ -56,7 +56,7 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 				return nil, fmt.Errorf("unsupported type: %s", arg.Type)
 			}
 
-			if arg.Default != nil {
+			if arg.Default == nil {
 				command.MarkFlagRequired(arg.Name)
 			}
 		}
