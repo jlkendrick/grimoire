@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 	"fmt"
-	"strconv"
 	"strings"
 
 	types "github.com/jlkendrick/sigil/types"
@@ -13,12 +12,13 @@ import (
 )
 
 type ConfigGenerator struct {
-	ConfigPath string
-	Config 	   *types.Config
+	ConfigPath   string
+	Config 	     *types.Config
+	ManifestYAML string
 }
 
 // Parse the user's configuration file
-func ParseUserConfig(path string) (*types.Config, error) {
+func ParseConfig(path string) (*types.Config, error) {
 	yamlStr, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -29,41 +29,11 @@ func ParseUserConfig(path string) (*types.Config, error) {
 		return nil, err
 	}
 
-	// Cast the default values to the appropriate type
-	for i, function := range user_config.Functions {
-		for j, arg := range function.Args {
-			switch arg.Type {
-			case "string":
-				user_config.Functions[i].Args[j].Default = arg.Default.(string)
-			case "int":
-				int_default, err := strconv.Atoi(arg.Default.(string))
-				if err != nil {
-					return nil, fmt.Errorf("error converting default value to int: %v", err)
-				}
-				user_config.Functions[i].Args[j].Default = int_default
-			case "bool":
-				bool_default, err := strconv.ParseBool(arg.Default.(string))
-				if err != nil {
-					return nil, fmt.Errorf("error converting default value to bool: %v", err)
-				}
-				user_config.Functions[i].Args[j].Default = bool_default
-			case "float":
-				float_default, err := strconv.ParseFloat(arg.Default.(string), 64)
-				if err != nil {
-					return nil, fmt.Errorf("error converting default value to float: %v", err)
-				}
-				user_config.Functions[i].Args[j].Default = float_default
-			default:
-				return nil, fmt.Errorf("unsupported type: %s", arg.Type)
-			}
-		}
-	}
-
 	return &user_config, nil
 }
 
 // Generate the typed YAML file, extracting the function signatures from the source code for validation
-func (g *ConfigGenerator) GenerateTypedYAML() error {
+func (g *ConfigGenerator) GenerateManifestYAML() error {
 
 	// For each function in the configuration, generate the typed YAML
 	for i, function := range g.Config.Functions {
@@ -93,21 +63,36 @@ func (g *ConfigGenerator) GenerateTypedYAML() error {
 			return err
 		}
 
-		// Update the function with the extracted arguments
+		// Cast the default values to the appropriate type
+		for j := range args {
+			err := args[j].CastAndSetDefault()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Update the function with the extracted and casted arguments
 		g.Config.Functions[i].Args = args
 	}
 
 	// Marshal the config to YAML
-	config_yaml, err := yaml.Marshal(g.Config)
+	manifest_yaml, err := yaml.MarshalWithOptions(g.Config, 
+		yaml.Indent(2),
+		yaml.IndentSequence(true),
+	)
 	if err != nil {
 		return err
 	}
 
-	// Write the generated YAML to the file
-	err = os.WriteFile(g.ConfigPath, config_yaml, 0644)
-	if err != nil {
-		return err
-	}
+	g.ManifestYAML = string(manifest_yaml)
 
+	return nil
+}
+
+func (g *ConfigGenerator) WriteManifestYAML() error {
+	err := os.WriteFile(g.ConfigPath, []byte(g.ManifestYAML), 0644)
+	if err != nil {
+		return fmt.Errorf("error writing manifest YAML: %v", err)
+	}
 	return nil
 }

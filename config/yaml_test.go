@@ -26,7 +26,7 @@ func writeTempFile(t *testing.T, pattern, content string) (path string, cleanup 
 	return f.Name(), func() { os.Remove(f.Name()) }
 }
 
-func TestParseUserConfig(t *testing.T) {
+func TestParseConfig(t *testing.T) {
 	t.Run("valid config", func(t *testing.T) {
 		content := `functions:
 - name: greet
@@ -40,7 +40,7 @@ func TestParseUserConfig(t *testing.T) {
 		path, cleanup := writeTempFile(t, "test_config_*.yaml", content)
 		defer cleanup()
 
-		got, err := ParseUserConfig(path)
+		got, err := ParseConfig(path)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -64,7 +64,7 @@ func TestParseUserConfig(t *testing.T) {
 	})
 
 	t.Run("file not found", func(t *testing.T) {
-		_, err := ParseUserConfig("/tmp/nonexistent_janus_test_config.yaml")
+		_, err := ParseConfig("/tmp/nonexistent_janus_test_config.yaml")
 		if err == nil {
 			t.Error("expected error for missing file, got nil")
 		}
@@ -74,7 +74,7 @@ func TestParseUserConfig(t *testing.T) {
 		path, cleanup := writeTempFile(t, "test_config_*.yaml", ":\t: bad yaml\n{{{")
 		defer cleanup()
 
-		_, err := ParseUserConfig(path)
+		_, err := ParseConfig(path)
 		if err == nil {
 			t.Error("expected error for invalid YAML, got nil")
 		}
@@ -101,7 +101,7 @@ func TestGenerateTypedYAML(t *testing.T) {
 		}
 
 		g := &ConfigGenerator{ConfigPath: cfgPath, Config: cfg}
-		if err := g.GenerateTypedYAML(); err != nil {
+		if err := g.GenerateManifestYAML(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -149,7 +149,7 @@ func TestGenerateTypedYAML(t *testing.T) {
 		}
 
 		g := &ConfigGenerator{ConfigPath: cfgPath, Config: cfg}
-		if err := g.GenerateTypedYAML(); err != nil {
+		if err := g.GenerateManifestYAML(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -177,7 +177,7 @@ func TestGenerateTypedYAML(t *testing.T) {
 		}
 
 		g := &ConfigGenerator{ConfigPath: cfgPath, Config: cfg}
-		err := g.GenerateTypedYAML()
+		err := g.GenerateManifestYAML()
 		if err == nil {
 			t.Fatal("expected error for unsupported extension, got nil")
 		}
@@ -205,7 +205,7 @@ func TestGenerateTypedYAML(t *testing.T) {
 		}
 
 		g := &ConfigGenerator{ConfigPath: cfgPath, Config: cfg}
-		if err := g.GenerateTypedYAML(); err == nil {
+		if err := g.GenerateManifestYAML(); err == nil {
 			t.Error("expected error for missing function, got nil")
 		}
 	})
