@@ -6,9 +6,11 @@ import (
 	"strconv"
 )
 
+
 type Config struct {
 	Functions []Function `yaml:"functions"`
 }
+
 
 type Function struct {
 	Name 	 			   string `yaml:"name"`
@@ -16,8 +18,6 @@ type Function struct {
 	TargetFunction string `yaml:"function,omitempty"`
 	Args  		  	 []Arg  `yaml:"args,omitempty"`
 }
-
-
 
 func (f Function) String() string {
 	return fmt.Sprintf("Function{\n\tName: %s,\n\tTargetFile: %s,\n\tTargetFunction: %s,\n\tArgs: %v\n}", f.Name, f.TargetFile, f.TargetFunction, f.Args)

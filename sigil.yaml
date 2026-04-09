@@ -1,7 +1,7 @@
 functions:
 
   - name: hello_world_func
-    path: sample/hello_world_func.py
+    path: ~/Code/Projects/sigil/sample/hello_world_func.py
     function: hello_world
     args:
       - name: "n"

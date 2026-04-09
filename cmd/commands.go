@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"fmt"
 	"github.com/spf13/cobra"
 
@@ -15,7 +16,15 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 		command := &cobra.Command{
 			Use: function.Name,
 			Run: func(cmd *cobra.Command, args []string) {
-				core.ExecuteFunction(function, args)
+				payload := buildPayload(function, cmd, args)
+
+				result, err := core.ExecuteFunction(function, payload)
+				if err != nil {
+					fmt.Printf("Error executing function: %v\n", err)
+					os.Exit(1)
+				}
+
+				fmt.Println(string(result))
 			},
 		}
 
@@ -56,4 +65,28 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 	}
 
 	return commands, nil
+}
+
+func buildPayload(function types.Function, cmd *cobra.Command, args []string) map[string]interface{} {
+	// Initialize the dynamic payload map
+	payload := make(map[string]interface{})
+
+	// Loop through the YAML params for this specific function
+	for _, param := range function.Args {
+			// Extract from Cobra based on the YAML type
+			switch param.Type {
+			case "int":
+					// Cobra already validated this is an int, so we can safely extract it
+					val, _ := cmd.Flags().GetInt(param.Name)
+					payload[param.Name] = val
+			case "string":
+					val, _ := cmd.Flags().GetString(param.Name)
+					payload[param.Name] = val
+			case "bool":
+					val, _ := cmd.Flags().GetBool(param.Name)
+					payload[param.Name] = val
+			}
+	}
+
+	return payload
 }
