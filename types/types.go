@@ -36,7 +36,77 @@ func (f Function) LoadSourceCode() ([]byte, error) {
 type Arg struct {
 	Name 		string `yaml:"name"`
 	Type 		string `yaml:"type"`
-	Default any 	 `yaml:"default"`
+	Default any 	 `yaml:"default,omitempty"`
+}
+
+// UnmarshalYAML normalizes the concrete type of Default when YAML has already
+// parsed it into a scalar (e.g. uint8(3) vs int(3)). We intentionally do not
+// coerce string defaults like "1" into numeric types here, because user config
+// may represent defaults as strings prior to typed casting/validation.
+func (a *Arg) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type rawArg Arg
+	var tmp rawArg
+	if err := unmarshal(&tmp); err != nil {
+		return err
+	}
+
+	*a = Arg(tmp)
+
+	// Normalize only when YAML produced a non-string scalar.
+	switch a.Type {
+	case "int":
+		switch v := a.Default.(type) {
+		case int:
+			// ok
+		case int8:
+			a.Default = int(v)
+		case int16:
+			a.Default = int(v)
+		case int32:
+			a.Default = int(v)
+		case int64:
+			a.Default = int(v)
+		case uint:
+			a.Default = int(v)
+		case uint8:
+			a.Default = int(v)
+		case uint16:
+			a.Default = int(v)
+		case uint32:
+			a.Default = int(v)
+		case uint64:
+			a.Default = int(v)
+		}
+	case "float":
+		switch v := a.Default.(type) {
+		case float64:
+			// ok
+		case float32:
+			a.Default = float64(v)
+		case int:
+			a.Default = float64(v)
+		case int8:
+			a.Default = float64(v)
+		case int16:
+			a.Default = float64(v)
+		case int32:
+			a.Default = float64(v)
+		case int64:
+			a.Default = float64(v)
+		case uint:
+			a.Default = float64(v)
+		case uint8:
+			a.Default = float64(v)
+		case uint16:
+			a.Default = float64(v)
+		case uint32:
+			a.Default = float64(v)
+		case uint64:
+			a.Default = float64(v)
+		}
+	}
+
+	return nil
 }
 
 func (a Arg) String() string {
@@ -47,7 +117,7 @@ func (a *Arg) CastAndSetDefault() error {
 	// Cast the default values to the appropriate type
 	switch a.Type {
 
-	case "string":
+	case "string", "str":
 		a.Default = a.Default.(string)
 
 	case "int":

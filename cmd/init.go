@@ -20,13 +20,13 @@ var initCmd = &cobra.Command{
 		}
 
 		config_generator := config.ConfigGenerator{ConfigPath: config_path, Config: raw_config}
-		err = config_generator.GenerateManifestYAML()
+		manifest_yaml, err := config_generator.GenerateManifestYAML()
 		if err != nil {
 			fmt.Printf("Error generating manifest YAML: %v\n", err)
 			return
 		}
 		
-		err = config_generator.WriteManifestYAML()
+		err = config_generator.WriteManifestYAML(manifest_yaml)
 		if err != nil {
 			fmt.Printf("Error writing manifest YAML: %v\n", err)
 			return

@@ -33,7 +33,7 @@ func ParseConfig(path string) (*types.Config, error) {
 }
 
 // Generate the typed YAML file, extracting the function signatures from the source code for validation
-func (g *ConfigGenerator) GenerateManifestYAML() error {
+func (g *ConfigGenerator) GenerateManifestYAML() (string, error) {
 
 	// For each function in the configuration, generate the typed YAML
 	for i, function := range g.Config.Functions {
@@ -44,7 +44,7 @@ func (g *ConfigGenerator) GenerateManifestYAML() error {
 		var analyzer parsers.LanguageAnalyzer
 	
 		if !strings.Contains(function.TargetFile, ".") {
-			return fmt.Errorf("no file extension found: %s", function.TargetFile)
+			return "", fmt.Errorf("no file extension found: %s", function.TargetFile)
 		}
 
 		// Determine the file extension and use the appropriate analyzer
@@ -54,20 +54,22 @@ func (g *ConfigGenerator) GenerateManifestYAML() error {
 		case "py":
 			analyzer = &parsers.PythonAnalyzer{}
 		default:
-			return fmt.Errorf("unsupported file extension: %s", file_extension)
+			return "", fmt.Errorf("unsupported file extension: %s", file_extension)
 		}
 
 		// Extract the function signature from the source code
 		args, err := analyzer.ExtractSignature(function)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		// Cast the default values to the appropriate type
 		for j := range args {
-			err := args[j].CastAndSetDefault()
-			if err != nil {
-				return err
+			if args[j].Default != nil {
+				err := args[j].CastAndSetDefault()
+				if err != nil {
+					return "", err
+				}
 			}
 		}
 
@@ -81,16 +83,14 @@ func (g *ConfigGenerator) GenerateManifestYAML() error {
 		yaml.IndentSequence(true),
 	)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	g.ManifestYAML = string(manifest_yaml)
-
-	return nil
+	return string(manifest_yaml), nil
 }
 
-func (g *ConfigGenerator) WriteManifestYAML() error {
-	err := os.WriteFile(g.ConfigPath, []byte(g.ManifestYAML), 0644)
+func (g *ConfigGenerator) WriteManifestYAML(manifest_yaml string) error {
+	err := os.WriteFile(g.ConfigPath, []byte(manifest_yaml), 0644)
 	if err != nil {
 		return fmt.Errorf("error writing manifest YAML: %v", err)
 	}

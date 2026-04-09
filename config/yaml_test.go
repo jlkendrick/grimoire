@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -101,13 +102,18 @@ func TestGenerateTypedYAML(t *testing.T) {
 		}
 
 		g := &ConfigGenerator{ConfigPath: cfgPath, Config: cfg}
-		if err := g.GenerateManifestYAML(); err != nil {
+		manifest_yaml, err := g.GenerateManifestYAML()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		err = g.WriteManifestYAML(manifest_yaml)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
 		wantArgs := []types.Arg{
 			{Name: "name", Type: "str", Default: nil},
-			{Name: "times", Type: "int", Default: "3"},
+			{Name: "times", Type: "int", Default: 3},
 		}
 
 		// Verify in-memory update
@@ -125,6 +131,8 @@ func TestGenerateTypedYAML(t *testing.T) {
 		if err := yaml.Unmarshal(written, &roundTripped); err != nil {
 			t.Fatalf("unmarshaling written config: %v", err)
 		}
+
+		fmt.Println("roundTripped", roundTripped.Functions[0].Args)
 		if !reflect.DeepEqual(roundTripped.Functions[0].Args, wantArgs) {
 			t.Errorf("round-trip args mismatch\n  got:  %#v\n  want: %#v",
 				roundTripped.Functions[0].Args, wantArgs)
@@ -149,7 +157,13 @@ func TestGenerateTypedYAML(t *testing.T) {
 		}
 
 		g := &ConfigGenerator{ConfigPath: cfgPath, Config: cfg}
-		if err := g.GenerateManifestYAML(); err != nil {
+		manifest_yaml, err := g.GenerateManifestYAML()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		err = g.WriteManifestYAML(manifest_yaml)
+		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -177,7 +191,7 @@ func TestGenerateTypedYAML(t *testing.T) {
 		}
 
 		g := &ConfigGenerator{ConfigPath: cfgPath, Config: cfg}
-		err := g.GenerateManifestYAML()
+		_, err := g.GenerateManifestYAML()
 		if err == nil {
 			t.Fatal("expected error for unsupported extension, got nil")
 		}
@@ -205,7 +219,8 @@ func TestGenerateTypedYAML(t *testing.T) {
 		}
 
 		g := &ConfigGenerator{ConfigPath: cfgPath, Config: cfg}
-		if err := g.GenerateManifestYAML(); err == nil {
+		_, err := g.GenerateManifestYAML()
+		if err == nil {
 			t.Error("expected error for missing function, got nil")
 		}
 	})
