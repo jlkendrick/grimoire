@@ -35,9 +35,25 @@ if result is not None:
 `, target_dir, module, function.TargetFunction)
 
   // Return the binary and the flags to execute the string
-  return "python", []string{"-c", inlineScript}, nil
+	p, err := a.GetInterpreter(function)
+	if err != nil {
+		return "", nil, err
+	}
+  return p, []string{"-c", inlineScript}, nil
 }
 
 func (a *PythonAdapter) FormatError(err error) error {
 	return fmt.Errorf("python runtime error: %v", err)
+}
+
+func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) {
+	if function.Interpreter == "" {
+		return "python", nil
+	}
+	
+	p, err := types.ExpandUserPath(function.Interpreter)
+	if err != nil {
+		return "", err
+	}
+	return p, nil
 }

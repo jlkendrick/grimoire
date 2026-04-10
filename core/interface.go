@@ -15,6 +15,7 @@ import (
 type RuntimeAdapter interface {
 	GenerateCommand(function types.Function) (string, []string, error)
 	FormatError(err error) error
+	GetInterpreter(function types.Function) (string, error)
 }
 
 

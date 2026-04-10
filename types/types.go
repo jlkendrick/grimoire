@@ -3,9 +3,9 @@ package types
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
+	"path/filepath"
 )
 
 
@@ -19,14 +19,15 @@ type Function struct {
 	TargetFile 	   string `yaml:"path"`
 	TargetFunction string `yaml:"function,omitempty"`
 	Args  		  	 []Arg  `yaml:"args,omitempty"`
+	Interpreter 	 string `yaml:"interpreter,omitempty"`
 }
 
 func (f Function) String() string {
-	return fmt.Sprintf("Function{\n\tName: %s,\n\tTargetFile: %s,\n\tTargetFunction: %s,\n\tArgs: %v\n}", f.Name, f.TargetFile, f.TargetFunction, f.Args)
+	return fmt.Sprintf("Function{\n\tName: %s,\n\tTargetFile: %s,\n\tTargetFunction: %s,\n\tArgs: %v,\n\tInterpreter: %s\n}", f.Name, f.TargetFile, f.TargetFunction, f.Args, f.Interpreter)
 }
 
 func (f Function) GenerateYAML() string {
-	return fmt.Sprintf("  - name: %s\n    file: %s\n    function: %s\n    args: %v\n", f.Name, f.TargetFile, f.TargetFunction, f.Args)
+	return fmt.Sprintf("  - name: %s\n    file: %s\n    function: %s\n    args: %v\n    interpreter: %s\n", f.Name, f.TargetFile, f.TargetFunction, f.Args, f.Interpreter)
 }
 
 // ExpandUserPath replaces a leading "~" or "~/" with the current user's home

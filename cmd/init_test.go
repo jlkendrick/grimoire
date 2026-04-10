@@ -86,13 +86,14 @@ func TestInitCmd(t *testing.T) {
 		}
 	})
 
-	t.Run("requires exactly one argument", func(t *testing.T) {
-		rootCmd.SetArgs([]string{"init"})
-		err := rootCmd.Execute()
-		if err == nil {
-			t.Fatal("expected error for zero args, got nil")
-		}
-	})
+	// Functionality updated: now we allow zero args and have a default config file path
+	// t.Run("requires exactly one argument", func(t *testing.T) {
+	// 	rootCmd.SetArgs([]string{"init"})
+	// 	err := rootCmd.Execute()
+	// 	if err == nil {
+	// 		t.Fatal("expected error for zero args, got nil")
+	// 	}
+	// })
 
 	t.Run("prints error for unsupported file extension", func(t *testing.T) {
 		rbPath, rbCleanup := writeTempInitFile(t, "test_*.rb", "# ruby\n")

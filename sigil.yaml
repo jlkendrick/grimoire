@@ -6,5 +6,10 @@ functions:
       - name: "n"
         type: int
         default: 1
-  - name: hello_world_script
-    path: sample/hello_world_script.py
+  - name: rich_panel
+    path: ~/Code/Projects/sigil/sample/external_package.py
+    function: print_rich_panel
+    args:
+      - name: title
+        type: str
+    interpreter: ~/.pyenv/versions/3.12.4/bin/python3
