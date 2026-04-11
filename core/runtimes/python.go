@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/pelletier/go-toml/v2"
+
 	types "github.com/jlkendrick/sigil/types"
 	utils "github.com/jlkendrick/sigil/utils"
 )
@@ -132,6 +134,12 @@ func findProjectRoot(start_dir string) (string, string, string, bool) {
 	return new_venvPath, new_pyProjectPath, new_requirementsPath, true
 }
 
+type PyProject struct {
+	Project struct {
+		Dependencies []string `toml:"dependencies"`
+	} `toml:"project"`
+}
+
 func buildNewEnvironment(dependency_file string, dependency_type string) (string, error) {
 
 	run_venv_cmd := func(venv_path string) error {
@@ -143,7 +151,7 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 		return nil
 	}
 
-	// Create the venv (if it doesn't exist)
+	// Hash the dependency file and the content of the file
 	file_hash, content_hash, err := utils.HashFilePathAndContent(dependency_file)
 	if err != nil {
 		return "", err
@@ -181,6 +189,9 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 					if err := run_venv_cmd(venv_path); err != nil {
 							return "", err
 					}
+			} else {
+				// Hash matches, venv is up-to-date, skip reinstall
+				return filepath.Join(venv_path, "bin", "python"), nil
 			}
 		}
 	}
@@ -189,19 +200,39 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 
 	// Install the dependencies into the venv
 	var install_cmd *exec.Cmd
-	project_root := filepath.Dir(dependency_file)
 	switch dependency_type {
 	case "pyproject.toml":
-		install_cmd = exec.Command(filepath.Join(venv_path, "bin", "pip"), "install", ".")
-		install_cmd.Dir = project_root
+		file_bytes, err := os.ReadFile(dependency_file)
+		if err != nil {
+			return "", fmt.Errorf("error reading pyproject.toml: %v", err)
+		}
+
+		// Unmarshal the pyproject.toml file into a PyProject struct
+		var pyproject PyProject
+		if err := toml.Unmarshal(file_bytes, &pyproject); err != nil {
+			return "", fmt.Errorf("error unmarshalling pyproject.toml: %v", err)
+		}
+		dependencies := pyproject.Project.Dependencies
+		
+		// If there are no dependencies, then skip to final return
+		if len(dependencies) > 0 {
+			args := append([]string{"install"}, dependencies...)
+			install_cmd = exec.Command(filepath.Join(venv_path, "bin", "pip"), args...)
+		}
+
 	case "requirements.txt":
 		install_cmd = exec.Command(filepath.Join(venv_path, "bin", "pip"), "install", "-r", dependency_file)
+
 	default:
 		return "", fmt.Errorf("unsupported dependency type: %s", dependency_type)
 	}
-	if err := install_cmd.Run(); err != nil {
-		os.RemoveAll(venv_path)
-		return "", fmt.Errorf("error installing dependencies: %v", err)
+
+	// Install the dependencies into the venv
+	if install_cmd != nil {
+		if err := install_cmd.Run(); err != nil {
+			os.RemoveAll(venv_path)
+			return "", fmt.Errorf("error installing dependencies: %v", err)
+		}
 	}
 
 	// If we succeeded, write the content hash to the venv_path/.sigil_req_hash file. This is our certificate of success.

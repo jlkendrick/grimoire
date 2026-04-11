@@ -1,9 +1,10 @@
 package types
 
 import (
-	"fmt"
 	"os"
+	"fmt"
 	"strconv"
+
 	utils "github.com/jlkendrick/sigil/utils"
 )
 

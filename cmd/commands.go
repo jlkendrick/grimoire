@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"fmt"
+	// "time"
 	"github.com/spf13/cobra"
 
 	core "github.com/jlkendrick/sigil/core"
@@ -16,6 +17,7 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 		command := &cobra.Command{
 			Use: function.Name,
 			Run: func(cmd *cobra.Command, args []string) {
+				// start_time := time.Now()
 				payload := buildPayload(function, cmd)
 
 				result, err := core.ExecuteFunction(function, payload)
@@ -23,6 +25,10 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 					fmt.Printf("Error executing function: %v\n", err)
 					os.Exit(1)
 				}
+
+				// end_time := time.Now()
+				// duration := end_time.Sub(start_time)
+				// fmt.Printf("Function %s executed in %v\n", function.Name, duration)
 
 				fmt.Println(string(result))
 			},
