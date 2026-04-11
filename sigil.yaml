@@ -1,14 +1,21 @@
 functions:
-  - name: hello_world_func
-    path: ~/Code/Projects/sigil/sample/python/hello_world_func.py
+  - name: hello_world
+    path: ~/Code/Projects/sigil/sample/python/hello_world.py
     function: hello_world
     args:
       - name: "n"
         type: int
         default: 1
   - name: rich_panel
-    path: ~/Code/Projects/sigil/sample/python/external_package.py
+    path: ~/Code/Projects/sigil/sample/python/requirements/rich_greeting.py
     function: print_rich_panel
     args:
       - name: title
         type: str
+  - name: joke
+    path: ~/Code/Projects/sigil/sample/python/pyproject/joke.py
+    function: tell_random_joke
+    args:
+      - name: message
+        type: str
+        default: "Tell me a joke"
