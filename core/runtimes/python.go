@@ -66,15 +66,17 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 		return "", err
 	}
 	start_dir := filepath.Dir(expanded_target_file)
-	venvPath, pyProjectPath, requirementsPath, err := findProjectRoot(start_dir)
-	if err != nil {
-		return "", err
+	venvPath, pyProjectPath, requirementsPath, found := findProjectRoot(start_dir)
+	// Option 5: No project root found, use the system interpreter
+	if !found {
+		return "python", nil
 	}
+	// Option 3: Use the virtual environment
 	if venvPath != "" {
 		return filepath.Join(venvPath, "bin", "python"), nil
 	}
 	
-	// Option 3: Build new virtual environment from pyproject.toml or requirements.txt
+	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
 	if pyProjectPath != "" {
 		interpreter, err := buildNewEnvironment(pyProjectPath, "pyproject.toml")
 		if err != nil {
@@ -89,17 +91,16 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 		return interpreter, nil
 	}
 
-	return "", fmt.Errorf("interpreter not found")
+	return "should not happen", fmt.Errorf("should not happen")
 }
 
-func findProjectRoot(start_dir string) (string, string, string, error) {
+func findProjectRoot(start_dir string) (string, string, string, bool) {
 
 	var venvPath string
 	var pyProjectPath string
 	var requirementsPath string
 
 	check_venvPath := filepath.Join(start_dir, ".venv")
-	_, err := os.Stat(check_venvPath)
 	if _, err := os.Stat(check_venvPath); err == nil {
 		venvPath = check_venvPath
 	}
@@ -115,20 +116,20 @@ func findProjectRoot(start_dir string) (string, string, string, error) {
 	}
 
 	if venvPath != "" || pyProjectPath != "" || requirementsPath != "" {
-		return venvPath, pyProjectPath, requirementsPath, nil
+		return venvPath, pyProjectPath, requirementsPath, true
 	}
 
 	parent_dir := filepath.Dir(start_dir)
 	if parent_dir == start_dir {
-		return "", "", "", fmt.Errorf("project root not found")
+		return "", "", "", false
 	}
 
 	// Recursively search the parent directory
-	new_venvPath, new_pyProjectPath, new_requirementsPath, err := findProjectRoot(parent_dir)
-	if err != nil {
-		return "", "", "", err
+	new_venvPath, new_pyProjectPath, new_requirementsPath, found := findProjectRoot(parent_dir)
+	if !found {
+		return "", "", "", false
 	}
-	return new_venvPath, new_pyProjectPath, new_requirementsPath, nil
+	return new_venvPath, new_pyProjectPath, new_requirementsPath, true
 }
 
 func buildNewEnvironment(dependency_file string, dependency_type string) (string, error) {
@@ -147,7 +148,14 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 	if err != nil {
 		return "", err
 	}
-	venv_path := filepath.Join(".sigil", "envs", file_hash)
+	// For development, put the .sigil dir in the our local sigil repo for easy access, will change later to a more permanent location
+	temp_sigil_dir, err := utils.ExpandUserPath("~/Code/Projects/sigil/.sigil")
+	if err != nil {
+		return "", err
+	}
+	venv_path := filepath.Join(temp_sigil_dir, "envs", file_hash)
+
+	// If the venv doesn't exist, create it
 	if _, err := os.Stat(venv_path); os.IsNotExist(err) {
 		if err := run_venv_cmd(venv_path); err != nil {
 			return "", err
@@ -157,20 +165,24 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 		// Content hash is in venv_path/.sigil_req_hash
 		content_hash_file := filepath.Join(venv_path, ".sigil_req_hash")
 		if _, err := os.Stat(content_hash_file); os.IsNotExist(err) {
-			return "", fmt.Errorf("content hash file not found: %v", err)
-		}
-		content_hash_file_content, err := os.ReadFile(content_hash_file)
-		if err != nil {
-			return "", fmt.Errorf("error reading content hash file: %v", err)
-		}
-
-		// If the content hash is different, create a new venv
-		if string(content_hash_file_content) != content_hash {
+			// Hash file missing, treat as stale
+			os.RemoveAll(venv_path)
 			if err := run_venv_cmd(venv_path); err != nil {
-				return "", err
+					return "", err
+			}
+		} else {
+			// Hash file exists, check if it's stale
+			content_hash_file_content, err := os.ReadFile(content_hash_file)
+			if err != nil {
+					return "", fmt.Errorf("error reading content hash file: %v", err)
+			}
+			if string(content_hash_file_content) != content_hash {
+					os.RemoveAll(venv_path)
+					if err := run_venv_cmd(venv_path); err != nil {
+							return "", err
+					}
 			}
 		}
-		// Otherwise, reuse the existing venv
 	}
 
 	// venv_path is now the path to the venv
