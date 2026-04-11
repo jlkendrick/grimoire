@@ -1,6 +1,7 @@
 package core
 
 import (
+	"os"
 	"fmt"
 	"strings"
 	"path/filepath"
@@ -47,13 +48,77 @@ func (a *PythonAdapter) FormatError(err error) error {
 }
 
 func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) {
-	if function.Interpreter == "" {
-		return "python", nil
+
+	// Option 1: Use the interpreter specified in the YAML
+	if function.Interpreter != "" {
+		p, err := types.ExpandUserPath(function.Interpreter)
+		if err != nil {
+			return "", err
+		}
+		return p, nil
 	}
-	
-	p, err := types.ExpandUserPath(function.Interpreter)
+
+	// Option 2: Search for virtual environment (and requirements.txt for next option)
+	expanded_target_file, err := types.ExpandUserPath(function.TargetFile)
 	if err != nil {
 		return "", err
 	}
-	return p, nil
+	start_dir := filepath.Dir(expanded_target_file)
+	venvPath, pyProjectPath, requirementsPath, err := findProjectRoot(start_dir)
+	if err != nil {
+		return "", err
+	}
+	if venvPath != "" {
+		return filepath.Join(venvPath, "bin", "python"), nil
+	}
+	
+	// Option 3: Build new virtual environment from pyproject.toml or requirements.txt [TODO]
+	if pyProjectPath != "" {
+		return "", nil
+	}
+
+	if requirementsPath != "" {
+		return "", nil
+	}
+
+	return "", fmt.Errorf("interpreter not found")
+}
+
+func findProjectRoot(start_dir string) (string, string, string, error) {
+
+	var venvPath string
+	var pyProjectPath string
+	var requirementsPath string
+
+	check_venvPath := filepath.Join(start_dir, ".venv")
+	_, err := os.Stat(check_venvPath)
+	if _, err := os.Stat(check_venvPath); err == nil {
+		venvPath = check_venvPath
+	}
+
+	check_pyProjectPath := filepath.Join(start_dir, "pyproject.toml")
+	if _, err := os.Stat(check_pyProjectPath); err == nil {
+		pyProjectPath = check_pyProjectPath
+	}
+
+	check_requirementsPath := filepath.Join(start_dir, "requirements.txt")
+	if _, err := os.Stat(check_requirementsPath); err == nil {
+		requirementsPath = check_requirementsPath
+	}
+
+	if venvPath != "" || pyProjectPath != "" || requirementsPath != "" {
+		return venvPath, pyProjectPath, requirementsPath, nil
+	}
+
+	parent_dir := filepath.Dir(start_dir)
+	if parent_dir == start_dir {
+		return "", "", "", fmt.Errorf("project root not found")
+	}
+
+	// Recursively search the parent directory
+	new_venvPath, new_pyProjectPath, new_requirementsPath, err := findProjectRoot(parent_dir)
+	if err != nil {
+		return "", "", "", err
+	}
+	return new_venvPath, new_pyProjectPath, new_requirementsPath, nil
 }

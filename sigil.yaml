@@ -1,15 +1,14 @@
 functions:
   - name: hello_world_func
-    path: ~/Code/Projects/sigil/sample/hello_world_func.py
+    path: ~/Code/Projects/sigil/sample/python/hello_world_func.py
     function: hello_world
     args:
       - name: "n"
         type: int
         default: 1
   - name: rich_panel
-    path: ~/Code/Projects/sigil/sample/external_package.py
+    path: ~/Code/Projects/sigil/sample/python/external_package.py
     function: print_rich_panel
     args:
       - name: title
         type: str
-    interpreter: ~/.pyenv/versions/3.12.4/bin/python3
