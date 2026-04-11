@@ -1,2 +1,4 @@
 sigil
+.sigil
 sample/python/.venv
+**/__pycache__/**

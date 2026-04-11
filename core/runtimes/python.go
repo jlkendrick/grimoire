@@ -1,12 +1,14 @@
-package core
+package runtimes
 
 import (
 	"os"
 	"fmt"
 	"strings"
+	"os/exec"
 	"path/filepath"
 
 	types "github.com/jlkendrick/sigil/types"
+	utils "github.com/jlkendrick/sigil/utils"
 )
 
 type PythonAdapter struct {}
@@ -51,7 +53,7 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 
 	// Option 1: Use the interpreter specified in the YAML
 	if function.Interpreter != "" {
-		p, err := types.ExpandUserPath(function.Interpreter)
+		p, err := utils.ExpandUserPath(function.Interpreter)
 		if err != nil {
 			return "", err
 		}
@@ -59,7 +61,7 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 	}
 
 	// Option 2: Search for virtual environment (and requirements.txt for next option)
-	expanded_target_file, err := types.ExpandUserPath(function.TargetFile)
+	expanded_target_file, err := utils.ExpandUserPath(function.TargetFile)
 	if err != nil {
 		return "", err
 	}
@@ -72,13 +74,19 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 		return filepath.Join(venvPath, "bin", "python"), nil
 	}
 	
-	// Option 3: Build new virtual environment from pyproject.toml or requirements.txt [TODO]
+	// Option 3: Build new virtual environment from pyproject.toml or requirements.txt
 	if pyProjectPath != "" {
-		return "", nil
-	}
-
-	if requirementsPath != "" {
-		return "", nil
+		interpreter, err := buildNewEnvironment(pyProjectPath, "pyproject.toml")
+		if err != nil {
+			return "", err
+		}
+		return interpreter, nil
+	} else if requirementsPath != "" {
+		interpreter, err := buildNewEnvironment(requirementsPath, "requirements.txt")
+		if err != nil {
+			return "", err
+		}
+		return interpreter, nil
 	}
 
 	return "", fmt.Errorf("interpreter not found")
@@ -121,4 +129,75 @@ func findProjectRoot(start_dir string) (string, string, string, error) {
 		return "", "", "", err
 	}
 	return new_venvPath, new_pyProjectPath, new_requirementsPath, nil
+}
+
+func buildNewEnvironment(dependency_file string, dependency_type string) (string, error) {
+
+	run_venv_cmd := func(venv_path string) error {
+		create_cmd := exec.Command("python", "-m", "venv", venv_path)
+		err := create_cmd.Run()
+		if err != nil {
+			return fmt.Errorf("error creating venv: %v", err)
+		}
+		return nil
+	}
+
+	// Create the venv (if it doesn't exist)
+	file_hash, content_hash, err := utils.HashFilePathAndContent(dependency_file)
+	if err != nil {
+		return "", err
+	}
+	venv_path := filepath.Join(".sigil", "envs", file_hash)
+	if _, err := os.Stat(venv_path); os.IsNotExist(err) {
+		if err := run_venv_cmd(venv_path); err != nil {
+			return "", err
+		}
+	} else {
+		// Check the content hash to see if the venv needs to be updated
+		// Content hash is in venv_path/.sigil_req_hash
+		content_hash_file := filepath.Join(venv_path, ".sigil_req_hash")
+		if _, err := os.Stat(content_hash_file); os.IsNotExist(err) {
+			return "", fmt.Errorf("content hash file not found: %v", err)
+		}
+		content_hash_file_content, err := os.ReadFile(content_hash_file)
+		if err != nil {
+			return "", fmt.Errorf("error reading content hash file: %v", err)
+		}
+
+		// If the content hash is different, create a new venv
+		if string(content_hash_file_content) != content_hash {
+			if err := run_venv_cmd(venv_path); err != nil {
+				return "", err
+			}
+		}
+		// Otherwise, reuse the existing venv
+	}
+
+	// venv_path is now the path to the venv
+
+	// Install the dependencies into the venv
+	var install_cmd *exec.Cmd
+	project_root := filepath.Dir(dependency_file)
+	switch dependency_type {
+	case "pyproject.toml":
+		install_cmd = exec.Command(filepath.Join(venv_path, "bin", "pip"), "install", ".")
+		install_cmd.Dir = project_root
+	case "requirements.txt":
+		install_cmd = exec.Command(filepath.Join(venv_path, "bin", "pip"), "install", "-r", dependency_file)
+	default:
+		return "", fmt.Errorf("unsupported dependency type: %s", dependency_type)
+	}
+	if err := install_cmd.Run(); err != nil {
+		os.RemoveAll(venv_path)
+		return "", fmt.Errorf("error installing dependencies: %v", err)
+	}
+
+	// If we succeeded, write the content hash to the venv_path/.sigil_req_hash file. This is our certificate of success.
+	content_hash_file := filepath.Join(venv_path, ".sigil_req_hash")
+	if err := os.WriteFile(content_hash_file, []byte(content_hash), 0644); err != nil {
+		os.RemoveAll(venv_path)
+		return "", fmt.Errorf("error writing content hash file: %v", err)
+	}
+
+	return filepath.Join(venv_path, "bin", "python"), nil
 }
