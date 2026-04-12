@@ -1,36 +1,53 @@
 package cmd
 
 import (
-	"os"
 	"fmt"
+	"os"
 	"path"
 
+	types "github.com/jlkendrick/grimoire/types"
+
+	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 )
 
 func makeBlankGrimYAMLFile(directory string, include_boilerplate bool) error {
-	var yaml_content string
+	cfg := types.Config{}
+	opts := []yaml.EncodeOption{yaml.Indent(2), yaml.IndentSequence(true)}
+
 	if include_boilerplate {
-		yaml_content = `functions:
-			- name: # CLI command associated with running the function 
-			  path: # Path to the file containing the function
-			  function: # Name of the function to run
-			  args:
-				- name: # Name of the argument
-				  type: # Type of the argument
-				  default: # Default value of the argument (optional)
-		`
-	} else {
-		yaml_content = "functions:\n"
+		cfg.Functions = []types.Function{
+			{
+				Name:           "hello_world",
+				TargetFile:     "path/to/hello_world.py",
+				TargetFunction: "hello_world",
+				Args: []types.Arg{
+					{Name: "n", Type: "int", Default: 1},
+				},
+			},
+		}
+		opts = append(opts, yaml.WithComment(yaml.CommentMap{
+			"$.functions[0].name":     []*yaml.Comment{yaml.LineComment("CLI command associated with running the function")},
+			"$.functions[0].path":     []*yaml.Comment{yaml.LineComment("Path to the file containing the function")},
+			"$.functions[0].function": []*yaml.Comment{yaml.LineComment("Name of the function to run")},
+			"$.functions[0].args[0].name":     []*yaml.Comment{yaml.LineComment("Name of the argument")},
+			"$.functions[0].args[0].type":     []*yaml.Comment{yaml.LineComment("Type of the argument")},
+			"$.functions[0].args[0].default": []*yaml.Comment{yaml.LineComment("Default value of the argument (optional)")},
+		}))
 	}
-	err := os.WriteFile(path.Join(directory, "grim.yaml"), []byte(yaml_content), 0644)
+
+	out, err := yaml.MarshalWithOptions(&cfg, opts...)
+	if err != nil {
+		return fmt.Errorf("error marshaling grim.yaml: %w", err)
+	}
+	err = os.WriteFile(path.Join(directory, "grim.yaml"), out, 0644)
 	if err != nil {
 		return fmt.Errorf("error writing boilerplate grim.yaml file: %v", err)
 	}
 	return nil
 }
 
-var newInitCmd = &cobra.Command{
+var init_cmd = &cobra.Command{
 	Use:   "init",
 	Short: "Create a boilerplate grim.yaml file",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -50,5 +67,5 @@ var newInitCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(newInitCmd)
+	rootCmd.AddCommand(init_cmd)
 }

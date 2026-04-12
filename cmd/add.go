@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -17,6 +18,10 @@ var add_cmd = &cobra.Command{
 	Short: "Add a function to the grim.yaml file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		if !strings.Contains(args[0], ":") {
+			fmt.Printf("Error: path_to_function:function_name format is required\n")
+			return
+		}
 		parts := strings.Split(args[0], ":")
 		path_to_function := parts[0]
 		function_name := parts[1]
@@ -69,7 +74,12 @@ var add_cmd = &cobra.Command{
 		}
 
 		// Make the path_to_function relative to the config file that we found
-		path_to_function, err = utils.MakeRelativePath(path_to_function, config_path)
+		absolute_path_to_function, err := filepath.Abs(path_to_function)
+		if err != nil {
+			fmt.Printf("Error getting absolute path to function: %v\n", err)
+			return
+		}
+		path_to_function, err = utils.MakeRelativePath(absolute_path_to_function, filepath.Dir(config_path))
 		if err != nil {
 			fmt.Printf("Error making path to function relative: %v\n", err)
 			return
