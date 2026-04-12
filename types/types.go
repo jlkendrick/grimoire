@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	utils "github.com/jlkendrick/sigil/utils"
+	utils "github.com/jlkendrick/grimoire/utils"
 )
 
 

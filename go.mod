@@ -1,4 +1,4 @@
-module github.com/jlkendrick/sigil
+module github.com/jlkendrick/grimoire
 
 go 1.23.0
 

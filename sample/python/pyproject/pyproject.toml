@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sigil-test-project"
 version = "0.1.0"
-description = "A dummy project to test Sigil environment provisioning"
+description = "A dummy project to test Grimoire environment provisioning"
 
 dependencies = [
     "requests>=2.31.0",

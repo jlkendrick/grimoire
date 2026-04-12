@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	types "github.com/jlkendrick/sigil/types"
-	parsers "github.com/jlkendrick/sigil/parsers"
+	types "github.com/jlkendrick/grimoire/types"
+	parsers "github.com/jlkendrick/grimoire/parsers"
 
 	"github.com/goccy/go-yaml"
 )

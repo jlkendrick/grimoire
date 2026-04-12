@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	types "github.com/jlkendrick/sigil/types"
+	types "github.com/jlkendrick/grimoire/types"
 )
 
 // writeTempPyFile creates a temporary Python file with the given source and

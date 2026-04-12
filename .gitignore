@@ -1,5 +1,5 @@
-sigil
-.sigil
+grimoire
+.grimoire
 sample/python/.venv
 **/__pycache__/**
 *.egg-info/

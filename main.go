@@ -1,7 +1,7 @@
 package main
 
 import (
-	cmd "github.com/jlkendrick/sigil/cmd"
+	cmd "github.com/jlkendrick/grimoire/cmd"
 )
 
 func main() {

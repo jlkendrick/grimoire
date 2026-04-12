@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jlkendrick/sigil/config"
+	"github.com/jlkendrick/grimoire/config"
 
 	"github.com/spf13/cobra"
 )

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	types "github.com/jlkendrick/sigil/types"
+	types "github.com/jlkendrick/grimoire/types"
 )
 
 func writeTempPyFile(t *testing.T, src string) (path string, cleanup func()) {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	types "github.com/jlkendrick/sigil/types"
-	utils "github.com/jlkendrick/sigil/utils"
+	types "github.com/jlkendrick/grimoire/types"
+	utils "github.com/jlkendrick/grimoire/utils"
 )
 
 type PythonAdapter struct {}

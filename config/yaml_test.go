@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	types "github.com/jlkendrick/sigil/types"
+	types "github.com/jlkendrick/grimoire/types"
 
 	"github.com/goccy/go-yaml"
 )

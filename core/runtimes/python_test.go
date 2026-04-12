@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	types "github.com/jlkendrick/sigil/types"
+	types "github.com/jlkendrick/grimoire/types"
 )
 
 // requirePython skips the test if the "python" binary is not on PATH.

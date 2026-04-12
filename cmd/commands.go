@@ -6,8 +6,8 @@ import (
 	// "time"
 	"github.com/spf13/cobra"
 
-	core "github.com/jlkendrick/sigil/core"
-	types "github.com/jlkendrick/sigil/types"
+	core "github.com/jlkendrick/grimoire/core"
+	types "github.com/jlkendrick/grimoire/types"
 )
 
 func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {

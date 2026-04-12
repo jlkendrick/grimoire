@@ -8,8 +8,8 @@ import (
 	"strings"
 	"encoding/json"
 
-	types "github.com/jlkendrick/sigil/types"
-	runtimes "github.com/jlkendrick/sigil/core/runtimes"
+	types "github.com/jlkendrick/grimoire/types"
+	runtimes "github.com/jlkendrick/grimoire/core/runtimes"
 )
 
 type RuntimeAdapter interface {

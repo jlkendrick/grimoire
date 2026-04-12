@@ -1,44 +1,41 @@
 package cmd
 
 import (
+	"os"
 	"fmt"
-	"github.com/spf13/cobra"
+	"path"
 
-	config "github.com/jlkendrick/sigil/config"
+	"github.com/spf13/cobra"
 )
 
-var initCmd = &cobra.Command{
-	Use:   "init [config_path]",
-	Short: "Parses a config file and generates the sigil.yaml manifest",
-	Args:  cobra.MaximumNArgs(1),
+var newInitCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Create a boilerplate grim.yaml file",
 	Run: func(cmd *cobra.Command, args []string) {
-		config_path := "sigil.yaml"
-		if len(args) > 0 {
-			config_path = args[0]
-		}
-		raw_config, err := config.ParseConfig(config_path)
+		// Generate a boilerplate grim.yaml file in the current directory
+		boilerplate_yaml := `functions:
+		- name: # CLI command associated with running the function 
+		  path: # Path to the file containing the function
+		  function: # Name of the function to run
+		  args:
+			- name: # Name of the argument
+			  type: # Type of the argument
+			  default: # Default value of the argument (optional)
+		`
+		err := os.WriteFile("grim.yaml", []byte(boilerplate_yaml), 0644)
 		if err != nil {
-			fmt.Printf("Error parsing config file: %v\n", err)
+			fmt.Printf("Error writing boilerplate grim.yaml file: %v\n", err)
 			return
 		}
-
-		config_generator := config.ConfigGenerator{ConfigPath: config_path, Config: raw_config}
-		manifest_yaml, err := config_generator.GenerateManifestYAML()
+		current_dir, err := os.Getwd()
 		if err != nil {
-			fmt.Printf("Error generating manifest YAML: %v\n", err)
+			fmt.Printf("Error getting current directory: %v\n", err)
 			return
 		}
-		
-		err = config_generator.WriteManifestYAML(manifest_yaml)
-		if err != nil {
-			fmt.Printf("Error writing manifest YAML: %v\n", err)
-			return
-		}
-
-		fmt.Printf("Manifest YAML generated successfully: %s\n", config_generator.ConfigPath)
+		fmt.Printf("Boilerplate grim.yaml file generated at %s\n", path.Join(current_dir, "grim.yaml"))
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(newInitCmd)
 }

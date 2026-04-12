@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"context"
 
-	types "github.com/jlkendrick/sigil/types"
+	types "github.com/jlkendrick/grimoire/types"
 	sitter "github.com/smacker/go-tree-sitter"
 
 	"github.com/smacker/go-tree-sitter/python"

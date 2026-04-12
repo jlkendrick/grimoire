@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	types "github.com/jlkendrick/sigil/types"
+	types "github.com/jlkendrick/grimoire/types"
 )
 
 func TestGenerateCommands(t *testing.T) {
