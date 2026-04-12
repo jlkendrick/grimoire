@@ -194,3 +194,149 @@ func TestHashFilePathAndContent(t *testing.T) {
 		}
 	})
 }
+
+func TestUpwardsTraversalForTargets(t *testing.T) {
+	t.Run("found in start dir", func(t *testing.T) {
+		dir := t.TempDir()
+		target := "grim.yaml"
+		if err := os.WriteFile(filepath.Join(dir, target), []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		result, found := UpwardsTraversalForTargets(dir, []string{target})
+		if !found {
+			t.Fatal("expected found=true, got false")
+		}
+		if got, want := result[target], filepath.Join(dir, target); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("found in parent dir via traversal", func(t *testing.T) {
+		parent := t.TempDir()
+		child := filepath.Join(parent, "subdir")
+		if err := os.Mkdir(child, 0755); err != nil {
+			t.Fatal(err)
+		}
+		target := "grim.yaml"
+		if err := os.WriteFile(filepath.Join(parent, target), []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		result, found := UpwardsTraversalForTargets(child, []string{target})
+		if !found {
+			t.Fatal("expected found=true, got false")
+		}
+		if got, want := result[target], filepath.Join(parent, target); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("not found returns false", func(t *testing.T) {
+		dir := t.TempDir()
+		_, found := UpwardsTraversalForTargets(dir, []string{"nonexistent_sigil_target_9823746.yaml"})
+		if found {
+			t.Fatal("expected found=false, got true")
+		}
+	})
+
+	t.Run("multiple targets all found in same dir", func(t *testing.T) {
+		dir := t.TempDir()
+		targets := []string{"a.yaml", "b.yaml"}
+		for _, target := range targets {
+			if err := os.WriteFile(filepath.Join(dir, target), []byte(""), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		result, found := UpwardsTraversalForTargets(dir, targets)
+		if !found {
+			t.Fatal("expected found=true, got false")
+		}
+		for _, target := range targets {
+			if _, ok := result[target]; !ok {
+				t.Errorf("expected result to contain %q", target)
+			}
+		}
+	})
+
+	t.Run("partial match stops traversal at first dir with any match", func(t *testing.T) {
+		// "a.yaml" exists in child; "b.yaml" only in parent.
+		// The function should return as soon as it finds "a.yaml" in child,
+		// without continuing to look for "b.yaml" in parent.
+		parent := t.TempDir()
+		child := filepath.Join(parent, "subdir")
+		if err := os.Mkdir(child, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(child, "a.yaml"), []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(parent, "b.yaml"), []byte(""), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		result, found := UpwardsTraversalForTargets(child, []string{"a.yaml", "b.yaml"})
+		if !found {
+			t.Fatal("expected found=true, got false")
+		}
+		if _, ok := result["a.yaml"]; !ok {
+			t.Error("expected 'a.yaml' in result")
+		}
+		if _, ok := result["b.yaml"]; ok {
+			t.Error("expected 'b.yaml' NOT in result: traversal should stop at first matching dir")
+		}
+	})
+}
+
+func TestMakeRelativePath(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		base string
+		want string
+	}{
+		{
+			name: "file in same directory",
+			path: "/a/b/c.py",
+			base: "/a/b",
+			want: "c.py",
+		},
+		{
+			name: "file in child directory",
+			path: "/a/b/c/d.py",
+			base: "/a/b",
+			want: "c/d.py",
+		},
+		{
+			name: "file in parent directory",
+			path: "/a/d.py",
+			base: "/a/b/c",
+			want: "../../d.py",
+		},
+		{
+			name: "identical paths returns dot",
+			path: "/a/b",
+			base: "/a/b",
+			want: ".",
+		},
+		{
+			name: "sibling directory",
+			path: "/a/c/d.py",
+			base: "/a/b",
+			want: "../c/d.py",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := MakeRelativePath(tc.path, tc.base)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("MakeRelativePath(%q, %q) = %q, want %q", tc.path, tc.base, got, tc.want)
+			}
+		})
+	}
+}

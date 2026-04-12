@@ -1,16 +1,17 @@
 package cmd
 
 import (
+	"bytes"
 	"io"
 	"os"
-	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// writeTempInitFile creates a temporary file with the given content and returns
-// its path along with a cleanup function.
-func writeTempInitFile(t *testing.T, pattern, content string) (path string, cleanup func()) {
+// writeTempFile creates a temporary file with the given content and returns its
+// path along with a cleanup function.
+func writeTempFile(t *testing.T, pattern, content string) (path string, cleanup func()) {
 	t.Helper()
 	f, err := os.CreateTemp("", pattern)
 	if err != nil {
@@ -44,94 +45,107 @@ func captureStdout(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-func TestInitCmd(t *testing.T) {
-	// initCmd.Execute() traverses to rootCmd in cobra, so we drive tests via
-	// rootCmd.SetArgs to ensure the "init" subcommand actually runs.
-	// We discard cobra's own error stream to keep test output clean.
-	rootCmd.SetErr(io.Discard)
-
-	t.Run("valid config writes manifest with extracted args", func(t *testing.T) {
-		pyPath, pyCleanup := writeTempInitFile(t, "test_*.py",
-			"def greet(name: str, times: int = 3):\n    pass\n")
-		defer pyCleanup()
-
-		cfgContent := "functions:\n- name: greet\n  path: " + pyPath + "\n  function: greet\n"
-		cfgPath, cfgCleanup := writeTempInitFile(t, "test_config_*.yaml", cfgContent)
-		defer cfgCleanup()
-
-		rootCmd.SetArgs([]string{"init", cfgPath})
-		if err := rootCmd.Execute(); err != nil {
+func TestMakeBlankGrimYAMLFile(t *testing.T) {
+	t.Run("with boilerplate creates expected content", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := makeBlankGrimYAMLFile(dir, true); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		written, err := os.ReadFile(cfgPath)
+		content, err := os.ReadFile(filepath.Join(dir, "grim.yaml"))
 		if err != nil {
-			t.Fatalf("reading written manifest: %v", err)
+			t.Fatalf("reading grim.yaml: %v", err)
 		}
-		content := string(written)
-		for _, want := range []string{"name: name", "name: times"} {
-			if !strings.Contains(content, want) {
-				t.Errorf("manifest missing %q; got:\n%s", want, content)
+		s := string(content)
+		for _, want := range []string{"functions:", "hello_world", "path/to/hello_world.py"} {
+			if !strings.Contains(s, want) {
+				t.Errorf("expected %q in output, got:\n%s", want, s)
 			}
 		}
 	})
 
-	t.Run("prints error for missing config file", func(t *testing.T) {
-		rootCmd.SetArgs([]string{"init", "/tmp/nonexistent_sigil_test_config.yaml"})
-		output := captureStdout(t, func() {
-			_ = rootCmd.Execute()
-		})
-		if !strings.Contains(output, "Error parsing config file") {
-			t.Errorf("expected 'Error parsing config file' in stdout, got: %q", output)
+	t.Run("without boilerplate omits example function", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := makeBlankGrimYAMLFile(dir, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		content, err := os.ReadFile(filepath.Join(dir, "grim.yaml"))
+		if err != nil {
+			t.Fatalf("reading grim.yaml: %v", err)
+		}
+		if strings.Contains(string(content), "hello_world") {
+			t.Errorf("expected no boilerplate content, got:\n%s", string(content))
 		}
 	})
 
-	// Functionality updated: now we allow zero args and have a default config file path
-	// t.Run("requires exactly one argument", func(t *testing.T) {
-	// 	rootCmd.SetArgs([]string{"init"})
-	// 	err := rootCmd.Execute()
-	// 	if err == nil {
-	// 		t.Fatal("expected error for zero args, got nil")
-	// 	}
-	// })
-
-	t.Run("prints error for unsupported file extension", func(t *testing.T) {
-		rbPath, rbCleanup := writeTempInitFile(t, "test_*.rb", "# ruby\n")
-		defer rbCleanup()
-
-		cfgContent := "functions:\n- name: run\n  path: " + rbPath + "\n  function: some_func\n"
-		cfgPath, cfgCleanup := writeTempInitFile(t, "test_config_*.yaml", cfgContent)
-		defer cfgCleanup()
-
-		rootCmd.SetArgs([]string{"init", cfgPath})
-		output := captureStdout(t, func() {
-			_ = rootCmd.Execute()
-		})
-		if !strings.Contains(output, "Error generating manifest YAML") {
-			t.Errorf("expected 'Error generating manifest YAML' in stdout, got: %q", output)
+	t.Run("creates grim.yaml in specified directory", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := makeBlankGrimYAMLFile(dir, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "grim.yaml")); os.IsNotExist(err) {
+			t.Error("expected grim.yaml to be created in directory")
 		}
 	})
 
-	t.Run("raw script with no target function is written as-is", func(t *testing.T) {
-		pyPath, pyCleanup := writeTempInitFile(t, "test_*.py", "print('hello')\n")
-		defer pyCleanup()
+	t.Run("nonexistent directory returns error", func(t *testing.T) {
+		err := makeBlankGrimYAMLFile("/nonexistent/path/that/does/not/exist", false)
+		if err == nil {
+			t.Error("expected error for nonexistent directory, got nil")
+		}
+	})
+}
 
-		cfgContent := "functions:\n- name: script\n  path: " + pyPath + "\n"
-		cfgPath, cfgCleanup := writeTempInitFile(t, "test_config_*.yaml", cfgContent)
-		defer cfgCleanup()
+func TestInitCmd(t *testing.T) {
+	rootCmd.SetErr(io.Discard)
 
-		rootCmd.SetArgs([]string{"init", cfgPath})
+	t.Run("creates grim.yaml in current directory", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chdir(origDir)
+
+		rootCmd.SetArgs([]string{"init"})
 		if err := rootCmd.Execute(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		written, err := os.ReadFile(cfgPath)
-		if err != nil {
-			t.Fatalf("reading written manifest: %v", err)
+		if _, err := os.Stat(filepath.Join(dir, "grim.yaml")); os.IsNotExist(err) {
+			t.Error("expected grim.yaml to be created in current directory")
 		}
-		// No args section should appear since there was no target function.
-		if strings.Contains(string(written), "args:") {
-			t.Errorf("expected no 'args:' section for raw script, got:\n%s", string(written))
+	})
+
+	t.Run("created file contains boilerplate", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chdir(dir); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chdir(origDir)
+
+		rootCmd.SetArgs([]string{"init"})
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		content, err := os.ReadFile(filepath.Join(dir, "grim.yaml"))
+		if err != nil {
+			t.Fatalf("reading grim.yaml: %v", err)
+		}
+		s := string(content)
+		for _, want := range []string{"functions:", "hello_world"} {
+			if !strings.Contains(s, want) {
+				t.Errorf("expected %q in file, got:\n%s", want, s)
+			}
 		}
 	})
 }
