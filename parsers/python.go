@@ -1,6 +1,7 @@
 package parsers
 
 import (
+	"os"
 	"fmt"
 	"context"
 
@@ -14,11 +15,11 @@ import (
 type PythonAnalyzer struct {}
 
 // Extract and parse the signature of a function into Args
-func (a *PythonAnalyzer) ExtractSignature(function types.Function) ([]types.Arg, error) {
+func (a *PythonAnalyzer) ExtractSignature(path_to_function string, function_name string) ([]types.Arg, error) {
 	parser := sitter.NewParser()
 	parser.SetLanguage(python.GetLanguage())
 	
-	source_code, err := function.LoadSourceCode()
+	source_code, err := os.ReadFile(path_to_function)
 	if err != nil {
 		return nil, err
 	}
@@ -31,9 +32,9 @@ func (a *PythonAnalyzer) ExtractSignature(function types.Function) ([]types.Arg,
 	root := tree.RootNode()
 	
 	// Find the function node
-	fn_node := findFunctionNode(root, source_code, function.TargetFunction)
+	fn_node := findFunctionNode(root, source_code, function_name)
 	if fn_node == nil {
-		return nil, fmt.Errorf("function %s not found in %s", function.TargetFunction, function.TargetFile)
+		return nil, fmt.Errorf("function %s not found in %s", function_name, path_to_function)
 	}
 
 	// Extract the function signature from the function node

@@ -5,5 +5,5 @@ import (
 )
 
 type LanguageAnalyzer interface {
-	ExtractSignature(function types.Function) ([]types.Arg, error)
+	ExtractSignature(path_to_function string, function_name string) ([]types.Arg, error)
 }

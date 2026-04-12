@@ -118,13 +118,8 @@ func TestPythonAnalyzer_ExtractSignature(t *testing.T) {
 			path, cleanup := writeTempPyFile(t, tc.src)
 			defer cleanup()
 
-			fn := types.Function{
-				TargetFile:     path,
-				TargetFunction: tc.funcName,
-			}
-
 			analyzer := &PythonAnalyzer{}
-			got, err := analyzer.ExtractSignature(fn)
+			got, err := analyzer.ExtractSignature(path, tc.funcName)
 
 			if tc.wantErr {
 				if err == nil {

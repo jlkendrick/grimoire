@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	utils "github.com/jlkendrick/grimoire/utils"
+
+	"github.com/goccy/go-yaml"
 )
 
 
@@ -13,6 +15,21 @@ type Config struct {
 	Functions []Function `yaml:"functions"`
 }
 
+
+func (c *Config) Write(path string) error {
+	yaml_content, err := yaml.MarshalWithOptions(c, 
+		yaml.Indent(2),
+		yaml.IndentSequence(true),
+	)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(path, yaml_content, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 type Function struct {
 	Name 	 			   string `yaml:"name"`
