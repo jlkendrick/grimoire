@@ -6,10 +6,8 @@ package cmd
 import (
 	"os"
 	"fmt"
-	"path"
 
-	utils "github.com/jlkendrick/grimoire/utils"
-	config "github.com/jlkendrick/grimoire/config"
+	core "github.com/jlkendrick/grimoire/core"
 
 	"github.com/spf13/cobra"
 )
@@ -29,38 +27,54 @@ to quickly create a Cobra application.`,
 	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	current_dir, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error getting current directory: %v\n", err)
-		return
-	}
-	var config_path string
-	matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"grim.yaml"})
-	if found {
-		config_path = matched_targets["grim.yaml"]
-	} else {
-		config_path = path.Join(current_dir, "grim.yaml")
-	}
-	config, err := config.ParseConfig(config_path)
+var staticCommands = map[string]bool{
+	"init": true,
+	"add": true,
+	"sync": true,
+	"register": true,
+	"clean": true,
+	"help": true,
+}
 
-	if config != nil {
-		commands, err := GenerateCommands(config)
-		if err != nil {
-			fmt.Printf("Error generating commands: %v\n", err)
-			return
-		}
-		
-		for _, command := range commands {
-			rootCmd.AddCommand(command)
-		}
+func Execute() {
+
+	// Only build the commands if the user has not requested a static command
+	var static_command_called bool
+	if len(os.Args) > 1 {
+		requested_command := os.Args[1]
+		_, ok := staticCommands[requested_command]
+		static_command_called = ok
+	} else {
+		static_command_called = false
 	}
 	
 
-	err = rootCmd.Execute()
+	if static_command_called {
+		// Do nothing
+	} else {
+		// Build the commands
+		config, err := core.LoadConfig()
+		if err != nil {
+			fmt.Printf("Error loading config: %v\n", err)
+			return
+		}
+		
+		if config != nil {
+			commands, err := GenerateCommands(config)
+			if err != nil {
+				fmt.Printf("Error generating commands: %v\n", err)
+				return
+			}
+			
+			for _, command := range commands {
+				rootCmd.AddCommand(command)
+			}
+		}
+	}
+
+	err := rootCmd.Execute()
 	if err != nil {
+		fmt.Printf("Error executing root command: %v\n", err)
 		os.Exit(1)
 	}
 }
