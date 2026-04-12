@@ -35,7 +35,8 @@ var add_cmd = &cobra.Command{
 		// Determine the path to write the spell to
 		var config_path string
 		if global {
-			config_path, err = utils.ExpandUserPath("~/.grimoire.yaml")
+			// UPDATE LATER WITH PERMANENT CONFIG FILE PATH
+			config_path, err = utils.ExpandUserPath("~/Code/Projects/grimoire/grim.yaml")
 			if err != nil {
 				fmt.Printf("Error expanding user path: %v\n", err)
 				return

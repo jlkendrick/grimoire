@@ -1,12 +1,5 @@
 functions:
   - name: hello_world
-    path: path/to/hello_world.py
-    function: hello_world
-    args:
-      - name: "n"
-        type: int
-        default: 1
-  - name: hello_world
     path: python/hello_world.py
     function: hello_world
     args:
