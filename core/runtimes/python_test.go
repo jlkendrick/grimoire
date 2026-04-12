@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	types "github.com/jlkendrick/grimoire/types"
+	utils "github.com/jlkendrick/grimoire/utils"
 )
 
 // requirePython skips the test if the "python" binary is not on PATH.
@@ -159,28 +160,30 @@ func TestPythonAdapter_FormatError(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------
-// TestFindProjectRoot
+// TestUpwardsTraversalForTargets
 // -------------------------------------------------------------------------
 
-func TestFindProjectRoot(t *testing.T) {
+func TestUpwardsTraversalForTargets(t *testing.T) {
+	targets := []string{".venv", "pyproject.toml", "requirements.txt"}
+
 	t.Run("venv_only", func(t *testing.T) {
 		dir := t.TempDir()
 		if err := os.MkdirAll(filepath.Join(dir, ".venv"), 0755); err != nil {
 			t.Fatalf("MkdirAll: %v", err)
 		}
 
-		venv, pyproject, requirements, found := findProjectRoot(dir)
+		matched, found := utils.UpwardsTraversalForTargets(dir, targets)
 		if !found {
 			t.Fatal("expected found=true, got false")
 		}
-		if venv == "" {
-			t.Error("expected venvPath to be set")
+		if matched[".venv"] == "" {
+			t.Error("expected .venv to be set")
 		}
-		if pyproject != "" {
-			t.Errorf("expected pyProjectPath to be empty, got %q", pyproject)
+		if v, ok := matched["pyproject.toml"]; ok {
+			t.Errorf("expected pyproject.toml to be absent, got %q", v)
 		}
-		if requirements != "" {
-			t.Errorf("expected requirementsPath to be empty, got %q", requirements)
+		if v, ok := matched["requirements.txt"]; ok {
+			t.Errorf("expected requirements.txt to be absent, got %q", v)
 		}
 	})
 
@@ -190,18 +193,18 @@ func TestFindProjectRoot(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 
-		venv, pyproject, requirements, found := findProjectRoot(dir)
+		matched, found := utils.UpwardsTraversalForTargets(dir, targets)
 		if !found {
 			t.Fatal("expected found=true, got false")
 		}
-		if venv != "" {
-			t.Errorf("expected venvPath to be empty, got %q", venv)
+		if v, ok := matched[".venv"]; ok {
+			t.Errorf("expected .venv to be absent, got %q", v)
 		}
-		if pyproject == "" {
-			t.Error("expected pyProjectPath to be set")
+		if matched["pyproject.toml"] == "" {
+			t.Error("expected pyproject.toml to be set")
 		}
-		if requirements != "" {
-			t.Errorf("expected requirementsPath to be empty, got %q", requirements)
+		if v, ok := matched["requirements.txt"]; ok {
+			t.Errorf("expected requirements.txt to be absent, got %q", v)
 		}
 	})
 
@@ -211,18 +214,18 @@ func TestFindProjectRoot(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 
-		venv, pyproject, requirements, found := findProjectRoot(dir)
+		matched, found := utils.UpwardsTraversalForTargets(dir, targets)
 		if !found {
 			t.Fatal("expected found=true, got false")
 		}
-		if venv != "" {
-			t.Errorf("expected venvPath to be empty, got %q", venv)
+		if v, ok := matched[".venv"]; ok {
+			t.Errorf("expected .venv to be absent, got %q", v)
 		}
-		if pyproject != "" {
-			t.Errorf("expected pyProjectPath to be empty, got %q", pyproject)
+		if v, ok := matched["pyproject.toml"]; ok {
+			t.Errorf("expected pyproject.toml to be absent, got %q", v)
 		}
-		if requirements == "" {
-			t.Error("expected requirementsPath to be set")
+		if matched["requirements.txt"] == "" {
+			t.Error("expected requirements.txt to be set")
 		}
 	})
 
@@ -238,18 +241,18 @@ func TestFindProjectRoot(t *testing.T) {
 			t.Fatalf("WriteFile requirements.txt: %v", err)
 		}
 
-		venv, pyproject, requirements, found := findProjectRoot(dir)
+		matched, found := utils.UpwardsTraversalForTargets(dir, targets)
 		if !found {
 			t.Fatal("expected found=true, got false")
 		}
-		if venv == "" {
-			t.Error("expected venvPath to be set")
+		if matched[".venv"] == "" {
+			t.Error("expected .venv to be set")
 		}
-		if pyproject == "" {
-			t.Error("expected pyProjectPath to be set")
+		if matched["pyproject.toml"] == "" {
+			t.Error("expected pyproject.toml to be set")
 		}
-		if requirements == "" {
-			t.Error("expected requirementsPath to be set")
+		if matched["requirements.txt"] == "" {
+			t.Error("expected requirements.txt to be set")
 		}
 	})
 
@@ -259,20 +262,21 @@ func TestFindProjectRoot(t *testing.T) {
 		if err := os.MkdirAll(child, 0755); err != nil {
 			t.Fatalf("MkdirAll child: %v", err)
 		}
-		// Only the parent has .venv, child has nothing.
+		// Only the parent has .venv; child has nothing.
 		if err := os.MkdirAll(filepath.Join(parent, ".venv"), 0755); err != nil {
 			t.Fatalf("MkdirAll .venv: %v", err)
 		}
 
-		venv, _, _, found := findProjectRoot(child)
+		matched, found := utils.UpwardsTraversalForTargets(child, targets)
 		if !found {
 			t.Fatal("expected found=true after traversing to parent, got false")
 		}
-		if venv == "" {
-			t.Fatal("expected venvPath to be set after traversing to parent")
+		venvPath := matched[".venv"]
+		if venvPath == "" {
+			t.Fatal("expected .venv to be set after traversing to parent")
 		}
-		if !strings.HasSuffix(venv, ".venv") {
-			t.Errorf("expected venvPath to end with .venv, got %q", venv)
+		if !strings.HasSuffix(venvPath, ".venv") {
+			t.Errorf("expected venvPath to end with .venv, got %q", venvPath)
 		}
 	})
 
@@ -282,7 +286,7 @@ func TestFindProjectRoot(t *testing.T) {
 		// and eventually reach the filesystem root.
 		dir := t.TempDir()
 
-		_, _, _, found := findProjectRoot(dir)
+		_, found := utils.UpwardsTraversalForTargets(dir, targets)
 		if found {
 			t.Fatal("expected found=false for directory with no env markers, got true")
 		}

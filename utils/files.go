@@ -76,3 +76,11 @@ func UpwardsTraversalForTargets(start_dir string, target_files []string) (map[st
 	}
 	return matched_targets, true
 }
+
+func MakeRelativePath(path string, base string) (string, error) {
+	rel, err := filepath.Rel(base, path)
+	if err != nil {
+		return "", err
+	}
+	return rel, nil
+}

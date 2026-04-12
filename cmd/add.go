@@ -41,7 +41,12 @@ var add_cmd = &cobra.Command{
 				fmt.Printf("Error getting current directory: %v\n", err)
 				return
 			}
-			config_path = path.Join(current_dir, "grim.yaml")
+			matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"grim.yaml"})
+			if found {
+				config_path = matched_targets["grim.yaml"]
+			} else {
+				config_path = path.Join(current_dir, "grim.yaml")
+			}
 		}
 
 		// Make sure the config file exists
@@ -60,6 +65,13 @@ var add_cmd = &cobra.Command{
 		existing_config, err := config.ParseConfig(config_path)
 		if err != nil {
 			fmt.Printf("Error parsing config file: %v\n", err)
+			return
+		}
+
+		// Make the path_to_function relative to the config file that we found
+		path_to_function, err = utils.MakeRelativePath(path_to_function, config_path)
+		if err != nil {
+			fmt.Printf("Error making path to function relative: %v\n", err)
 			return
 		}
 
