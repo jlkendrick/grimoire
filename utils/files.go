@@ -45,3 +45,34 @@ func HashFilePathAndContent(path string) (string,string, error) {
 	}
 	return hex.EncodeToString(path_hash.Sum(nil)), hex.EncodeToString(content_hash.Sum(nil)), nil
 }
+
+func UpwardsTraversalForTargets(start_dir string, target_files []string) (map[string]string, bool) {
+
+	matched_targets := map[string]string{}
+
+	for _, target_file := range target_files {
+		// Check if the target file exists
+		search_path := filepath.Join(start_dir, target_file)
+		if _, err := os.Stat(search_path); err == nil {
+			matched_targets[target_file] = search_path
+		}
+	}
+	
+	// If we have results, then we are done and can return
+	if len(matched_targets) > 0 {
+		return matched_targets, true
+	}
+
+	// If we don't have results, then we need to search the parent directory
+	parent_dir := filepath.Dir(start_dir)
+	if parent_dir == start_dir {
+		return matched_targets, false
+	}
+
+	// Recursively search the parent directory
+	matched_targets, found := UpwardsTraversalForTargets(parent_dir, target_files)
+	if !found {
+		return matched_targets, false
+	}
+	return matched_targets, true
+}

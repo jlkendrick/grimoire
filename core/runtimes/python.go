@@ -68,11 +68,24 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 		return "", err
 	}
 	start_dir := filepath.Dir(expanded_target_file)
-	venvPath, pyProjectPath, requirementsPath, found := findProjectRoot(start_dir)
+	matched_targets, found := utils.UpwardsTraversalForTargets(start_dir, []string{".venv", "pyproject.toml", "requirements.txt"})
 	// Option 5: No project root found, use the system interpreter
 	if !found {
 		return "python", nil
 	}
+
+	// Unpack the matched targets
+	var venvPath, pyProjectPath, requirementsPath string
+	if venv_path, ok := matched_targets[".venv"]; ok {
+		venvPath = venv_path
+	}
+	if pyproject_path, ok := matched_targets["pyproject.toml"]; ok {
+		pyProjectPath = pyproject_path
+	}
+	if requirements_path, ok := matched_targets["requirements.txt"]; ok {
+		requirementsPath = requirements_path
+	}
+
 	// Option 3: Use the virtual environment
 	if venvPath != "" {
 		return filepath.Join(venvPath, "bin", "python"), nil
@@ -94,44 +107,6 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 	}
 
 	return "should not happen", fmt.Errorf("should not happen")
-}
-
-func findProjectRoot(start_dir string) (string, string, string, bool) {
-
-	var venvPath string
-	var pyProjectPath string
-	var requirementsPath string
-
-	check_venvPath := filepath.Join(start_dir, ".venv")
-	if _, err := os.Stat(check_venvPath); err == nil {
-		venvPath = check_venvPath
-	}
-
-	check_pyProjectPath := filepath.Join(start_dir, "pyproject.toml")
-	if _, err := os.Stat(check_pyProjectPath); err == nil {
-		pyProjectPath = check_pyProjectPath
-	}
-
-	check_requirementsPath := filepath.Join(start_dir, "requirements.txt")
-	if _, err := os.Stat(check_requirementsPath); err == nil {
-		requirementsPath = check_requirementsPath
-	}
-
-	if venvPath != "" || pyProjectPath != "" || requirementsPath != "" {
-		return venvPath, pyProjectPath, requirementsPath, true
-	}
-
-	parent_dir := filepath.Dir(start_dir)
-	if parent_dir == start_dir {
-		return "", "", "", false
-	}
-
-	// Recursively search the parent directory
-	new_venvPath, new_pyProjectPath, new_requirementsPath, found := findProjectRoot(parent_dir)
-	if !found {
-		return "", "", "", false
-	}
-	return new_venvPath, new_pyProjectPath, new_requirementsPath, true
 }
 
 type PyProject struct {
