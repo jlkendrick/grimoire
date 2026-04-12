@@ -57,6 +57,13 @@ var init_cmd = &cobra.Command{
 			fmt.Printf("Error getting current directory: %v\n", err)
 			return
 		}
+
+		// Check if a grim.yaml file already exists
+		if _, err := os.Stat(path.Join(current_dir, "grim.yaml")); !os.IsNotExist(err) {
+			fmt.Printf("grim.yaml file already exists at %s\n", path.Join(current_dir, "grim.yaml"))
+			return
+		}
+		
 		err = makeBlankGrimYAMLFile(current_dir, true)
 		if err != nil {
 			fmt.Printf("Error generating boilerplate grim.yaml file: %v\n", err)

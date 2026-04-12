@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"os"
 	"fmt"
-	"path"
 	"strings"
 	"path/filepath"
 
@@ -11,6 +9,7 @@ import (
 
 	config "github.com/jlkendrick/grimoire/config"
 	utils "github.com/jlkendrick/grimoire/utils"
+	core "github.com/jlkendrick/grimoire/core"
 )
 
 var add_cmd = &cobra.Command{
@@ -32,47 +31,13 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		// Determine the path to write the spell to
-		var config_path string
+		var config_type string
 		if global {
-			// UPDATE LATER WITH PERMANENT CONFIG FILE PATH
-			config_path, err = utils.ExpandUserPath("~/Code/Projects/grimoire/grim.yaml")
-			if err != nil {
-				fmt.Printf("Error expanding user path: %v\n", err)
-				return
-			}
+			config_type = "global"
 		} else {
-			current_dir, err := os.Getwd()
-			if err != nil {
-				fmt.Printf("Error getting current directory: %v\n", err)
-				return
-			}
-			matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"grim.yaml"})
-			if found {
-				config_path = matched_targets["grim.yaml"]
-			} else {
-				config_path = path.Join(current_dir, "grim.yaml")
-			}
+			config_type = "local"
 		}
-
-		// Make sure the config file exists
-		_, err = os.Stat(config_path)
-		if os.IsNotExist(err) {
-			fmt.Println("Config file does not exist, creating one...")
-			err = makeBlankGrimYAMLFile(path.Dir(config_path), true)
-			if err != nil {
-				fmt.Printf("Error creating config file: %v\n", err)
-				return
-			}
-			return
-		}
-
-		// Parse the existing config file
-		existing_config, err := config.ParseConfig(config_path)
-		if err != nil {
-			fmt.Printf("Error parsing config file: %v\n", err)
-			return
-		}
+		config_obj, config_path, err := core.LoadConfig(config_type)
 
 		// Make the path_to_function relative to the config file that we found
 		absolute_path_to_function, err := filepath.Abs(path_to_function)
@@ -92,10 +57,10 @@ var add_cmd = &cobra.Command{
 			fmt.Printf("Error generating function config: %v\n", err)
 			return
 		}
-		existing_config.Functions = append(existing_config.Functions, function_config)
+		config_obj.Functions = append(config_obj.Functions, function_config)
 
 		// Write the updated config file
-		err = existing_config.Write(config_path)
+		err = config_obj.Write(config_path)
 		if err != nil {
 			fmt.Printf("Error writing config file: %v\n", err)
 			return

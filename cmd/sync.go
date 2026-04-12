@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"os"
 	"fmt"
-	"path"
-
-	utils "github.com/jlkendrick/grimoire/utils"
+	
 	config "github.com/jlkendrick/grimoire/config"
+	core "github.com/jlkendrick/grimoire/core"
 
 	"github.com/spf13/cobra"
 )
@@ -23,49 +21,27 @@ var sync_cmd = &cobra.Command{
 			return
 		}
 
-		// Determine the path to write the spell to
-		var config_path string
+		var config_type string
 		if global {
-			// UPDATE LATER WITH PERMANENT CONFIG FILE PATH
-			config_path, err = utils.ExpandUserPath("~/Code/Projects/grimoire/grim.yaml")
-			if err != nil {
-				fmt.Printf("Error expanding user path: %v\n", err)
-				return
-			}
+			config_type = "global"
 		} else {
-			current_dir, err := os.Getwd()
-			if err != nil {
-				fmt.Printf("Error getting current directory: %v\n", err)
-				return
-			}
-			matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"grim.yaml"})
-			if found {
-				config_path = matched_targets["grim.yaml"]
-			} else {
-				config_path = path.Join(current_dir, "grim.yaml")
-			}
+			config_type = "local"
 		}
-
-		// Parse the existing config file
-		existing_config, err := config.ParseConfig(config_path)
-		if err != nil {
-			fmt.Printf("Error parsing config file: %v\n", err)
-			return
-		}
+		config_obj, config_path, err := core.LoadConfig(config_type)
 
 		// For each function in the config, generate the function config
-		for i, function := range existing_config.Functions {
+		for i, function := range config_obj.Functions {
 			config_generator := config.ConfigGenerator{PathToFunction: function.TargetFile, FunctionName: function.TargetFunction}
 			function_config, err := config_generator.GenerateFunctionConfig()
 			if err != nil {
 				fmt.Printf("Error generating function config: %v\n", err)
 				return
 			}
-			existing_config.Functions[i].Args = function_config.Args
+			config_obj.Functions[i].Args = function_config.Args
 		}
 
 		// Write the updated config file
-		err = existing_config.Write(config_path)
+		err = config_obj.Write(config_path)
 		if err != nil {
 			fmt.Printf("Error writing config file: %v\n", err)
 			return
