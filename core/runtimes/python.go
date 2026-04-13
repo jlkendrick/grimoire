@@ -131,12 +131,12 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 	if err != nil {
 		return "", err
 	}
-	// For development, put the .sigil dir in the our local sigil repo for easy access, will change later to a more permanent location
-	temp_sigil_dir, err := utils.ExpandUserPath("~/Code/Projects/sigil/.sigil")
+	// For development, put the .grimoire dir in the our local grimoire repo for easy access, will change later to a more permanent location
+	temp_grimoire_dir, err := utils.ExpandUserPath("~/Code/Projects/grimoire/.grimoire")
 	if err != nil {
 		return "", err
 	}
-	venv_path := filepath.Join(temp_sigil_dir, "envs", file_hash)
+	venv_path := filepath.Join(temp_grimoire_dir, "envs", file_hash)
 
 	// If the venv doesn't exist, create it
 	if _, err := os.Stat(venv_path); os.IsNotExist(err) {
@@ -145,8 +145,8 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 		}
 	} else {
 		// Check the content hash to see if the venv needs to be updated
-		// Content hash is in venv_path/.sigil_req_hash
-		content_hash_file := filepath.Join(venv_path, ".sigil_req_hash")
+		// Content hash is in venv_path/.grimoire_req_hash
+		content_hash_file := filepath.Join(venv_path, ".grimoire_req_hash")
 		if _, err := os.Stat(content_hash_file); os.IsNotExist(err) {
 			// Hash file missing, treat as stale
 			os.RemoveAll(venv_path)
@@ -210,8 +210,8 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 		}
 	}
 
-	// If we succeeded, write the content hash to the venv_path/.sigil_req_hash file. This is our certificate of success.
-	content_hash_file := filepath.Join(venv_path, ".sigil_req_hash")
+	// If we succeeded, write the content hash to the venv_path/.grimoire_req_hash file. This is our certificate of success.
+	content_hash_file := filepath.Join(venv_path, ".grimoire_req_hash")
 	if err := os.WriteFile(content_hash_file, []byte(content_hash), 0644); err != nil {
 		os.RemoveAll(venv_path)
 		return "", fmt.Errorf("error writing content hash file: %v", err)

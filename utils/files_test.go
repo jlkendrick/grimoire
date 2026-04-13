@@ -188,7 +188,7 @@ func TestHashFilePathAndContent(t *testing.T) {
 	})
 
 	t.Run("nonexistent_file_returns_error", func(t *testing.T) {
-		_, _, err := HashFilePathAndContent("/tmp/nonexistent_sigil_hash_test_file.txt")
+		_, _, err := HashFilePathAndContent("/tmp/nonexistent_grimoire_hash_test_file.txt")
 		if err == nil {
 			t.Fatal("expected error for nonexistent file, got nil")
 		}
@@ -234,7 +234,7 @@ func TestUpwardsTraversalForTargets(t *testing.T) {
 
 	t.Run("not found returns false", func(t *testing.T) {
 		dir := t.TempDir()
-		_, found := UpwardsTraversalForTargets(dir, []string{"nonexistent_sigil_target_9823746.yaml"})
+		_, found := UpwardsTraversalForTargets(dir, []string{"nonexistent_grimoire_target_9823746.yaml"})
 		if found {
 			t.Fatal("expected found=false, got true")
 		}

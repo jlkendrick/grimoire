@@ -425,11 +425,11 @@ func TestBuildNewEnvironment(t *testing.T) {
 			t.Errorf("returned python path %q does not exist: %v", got, err)
 		}
 
-		// The .sigil_req_hash certificate should have been written.
+		// The .grimoire_req_hash certificate should have been written.
 		venvDir := filepath.Dir(filepath.Dir(got)) // strip "bin/python" → venv root
-		hashFile := filepath.Join(venvDir, ".sigil_req_hash")
+		hashFile := filepath.Join(venvDir, ".grimoire_req_hash")
 		if _, err := os.Stat(hashFile); err != nil {
-			t.Errorf(".sigil_req_hash not found at %q: %v", hashFile, err)
+			t.Errorf(".grimoire_req_hash not found at %q: %v", hashFile, err)
 		}
 	})
 
@@ -485,14 +485,14 @@ func TestBuildNewEnvironment(t *testing.T) {
 
 		// Verify the hash certificate was updated.
 		venvDir := filepath.Dir(filepath.Dir(got))
-		hashFile := filepath.Join(venvDir, ".sigil_req_hash")
+		hashFile := filepath.Join(venvDir, ".grimoire_req_hash")
 		updated, err := os.ReadFile(hashFile)
 		if err != nil {
 			t.Fatalf("reading updated hash file: %v", err)
 		}
 		// The stored hash should be non-empty (exact value not asserted, just that it was written).
 		if len(updated) == 0 {
-			t.Error("expected non-empty hash in .sigil_req_hash after update")
+			t.Error("expected non-empty hash in .grimoire_req_hash after update")
 		}
 	})
 
@@ -531,7 +531,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 
 		// Manually delete the hash certificate to simulate the bug scenario.
 		venvDir := filepath.Dir(filepath.Dir(got))
-		hashFile := filepath.Join(venvDir, ".sigil_req_hash")
+		hashFile := filepath.Join(venvDir, ".grimoire_req_hash")
 		if err := os.Remove(hashFile); err != nil {
 			t.Fatalf("removing hash file: %v", err)
 		}

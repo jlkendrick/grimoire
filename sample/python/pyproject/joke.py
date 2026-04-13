@@ -11,5 +11,5 @@ def tell_random_joke(message: str):
     # Print it using 'cowsay' to prove the second dependency works
     cowsay.cow(full_message)
     
-    # Print the executable path to prove we are using the hidden .sigil environment
+    # Print the executable path to prove we are using the hidden .grimoire environment
     print(f"\n[Debug] Executing from: {sys.executable}")

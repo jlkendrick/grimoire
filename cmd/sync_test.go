@@ -56,7 +56,7 @@ func TestSyncCmd(t *testing.T) {
 	t.Run("function with invalid path prints error", func(t *testing.T) {
 		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
-		grimContent := "functions:\n- name: greet\n  path: /nonexistent/sigil/path/greet.py\n  function: greet\n"
+		grimContent := "functions:\n- name: greet\n  path: /nonexistent/grimoire/path/greet.py\n  function: greet\n"
 		grimPath := filepath.Join(dir, "grim.yaml")
 		if err := os.WriteFile(grimPath, []byte(grimContent), 0644); err != nil {
 			t.Fatal(err)
