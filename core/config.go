@@ -10,17 +10,27 @@ import (
 )
 
 var cached_local_config *types.Config
+var cached_local_config_path string
 var cached_global_config *types.Config
+var cached_global_config_path string
+
+// ResetConfigCache clears all cached config state. Intended for use in tests.
+func ResetConfigCache() {
+	cached_local_config = nil
+	cached_local_config_path = ""
+	cached_global_config = nil
+	cached_global_config_path = ""
+}
 
 func LoadConfig(config_type string) (*types.Config, string, error) {
 	switch config_type {
-	case "local":	
+	case "local":
 		if cached_local_config != nil {
-			return cached_local_config, "", nil
+			return cached_local_config, cached_local_config_path, nil
 		}
 
 		fmt.Println("[DEBUG] Reading local config...")
-		
+
 		current_dir, err := os.Getwd()
 		if err != nil {
 			return nil, "", err
@@ -48,17 +58,19 @@ func LoadConfig(config_type string) (*types.Config, string, error) {
 			return nil, "", err
 		}
 
-		// Cache the config and return
+		// Cache the config and path, then return
 		if defaulted_to_global {
 			cached_global_config = config
+			cached_global_config_path = config_path
 		} else {
 			cached_local_config = config
+			cached_local_config_path = config_path
 		}
 		return config, config_path, nil
-	
+
 	case "global":
 		if cached_global_config != nil {
-			return cached_global_config, "", nil
+			return cached_global_config, cached_global_config_path, nil
 		}
 
 		fmt.Println("[DEBUG] Reading global config...")
@@ -73,8 +85,9 @@ func LoadConfig(config_type string) (*types.Config, string, error) {
 			return nil, "", err
 		}
 
-		// Cache the config and return
+		// Cache the config and path, then return
 		cached_global_config = config
+		cached_global_config_path = config_path
 		return config, config_path, nil
 
 	default:

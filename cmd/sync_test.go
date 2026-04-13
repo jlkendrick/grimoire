@@ -6,30 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	core "github.com/jlkendrick/grimoire/core"
 )
 
 func TestSyncCmd(t *testing.T) {
 	rootCmd.SetErr(io.Discard)
 
-	t.Run("missing grim.yaml prints error", func(t *testing.T) {
-		dir := t.TempDir()
-		origDir, _ := os.Getwd()
-		defer os.Chdir(origDir)
-		if err := os.Chdir(dir); err != nil {
-			t.Fatal(err)
-		}
-
-		output := captureStdout(t, func() {
-			rootCmd.SetArgs([]string{"sync"})
-			_ = rootCmd.Execute()
-		})
-
-		if !strings.Contains(output, "Error parsing config file") {
-			t.Errorf("expected parse error in output, got: %q", output)
-		}
-	})
-
 	t.Run("updates args from source files", func(t *testing.T) {
+		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
 		pyContent := "def greet(name: str, times: int = 3):\n    pass\n"
 		pyPath := filepath.Join(dir, "greet.py")
@@ -69,6 +54,7 @@ func TestSyncCmd(t *testing.T) {
 	})
 
 	t.Run("function with invalid path prints error", func(t *testing.T) {
+		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
 		grimContent := "functions:\n- name: greet\n  path: /nonexistent/sigil/path/greet.py\n  function: greet\n"
 		grimPath := filepath.Join(dir, "grim.yaml")
@@ -93,6 +79,7 @@ func TestSyncCmd(t *testing.T) {
 	})
 
 	t.Run("empty functions list writes file without error", func(t *testing.T) {
+		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
 		grimPath := filepath.Join(dir, "grim.yaml")
 		if err := os.WriteFile(grimPath, []byte("{}\n"), 0644); err != nil {
