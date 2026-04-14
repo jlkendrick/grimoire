@@ -50,6 +50,8 @@ type Function struct {
 	TargetFunction string `yaml:"function,omitempty"`
 	Args  		  	 []Arg  `yaml:"args,omitempty"`
 	Interpreter 	 string `yaml:"interpreter,omitempty"`
+
+	SpellPath 		 string `yaml:"-"`
 }
 
 func (f Function) String() string {

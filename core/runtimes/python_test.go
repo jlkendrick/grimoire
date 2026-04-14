@@ -412,7 +412,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 
-		got, err := buildNewEnvironment(reqFile, "requirements.txt")
+		got, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -442,12 +442,12 @@ func TestBuildNewEnvironment(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 
-		first, err := buildNewEnvironment(reqFile, "requirements.txt")
+		first, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("first call unexpected error: %v", err)
 		}
 
-		second, err := buildNewEnvironment(reqFile, "requirements.txt")
+		second, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("second call unexpected error: %v", err)
 		}
@@ -467,7 +467,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		// First build.
-		_, err := buildNewEnvironment(reqFile, "requirements.txt")
+		_, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("first call unexpected error: %v", err)
 		}
@@ -478,7 +478,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		// Second build should succeed and update the hash certificate.
-		got, err := buildNewEnvironment(reqFile, "requirements.txt")
+		got, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("second call unexpected error: %v", err)
 		}
@@ -505,7 +505,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 
-		_, err := buildNewEnvironment(reqFile, "Pipfile")
+		_, err := buildNewEnvironment(reqFile, "Pipfile", "")
 		if err == nil {
 			t.Fatal("expected error for unsupported dependency type, got nil")
 		}
@@ -524,7 +524,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		// First build — creates venv and writes hash certificate.
-		got, err := buildNewEnvironment(reqFile, "requirements.txt")
+		got, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("first call unexpected error: %v", err)
 		}
@@ -537,7 +537,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		// Second call should recover cleanly rather than erroring.
-		_, err = buildNewEnvironment(reqFile, "requirements.txt")
+		_, err = buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Errorf("expected clean recovery from missing hash file, got: %v", err)
 		}

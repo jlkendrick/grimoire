@@ -92,14 +92,15 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 	}
 	
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
+	abs_function_path := filepath.Join(filepath.Dir(function.SpellPath), function.TargetFile)
 	if pyProjectPath != "" {
-		interpreter, err := buildNewEnvironment(pyProjectPath, "pyproject.toml")
+		interpreter, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", abs_function_path)
 		if err != nil {
 			return "", err
 		}
 		return interpreter, nil
 	} else if requirementsPath != "" {
-		interpreter, err := buildNewEnvironment(requirementsPath, "requirements.txt")
+		interpreter, err := buildNewEnvironment(requirementsPath, "requirements.txt", abs_function_path)
 		if err != nil {
 			return "", err
 		}
@@ -115,8 +116,7 @@ type PyProject struct {
 	} `toml:"project"`
 }
 
-func buildNewEnvironment(dependency_file string, dependency_type string) (string, error) {
-
+func buildNewEnvironment(dependency_file string, dependency_type string, abs_function_path string) (string, error) {
 	run_venv_cmd := func(venv_path string) error {
 		create_cmd := exec.Command("python", "-m", "venv", venv_path)
 		err := create_cmd.Run()
@@ -215,6 +215,13 @@ func buildNewEnvironment(dependency_file string, dependency_type string) (string
 	if err := os.WriteFile(content_hash_file, []byte(content_hash), 0644); err != nil {
 		os.RemoveAll(venv_path)
 		return "", fmt.Errorf("error writing content hash file: %v", err)
+	}
+
+	// Write the origin function path to the venv_path/.grimoire_origin file. This is our certificate of origin.
+	origin_function_path := filepath.Join(venv_path, ".grimoire_origin")
+	if err := os.WriteFile(origin_function_path, []byte(abs_function_path), 0644); err != nil {
+		os.RemoveAll(venv_path)
+		return "", fmt.Errorf("error writing origin function path file: %v", err)
 	}
 
 	return filepath.Join(venv_path, "bin", "python"), nil

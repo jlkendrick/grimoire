@@ -6,3 +6,9 @@ functions:
       - name: "n"
         type: int
         default: 1
+  - name: print_rich_panel
+    path: python/requirements/rich_greeting.py
+    function: print_rich_panel
+    args:
+      - name: title
+        type: str
