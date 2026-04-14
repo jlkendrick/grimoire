@@ -52,6 +52,7 @@ func TestParseConfig(t *testing.T) {
 					Args: []types.Arg{
 						{Name: "n", Type: "int", Default: "1"},
 					},
+					SpellPath: path,
 				},
 			},
 			Context: types.ContextTypeLocal,

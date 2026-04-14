@@ -514,6 +514,32 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 	})
 
+	t.Run("writes_origin_file_with_supplied_path", func(t *testing.T) {
+		requirePython(t)
+
+		workDir := t.TempDir()
+		reqFile := filepath.Join(workDir, "requirements.txt")
+		if err := os.WriteFile(reqFile, []byte(""), 0644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+
+		wantOrigin := "/abs/path/to/my_script.py"
+		got, err := buildNewEnvironment(reqFile, "requirements.txt", wantOrigin)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		venvDir := filepath.Dir(filepath.Dir(got)) // strip bin/python → venv root
+		originFile := filepath.Join(venvDir, ".grimoire_origin")
+		content, err := os.ReadFile(originFile)
+		if err != nil {
+			t.Fatalf(".grimoire_origin not found at %q: %v", originFile, err)
+		}
+		if string(content) != wantOrigin {
+			t.Errorf("origin = %q, want %q", string(content), wantOrigin)
+		}
+	})
+
 	t.Run("recovers_from_missing_hash_file", func(t *testing.T) {
 		requirePython(t)
 
