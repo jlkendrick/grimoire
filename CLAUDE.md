@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Grimoire is a declarative, language-agnostic execution framework written in Go. It translates pure, uninstrumented functions into fully typed CLI commands (and eventually REST APIs) using YAML configuration files. There is a hybrid local/global architecture: a global "grimoire" (spellbook) for personal automation scripts, and repo-level `grim.yaml` files ("spells") for team-shared commands.
+Grimoire is a declarative, language-agnostic execution framework written in Go. It translates pure, uninstrumented functions into fully typed CLI commands (and eventually REST APIs) using YAML configuration files. There is a hybrid local/global architecture: a global "grimoire" (spellbook) for personal automation scripts, and repo-level `spell.yaml` files ("spells") for team-shared commands.
 
 The CLI binary is currently named `sigil` (`rootCmd.Use = "sigil"`), though the project and compiled binary are named `grimoire`. This naming is in flux.
 
@@ -31,7 +31,7 @@ go test -v ./core/...       # verbose core tests
 Commands are split into two categories:
 
 - **Static commands** (`init`, `add`, `sync`, `register`, `clean`): always registered, no config required
-- **Dynamic commands**: generated at startup from `grim.yaml` — one `cobra.Command` per function entry
+- **Dynamic commands**: generated at startup from `spell.yaml` — one `cobra.Command` per function entry
 
 `root.go` skips config loading entirely when a static command is detected (checked via `os.Args[1]`), which keeps startup fast and avoids errors when no config exists.
 
@@ -39,7 +39,7 @@ Commands are split into two categories:
 
 `core/config.go` implements `LoadConfig(scope string)`:
 
-- `"local"`: walks upward from cwd looking for `grim.yaml`
+- `"local"`: walks upward from cwd looking for `spell.yaml`
 - `"global"`: loads `~/.grimoire/config.yaml` (**currently hardcoded to** `~/Code/Projects/grimoire/.grimoire/config.yaml` — known TODO, appears in 3 places)
 - Config is cached in a package-level variable after first load; call `core.ResetConfigCache()` in tests to isolate state
 
@@ -71,7 +71,7 @@ Commands are split into two categories:
 
 ### Python Signature Extraction
 
-`parsers/python.go` uses tree-sitter to parse Python source and extract function signatures. Handles typed params, defaults, `*args`, and `**kwargs`. Used by the `add` command to auto-populate `args` in `grim.yaml`.
+`parsers/python.go` uses tree-sitter to parse Python source and extract function signatures. Handles typed params, defaults, `*args`, and `**kwargs`. Used by the `add` command to auto-populate `args` in `spell.yaml`.
 
 ## Directory Structure
 
@@ -83,7 +83,7 @@ config/       YAML config parsing and generation
 parsers/      Language-specific code analysis (tree-sitter)
 types/        Shared data structures (Config, Function, Arg)
 utils/        File utilities (path expansion, hashing, traversal)
-sample/       Example project with grim.yaml and Python scripts
+sample/       Example project with spell.yaml and Python scripts
 ```
 
 ## Known Issues & TODOs
@@ -94,12 +94,12 @@ sample/       Example project with grim.yaml and Python scripts
 - **CLI name mismatch**: binary is `grimoire`, but `rootCmd.Use` is `sigil`
 - **REST API generation**: planned but not started
 
-## grim.yaml Schema
+## spell.yaml Schema
 
 ```yaml
 functions:
   - name: cli_command_name       # name of the generated CLI subcommand
-    path: path/to/file.py        # path relative to the grim.yaml file
+    path: path/to/file.py        # path relative to the spell.yaml file
     function: python_function    # name of the Python function to call
     interpreter: /path/to/python # optional: explicit interpreter path
     args:

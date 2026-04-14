@@ -14,7 +14,7 @@ import (
 
 var add_cmd = &cobra.Command{
 	Use:   "add [path_to_function:function_name]",
-	Short: "Add a function to the grim.yaml file",
+	Short: "Add a function to the spell.yaml file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if !strings.Contains(args[0], ":") {

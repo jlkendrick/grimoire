@@ -25,11 +25,11 @@ var register_cmd = &cobra.Command{
 				fmt.Printf("Error: %v\n", err)
 				return
 			}
-			matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"grim.yaml"})
+			matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"spell.yaml"})
 			if found {
-				path_to_project = matched_targets["grim.yaml"]
+				path_to_project = matched_targets["spell.yaml"]
 			} else {
-				fmt.Printf("Error: no grim.yaml file found in the current directory or any parent directories\n")
+				fmt.Printf("Error: no spell.yaml file found in the current directory or any parent directories\n")
 				return
 			}
 		}

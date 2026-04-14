@@ -23,14 +23,14 @@ func TestAddCmd(t *testing.T) {
 		}
 	})
 
-	t.Run("adds function to existing grim.yaml", func(t *testing.T) {
+	t.Run("adds function to existing spell.yaml", func(t *testing.T) {
 		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
 		pyContent := "def greet(name: str, times: int = 3):\n    pass\n"
 		if err := os.WriteFile(filepath.Join(dir, "greet.py"), []byte(pyContent), 0644); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, "grim.yaml"), []byte("{}\n"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "spell.yaml"), []byte("{}\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -49,21 +49,21 @@ func TestAddCmd(t *testing.T) {
 			t.Errorf("expected success message in output, got: %q", output)
 		}
 
-		content, err := os.ReadFile(filepath.Join(dir, "grim.yaml"))
+		content, err := os.ReadFile(filepath.Join(dir, "spell.yaml"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		s := string(content)
 		for _, want := range []string{"greet", "name", "times"} {
 			if !strings.Contains(s, want) {
-				t.Errorf("expected %q in updated grim.yaml, got:\n%s", want, s)
+				t.Errorf("expected %q in updated spell.yaml, got:\n%s", want, s)
 			}
 		}
 	})
 
-	t.Run("upward traversal uses parent grim.yaml not CWD", func(t *testing.T) {
-		// Verify that when grim.yaml exists in a parent dir, the add command
-		// operates on that file rather than creating a new grim.yaml in CWD.
+	t.Run("upward traversal uses parent spell.yaml not CWD", func(t *testing.T) {
+		// Verify that when spell.yaml exists in a parent dir, the add command
+		// operates on that file rather than creating a new spell.yaml in CWD.
 		// We intentionally pass a nonexistent Python file so the command fails
 		// at GenerateFunctionConfig — but the error message confirms it got past
 		// the "no config found" path, proving traversal worked.
@@ -73,7 +73,7 @@ func TestAddCmd(t *testing.T) {
 		if err := os.Mkdir(child, 0755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(parent, "grim.yaml"), []byte("{}\n"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(parent, "spell.yaml"), []byte("{}\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -98,7 +98,7 @@ func TestAddCmd(t *testing.T) {
 	t.Run("python file not found prints error", func(t *testing.T) {
 		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
-		if err := os.WriteFile(filepath.Join(dir, "grim.yaml"), []byte("{}\n"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "spell.yaml"), []byte("{}\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 

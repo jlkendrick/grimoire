@@ -38,38 +38,38 @@ func makeBlankGrimYAMLFile(directory string, include_boilerplate bool) error {
 
 	out, err := yaml.MarshalWithOptions(&cfg, opts...)
 	if err != nil {
-		return fmt.Errorf("error marshaling grim.yaml: %w", err)
+		return fmt.Errorf("error marshaling spell.yaml: %w", err)
 	}
-	err = os.WriteFile(path.Join(directory, "grim.yaml"), out, 0644)
+	err = os.WriteFile(path.Join(directory, "spell.yaml"), out, 0644)
 	if err != nil {
-		return fmt.Errorf("error writing boilerplate grim.yaml file: %v", err)
+		return fmt.Errorf("error writing boilerplate spell.yaml file: %v", err)
 	}
 	return nil
 }
 
 var init_cmd = &cobra.Command{
 	Use:   "init",
-	Short: "Create a boilerplate grim.yaml file",
+	Short: "Create a boilerplate spell.yaml file",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Generate a boilerplate grim.yaml file in the current directory
+		// Generate a boilerplate spell.yaml file in the current directory
 		current_dir, err := os.Getwd()
 		if err != nil {
 			fmt.Printf("Error getting current directory: %v\n", err)
 			return
 		}
 
-		// Check if a grim.yaml file already exists
-		if _, err := os.Stat(path.Join(current_dir, "grim.yaml")); !os.IsNotExist(err) {
-			fmt.Printf("grim.yaml file already exists at %s\n", path.Join(current_dir, "grim.yaml"))
+		// Check if a spell.yaml file already exists
+		if _, err := os.Stat(path.Join(current_dir, "spell.yaml")); !os.IsNotExist(err) {
+			fmt.Printf("spell.yaml file already exists at %s\n", path.Join(current_dir, "spell.yaml"))
 			return
 		}
-		
+
 		err = makeBlankGrimYAMLFile(current_dir, true)
 		if err != nil {
-			fmt.Printf("Error generating boilerplate grim.yaml file: %v\n", err)
+			fmt.Printf("Error generating boilerplate spell.yaml file: %v\n", err)
 			return
 		}
-		fmt.Printf("Boilerplate grim.yaml file generated at %s\n", path.Join(current_dir, "grim.yaml"))
+		fmt.Printf("Boilerplate spell.yaml file generated at %s\n", path.Join(current_dir, "spell.yaml"))
 	},
 }
 

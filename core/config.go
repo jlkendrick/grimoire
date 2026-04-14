@@ -34,9 +34,9 @@ func LoadConfig(config_type string) (*types.Config, error) {
 
 		// Determine the path to the config file
 		var config_path string
-		matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"grim.yaml"})
+		matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"spell.yaml"})
 		if found {
-			config_path = matched_targets["grim.yaml"]
+			config_path = matched_targets["spell.yaml"]
 		} else {
 			// Default to the global grimoire
 			config_path, err = utils.ExpandUserPath("~/Code/Projects/grimoire/.grimoire/grimoire.yaml") // UPDATE LATER WITH PERMANENT CONFIG FILE PATH

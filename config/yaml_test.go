@@ -54,6 +54,8 @@ func TestParseConfig(t *testing.T) {
 					},
 				},
 			},
+			Context: types.ContextTypeLocal,
+			Path: path,
 		}
 
 		if !reflect.DeepEqual(*got, want) {
