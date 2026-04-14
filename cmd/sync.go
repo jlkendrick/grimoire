@@ -27,7 +27,7 @@ var sync_cmd = &cobra.Command{
 		} else {
 			config_type = "local"
 		}
-		config_obj, config_path, err := core.LoadConfig(config_type)
+		config_obj, err := core.LoadConfig(config_type)
 
 		// For each function in the config, generate the function config
 		for i, function := range config_obj.Functions {
@@ -41,12 +41,12 @@ var sync_cmd = &cobra.Command{
 		}
 
 		// Write the updated config file
-		err = config_obj.Write(config_path)
+		err = config_obj.Write()
 		if err != nil {
 			fmt.Printf("Error writing config file: %v\n", err)
 			return
 		}
-		fmt.Printf("Config file updated at %s\n", config_path)
+		fmt.Printf("Config file updated at %s\n", config_obj.Path)
 	},
 }
 

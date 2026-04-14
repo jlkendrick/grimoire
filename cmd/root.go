@@ -53,7 +53,7 @@ func Execute() {
 		// Do nothing
 	} else {
 		// Build the commands
-		config, _, err := core.LoadConfig("local")
+		config, err := core.LoadConfig("local")
 		if err != nil {
 			fmt.Printf("Error loading config: %v\n", err)
 			return

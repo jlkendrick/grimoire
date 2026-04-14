@@ -10,13 +10,26 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
+type ContextType string
+const (
+	ContextTypeLocal  ContextType = "local"
+	ContextTypeGlobal ContextType = "global"
+)
+
+type Project struct {
+	Path string `yaml:"path"`
+}
 
 type Config struct {
-	Functions []Function `yaml:"functions"`
+	RegisteredProjects []Project  `yaml:"registered_projects,omitempty"`
+	Functions          []Function `yaml:"functions,omitempty"`
+
+	Context ContextType `yaml:"-"`
+	Path string `yaml:"-"`
 }
 
 
-func (c *Config) Write(path string) error {
+func (c *Config) Write() error {
 	yaml_content, err := yaml.MarshalWithOptions(c, 
 		yaml.Indent(2),
 		yaml.IndentSequence(true),
@@ -24,7 +37,7 @@ func (c *Config) Write(path string) error {
 	if err != nil {
 		return err
 	}
-	err = os.WriteFile(path, yaml_content, 0644)
+	err = os.WriteFile(c.Path, yaml_content, 0644)
 	if err != nil {
 		return err
 	}

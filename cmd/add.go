@@ -37,7 +37,7 @@ var add_cmd = &cobra.Command{
 		} else {
 			config_type = "local"
 		}
-		config_obj, config_path, err := core.LoadConfig(config_type)
+		config_obj, err := core.LoadConfig(config_type)
 
 		// Make the path_to_function relative to the config file that we found
 		absolute_path_to_function, err := filepath.Abs(path_to_function)
@@ -45,7 +45,7 @@ var add_cmd = &cobra.Command{
 			fmt.Printf("Error getting absolute path to function: %v\n", err)
 			return
 		}
-		path_to_function, err = utils.MakeRelativePath(absolute_path_to_function, filepath.Dir(config_path))
+		path_to_function, err = utils.MakeRelativePath(absolute_path_to_function, filepath.Dir(config_obj.Path))
 		if err != nil {
 			fmt.Printf("Error making path to function relative: %v\n", err)
 			return
@@ -60,13 +60,13 @@ var add_cmd = &cobra.Command{
 		config_obj.Functions = append(config_obj.Functions, function_config)
 
 		// Write the updated config file
-		err = config_obj.Write(config_path)
+		err = config_obj.Write()
 		if err != nil {
 			fmt.Printf("Error writing config file: %v\n", err)
 			return
 		}
 
-		fmt.Printf("Function %s added to config file at %s\n", function_name, config_path)
+		fmt.Printf("Function %s added to config file at %s\n", function_name, config_obj.Path)
 	},
 }
 
