@@ -51,14 +51,16 @@ Grimoire handles interpreter resolution (virtual environments, `pyproject.toml`,
 
 ## Key Commands
 
-| Command | Description |
-|---|---|
-| `grimoire init` | Scaffold a `spell.yaml` in the current directory |
-| `grimoire add <file>:<function>` | Add a function to `spell.yaml` and auto-extract its signature |
-| `grimoire sync` | Regenerate argument signatures for all registered functions |
-| `grimoire register [path]` | Register a project's `spell.yaml` with the global grimoire (defaults to nearest `spell.yaml` found via upward traversal) |
-| `grimoire clean [--global]` | Remove cached venvs for functions whose source files no longer exist |
-| `grimoire <name> [flags]` | Run a function by its declared name |
+
+| Command                          | Description                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `grimoire init`                  | Scaffold a `spell.yaml` in the current directory                                                                         |
+| `grimoire add <file>:<function>` | Add a function to `spell.yaml` and auto-extract its signature                                                            |
+| `grimoire sync`                  | Regenerate argument signatures for all registered functions                                                              |
+| `grimoire register [path]`       | Register a project's `spell.yaml` with the global grimoire (defaults to nearest `spell.yaml` found via upward traversal) |
+| `grimoire clean [--global]`      | Remove cached venvs for functions whose source files no longer exist                                                     |
+| `grimoire <name> [flags]`        | Run a function by its declared name                                                                                      |
+
 
 ## Project Structure
 
@@ -87,7 +89,3 @@ go test ./...
 ```
 
 Requires Go 1.23+.
-
----
-
-*The grimoire remembers what you've forgotten you wrote.*
