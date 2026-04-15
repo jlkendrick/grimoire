@@ -23,6 +23,7 @@ func (a *PythonAdapter) GenerateCommand(function types.Function) (string, []stri
     
   inlineScript := fmt.Sprintf(`
 import sys, json, importlib, os
+from contextlib import redirect_stdout
 
 target_dir = os.path.expanduser('%s')
 sys.path.append(target_dir)
@@ -30,7 +31,8 @@ sys.path.append(target_dir)
 mod = importlib.import_module('%s')
 
 kwargs = json.loads(sys.stdin.read())
-result = getattr(mod, '%s')(**kwargs)
+with redirect_stdout(sys.stderr):
+    result = getattr(mod, '%s')(**kwargs)
 
 if result is not None:
     if isinstance(result, (dict, list)):

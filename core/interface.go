@@ -1,9 +1,10 @@
 package core
 
 import (
+	"io"
 	"fmt"
+	"bufio"
 	"bytes"
-	"errors"
 	"os/exec"
 	"strings"
 	"encoding/json"
@@ -38,18 +39,29 @@ func ExecuteFunction(function types.Function, args map[string]interface{}) ([]by
 
 	cmd := exec.Command(binary, flags...)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stderr, _ := cmd.StderrPipe()
+	stdout, _ := cmd.StdoutPipe()
 
+	// Start the command but don't wait for it to finish
 	cmd.Stdin = bytes.NewReader(json_args)
+	cmd.Start()
 
-	err = cmd.Run()
-	if err != nil {
-		return nil, adapter.FormatError(errors.New(stderr.String()))
-	}
+	// Read the stderr of the command and print it to the console
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			fmt.Println(scanner.Text())
+		}
+	}()
 
-	return stdout.Bytes(), nil
+	// Read the stdout of the command and store it in a buffer
+	var output bytes.Buffer
+	io.Copy(&output, stdout)
+
+	// Wait for the command to finish
+	cmd.Wait()
+
+	return output.Bytes(), nil
 }
 
 

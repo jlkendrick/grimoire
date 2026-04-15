@@ -12,3 +12,6 @@ functions:
     args:
       - name: title
         type: str
+  - name: print_logs
+    path: python/log_streaming.py
+    function: print_logs
