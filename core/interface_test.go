@@ -1,11 +1,15 @@
 package core
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	types "github.com/jlkendrick/grimoire/types"
 )
@@ -262,6 +266,130 @@ func TestExecuteFunction(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "unsupported file extension") {
 			t.Errorf("error should contain 'unsupported file extension', got: %q", err.Error())
+		}
+	})
+
+	// -------------------------------------------------------------------------
+	// IO streaming tests — cover the goroutine/pipe approach in ExecuteFunction
+	// -------------------------------------------------------------------------
+
+	t.Run("stderr_does_not_contaminate_returned_bytes", func(t *testing.T) {
+		requirePython(t)
+		path, cleanup := writeTempPyFile(t, "import sys\ndef f():\n    sys.stderr.write('err\\n')\n    return 'ok'\n")
+		defer cleanup()
+
+		out, err := ExecuteFunction(
+			types.Function{TargetFile: path, TargetFunction: "f"},
+			map[string]interface{}{},
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if strings.Contains(string(out), "err") {
+			t.Errorf("stderr content leaked into returned bytes: %q", out)
+		}
+		if got := strings.TrimSpace(string(out)); got != "ok" {
+			t.Errorf("expected %q, got %q", "ok", got)
+		}
+	})
+
+	t.Run("stdout_captured_correctly_while_stderr_also_produced", func(t *testing.T) {
+		requirePython(t)
+		path, cleanup := writeTempPyFile(t, "import sys\ndef f():\n    sys.stderr.write('noise\\n')\n    return 'signal'\n")
+		defer cleanup()
+
+		out, err := ExecuteFunction(
+			types.Function{TargetFile: path, TargetFunction: "f"},
+			map[string]interface{}{},
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := strings.TrimSpace(string(out)); got != "signal" {
+			t.Errorf("expected %q, got %q", "signal", got)
+		}
+	})
+
+	t.Run("stderr_only_function_returns_empty_bytes", func(t *testing.T) {
+		requirePython(t)
+		path, cleanup := writeTempPyFile(t, "import sys\ndef f():\n    sys.stderr.write('log\\n')\n")
+		defer cleanup()
+
+		out, err := ExecuteFunction(
+			types.Function{TargetFile: path, TargetFunction: "f"},
+			map[string]interface{}{},
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := strings.TrimSpace(string(out)); got != "" {
+			t.Errorf("expected empty output, got %q", got)
+		}
+	})
+
+	t.Run("large_output_no_deadlock", func(t *testing.T) {
+		requirePython(t)
+		// The wrapper redirects user print() calls to stderr and writes the
+		// return value to stdout. Flooding both pipes simultaneously would
+		// deadlock if they were drained serially. The goroutine/io.Copy split
+		// must handle them concurrently.
+		//   - 1 000 progress lines  → stderr  (via redirect_stdout inside the wrapper)
+		//   - list of 10 000 ints   → stdout  (return value, JSON-dumped by the wrapper)
+		path, cleanup := writeTempPyFile(t, "def f():\n    for i in range(1000):\n        print(f'progress {i}')\n    return list(range(10000))\n")
+		defer cleanup()
+
+		out, err := ExecuteFunction(
+			types.Function{TargetFile: path, TargetFunction: "f"},
+			map[string]interface{}{},
+		)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var got []interface{}
+		if err := json.Unmarshal(out, &got); err != nil {
+			t.Fatalf("output is not valid JSON: %v\noutput: %s", err, out)
+		}
+		if len(got) != 10000 {
+			t.Errorf("expected 10000 elements, got %d", len(got))
+		}
+	})
+
+	t.Run("stderr_streamed_to_console", func(t *testing.T) {
+		requirePython(t)
+		path, cleanup := writeTempPyFile(t, "import sys\ndef f():\n    for i in range(5):\n        sys.stderr.write(f'line {i}\\n')\n")
+		defer cleanup()
+
+		// Redirect os.Stdout to capture the fmt.Println calls made by the
+		// stderr goroutine inside ExecuteFunction.
+		old := os.Stdout
+		r, w, pipeErr := os.Pipe()
+		if pipeErr != nil {
+			t.Fatalf("os.Pipe: %v", pipeErr)
+		}
+		os.Stdout = w
+
+		_, execErr := ExecuteFunction(
+			types.Function{TargetFile: path, TargetFunction: "f"},
+			map[string]interface{}{},
+		)
+
+		// The stderr goroutine is not joined by cmd.Wait, so give it a moment
+		// to flush its remaining fmt.Println calls before we close the pipe.
+		time.Sleep(20 * time.Millisecond)
+		w.Close()
+		os.Stdout = old
+
+		var captured bytes.Buffer
+		io.Copy(&captured, r)
+
+		if execErr != nil {
+			t.Fatalf("unexpected error: %v", execErr)
+		}
+		for i := 0; i < 5; i++ {
+			want := fmt.Sprintf("line %d", i)
+			if !strings.Contains(captured.String(), want) {
+				t.Errorf("expected %q in console output\nfull output: %q", want, captured.String())
+			}
 		}
 	})
 }

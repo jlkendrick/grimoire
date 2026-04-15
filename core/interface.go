@@ -59,7 +59,9 @@ func ExecuteFunction(function types.Function, args map[string]interface{}) ([]by
 	io.Copy(&output, stdout)
 
 	// Wait for the command to finish
-	cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		return nil, adapter.FormatError(err)
+	}
 
 	return output.Bytes(), nil
 }
