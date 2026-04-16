@@ -7,35 +7,54 @@ import (
 	"bytes"
 	"os/exec"
 	"strings"
-	"encoding/json"
 
 	types "github.com/jlkendrick/grimoire/types"
 	runtimes "github.com/jlkendrick/grimoire/core/runtimes"
 )
 
 type RuntimeAdapter interface {
-	GenerateCommand(function types.Function) (string, []string, error)
+	Provision(function types.Function) (string, error)
+	Compile(function types.Function, interpreter string) error
+	PrepareCommand(function types.Function, interpreter string, args map[string]interface{}) (string, []string, []byte, error)
+
 	FormatError(err error) error
-	GetInterpreter(function types.Function) (string, error)
 }
 
+// Handles the entire execution flow of a function (provision, compile, execute)
+func Run(function types.Function, args map[string]interface{}) ([]byte, error) {
 
-func ExecuteFunction(function types.Function, args map[string]interface{}) ([]byte, error) {
-	// adapter: RuntimeAdapter
+	// Dynamically assign the appropriate adapter based on the function's target file extension
 	adapter, err := assignAdapter(function)
 	if err != nil {
 		return nil, err
 	}
 
-	json_args, err := json.Marshal(args)
+	// Provision the runtime environment
+	interpreter, err := adapter.Provision(function)
 	if err != nil {
-		return nil, adapter.FormatError(err)
+		return nil, err
 	}
 
-	binary, flags, err := adapter.GenerateCommand(function)
+	// Compile the function (no-op for non-compiled languages)
+	err = adapter.Compile(function, interpreter)
 	if err != nil {
-		return nil, adapter.FormatError(err)
+		return nil, err
 	}
+
+	binary, flags, json_args, err := adapter.PrepareCommand(function, interpreter, args)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := Execute(binary, flags, json_args)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
+}
+
+func Execute(binary string, flags []string, json_args []byte) ([]byte, error) {
 
 	cmd := exec.Command(binary, flags...)
 
@@ -60,7 +79,7 @@ func ExecuteFunction(function types.Function, args map[string]interface{}) ([]by
 
 	// Wait for the command to finish
 	if err := cmd.Wait(); err != nil {
-		return nil, adapter.FormatError(err)
+		return nil, err
 	}
 
 	return output.Bytes(), nil

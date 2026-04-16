@@ -6,6 +6,7 @@ import (
 	"strings"
 	"os/exec"
 	"path/filepath"
+	"encoding/json"
 
 	"github.com/pelletier/go-toml/v2"
 
@@ -14,6 +15,103 @@ import (
 )
 
 type PythonAdapter struct {}
+
+func (a *PythonAdapter) Provision(function types.Function) (string, error) {
+	// Option 1: Use the interpreter specified in the YAML
+	if function.Interpreter != "" {
+		p, err := utils.ExpandUserPath(function.Interpreter)
+		if err != nil {
+			return "", err
+		}
+		return p, nil
+	}
+
+	// Option 2: Search for virtual environment (and requirements.txt for next option)
+	expanded_target_file, err := utils.ExpandUserPath(function.TargetFile)
+	if err != nil {
+		return "", err
+	}
+	start_dir := filepath.Dir(expanded_target_file)
+	matched_targets, found := utils.UpwardsTraversalForTargets(start_dir, []string{".venv", "pyproject.toml", "requirements.txt"})
+	// Option 5: No project root found, use the system interpreter
+	if !found {
+		return "python", nil
+	}
+
+	// Unpack the matched targets
+	var venvPath, pyProjectPath, requirementsPath string
+	if venv_path, ok := matched_targets[".venv"]; ok {
+		venvPath = venv_path
+	}
+	if pyproject_path, ok := matched_targets["pyproject.toml"]; ok {
+		pyProjectPath = pyproject_path
+	}
+	if requirements_path, ok := matched_targets["requirements.txt"]; ok {
+		requirementsPath = requirements_path
+	}
+
+	// Option 3: Use the virtual environment
+	if venvPath != "" {
+		return filepath.Join(venvPath, "bin", "python"), nil
+	}
+	
+	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
+	abs_function_path := filepath.Join(filepath.Dir(function.SpellPath), function.TargetFile)
+	if pyProjectPath != "" {
+		interpreter, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", abs_function_path)
+		if err != nil {
+			return "", err
+		}
+		return interpreter, nil
+	} else if requirementsPath != "" {
+		interpreter, err := buildNewEnvironment(requirementsPath, "requirements.txt", abs_function_path)
+		if err != nil {
+			return "", err
+		}
+		return interpreter, nil
+	}
+
+	return "", fmt.Errorf("should not happen")
+}
+
+func (a *PythonAdapter) Compile(function types.Function, interpreter string) error {
+	return nil
+}
+
+func (a *PythonAdapter) PrepareCommand(function types.Function, interpreter string, args map[string]interface{}) (string, []string, []byte, error) {
+	target_dir := filepath.Dir(function.TargetFile)
+	parts := strings.Split(function.TargetFile, "/")
+	module := strings.TrimSuffix(parts[len(parts)-1], ".py")
+
+    
+  inlineScript := fmt.Sprintf(`
+import sys, json, importlib, os
+from contextlib import redirect_stdout
+
+target_dir = os.path.expanduser('%s')
+sys.path.append(target_dir)
+
+mod = importlib.import_module('%s')
+
+kwargs = json.loads(sys.stdin.read())
+with redirect_stdout(sys.stderr):
+    result = getattr(mod, '%s')(**kwargs)
+
+if result is not None:
+    if isinstance(result, (dict, list)):
+        print(json.dumps(result))
+    else:
+        print(result)
+`, target_dir, module, function.TargetFunction)
+
+  json_args, err := json.Marshal(args)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	
+  // Return the binary and the flags to execute the string
+  return interpreter, []string{"-c", inlineScript}, json_args, nil
+}
 
 func (a *PythonAdapter) GenerateCommand(function types.Function) (string, []string, error) {
 	target_dir := filepath.Dir(function.TargetFile)

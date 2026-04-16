@@ -20,7 +20,7 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 				// start_time := time.Now()
 				payload := buildPayload(function, cmd)
 
-				result, err := core.ExecuteFunction(function, payload)
+				result, err := core.Run(function, payload)
 				if err != nil {
 					fmt.Printf("Error executing function: %v\n", err)
 					os.Exit(1)
