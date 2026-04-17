@@ -104,13 +104,13 @@ func TestAssignAdapter(t *testing.T) {
 	}
 }
 
-func TestExecuteFunction(t *testing.T) {
+func TestRun(t *testing.T) {
 	t.Run("returns_string", func(t *testing.T) {
 		requirePython(t)
 		path, cleanup := writeTempPyFile(t, "def greet(name):\n    return 'hello ' + name\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "greet"},
 			map[string]interface{}{"name": "world"},
 		)
@@ -127,7 +127,7 @@ func TestExecuteFunction(t *testing.T) {
 		path, cleanup := writeTempPyFile(t, "def noop():\n    pass\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "noop"},
 			map[string]interface{}{},
 		)
@@ -145,7 +145,7 @@ func TestExecuteFunction(t *testing.T) {
 			"def make_dict(k, v):\n    return {'k': k, 'v': v}\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "make_dict"},
 			map[string]interface{}{"k": "x", "v": 99},
 		)
@@ -170,7 +170,7 @@ func TestExecuteFunction(t *testing.T) {
 			"def make_list(n):\n    return list(range(int(n)))\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "make_list"},
 			map[string]interface{}{"n": 3},
 		)
@@ -194,7 +194,7 @@ func TestExecuteFunction(t *testing.T) {
 		path, cleanup := writeTempPyFile(t, "def add(a, b):\n    return a + b\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "add"},
 			map[string]interface{}{"a": 3, "b": 4},
 		)
@@ -211,7 +211,7 @@ func TestExecuteFunction(t *testing.T) {
 		path, cleanup := writeTempPyFile(t, "def repeat(s, times):\n    return s * times\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "repeat"},
 			map[string]interface{}{"s": "ab", "times": 3},
 		)
@@ -223,20 +223,19 @@ func TestExecuteFunction(t *testing.T) {
 		}
 	})
 
-	t.Run("function_raises_exception_wraps_error", func(t *testing.T) {
+	t.Run("function_raises_exception_returns_error", func(t *testing.T) {
 		requirePython(t)
 		path, cleanup := writeTempPyFile(t, "def boom():\n    raise ValueError('intentional error')\n")
 		defer cleanup()
 
-		_, err := ExecuteFunction(
+		// Execute is now language-agnostic and returns the raw cmd.Wait error;
+		// Run does not call FormatError on it.
+		_, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "boom"},
 			map[string]interface{}{},
 		)
 		if err == nil {
 			t.Fatal("expected error from raising function, got nil")
-		}
-		if !strings.Contains(err.Error(), "python runtime error:") {
-			t.Errorf("error should contain 'python runtime error:', got: %q", err.Error())
 		}
 	})
 
@@ -244,7 +243,7 @@ func TestExecuteFunction(t *testing.T) {
 	// before exec.Command is called, so requirePython is not needed.
 
 	t.Run("no_extension_returns_error", func(t *testing.T) {
-		_, err := ExecuteFunction(
+		_, err := Run(
 			types.Function{TargetFile: "noextension", TargetFunction: "f"},
 			map[string]interface{}{},
 		)
@@ -257,7 +256,7 @@ func TestExecuteFunction(t *testing.T) {
 	})
 
 	t.Run("unsupported_extension_returns_error", func(t *testing.T) {
-		_, err := ExecuteFunction(
+		_, err := Run(
 			types.Function{TargetFile: "script.rb", TargetFunction: "f"},
 			map[string]interface{}{},
 		)
@@ -268,17 +267,17 @@ func TestExecuteFunction(t *testing.T) {
 			t.Errorf("error should contain 'unsupported file extension', got: %q", err.Error())
 		}
 	})
+}
 
-	// -------------------------------------------------------------------------
-	// IO streaming tests — cover the goroutine/pipe approach in ExecuteFunction
-	// -------------------------------------------------------------------------
-
+// TestExecute covers the Execute function directly — the language-agnostic
+// subprocess runner that owns the stderr goroutine and io.Copy pipeline.
+func TestExecute(t *testing.T) {
 	t.Run("stderr_does_not_contaminate_returned_bytes", func(t *testing.T) {
 		requirePython(t)
 		path, cleanup := writeTempPyFile(t, "import sys\ndef f():\n    sys.stderr.write('err\\n')\n    return 'ok'\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
@@ -298,7 +297,7 @@ func TestExecuteFunction(t *testing.T) {
 		path, cleanup := writeTempPyFile(t, "import sys\ndef f():\n    sys.stderr.write('noise\\n')\n    return 'signal'\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
@@ -315,7 +314,7 @@ func TestExecuteFunction(t *testing.T) {
 		path, cleanup := writeTempPyFile(t, "import sys\ndef f():\n    sys.stderr.write('log\\n')\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
@@ -338,7 +337,7 @@ func TestExecuteFunction(t *testing.T) {
 		path, cleanup := writeTempPyFile(t, "def f():\n    for i in range(1000):\n        print(f'progress {i}')\n    return list(range(10000))\n")
 		defer cleanup()
 
-		out, err := ExecuteFunction(
+		out, err := Run(
 			types.Function{TargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
@@ -360,7 +359,7 @@ func TestExecuteFunction(t *testing.T) {
 		defer cleanup()
 
 		// Redirect os.Stdout to capture the fmt.Println calls made by the
-		// stderr goroutine inside ExecuteFunction.
+		// stderr goroutine inside Execute.
 		old := os.Stdout
 		r, w, pipeErr := os.Pipe()
 		if pipeErr != nil {
@@ -368,7 +367,7 @@ func TestExecuteFunction(t *testing.T) {
 		}
 		os.Stdout = w
 
-		_, execErr := ExecuteFunction(
+		_, execErr := Run(
 			types.Function{TargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
