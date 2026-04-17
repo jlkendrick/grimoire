@@ -3,11 +3,11 @@ package cmd
 import (
 	"os"
 	"fmt"
-	// "time"
+
 	"github.com/spf13/cobra"
 
-	core "github.com/jlkendrick/grimoire/core"
 	types "github.com/jlkendrick/grimoire/types"
+	runtimes "github.com/jlkendrick/grimoire/core/runtimes"
 )
 
 func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
@@ -20,7 +20,7 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 				// start_time := time.Now()
 				payload := buildPayload(function, cmd)
 
-				result, err := core.Run(function, payload)
+				result, err := runtimes.Run(function, payload)
 				if err != nil {
 					fmt.Printf("Error executing function: %v\n", err)
 					os.Exit(1)

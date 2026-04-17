@@ -1,24 +1,15 @@
 package runtimes
 
 import (
-	"errors"
 	"os"
-	"os/exec"
-	"path/filepath"
+	"errors"
 	"strings"
 	"testing"
+	"path/filepath"
 
 	types "github.com/jlkendrick/grimoire/types"
 	utils "github.com/jlkendrick/grimoire/utils"
 )
-
-// requirePython skips the test if the "python" binary is not on PATH.
-func requirePython(t *testing.T) {
-	t.Helper()
-	if _, err := exec.LookPath("python"); err != nil {
-		t.Skip("python binary not found on PATH; skipping integration test")
-	}
-}
 
 // -------------------------------------------------------------------------
 // TestPythonAdapter_GenerateCommand

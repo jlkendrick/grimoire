@@ -1,4 +1,4 @@
-package core
+package runtimes
 
 import (
 	"io"
@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	types "github.com/jlkendrick/grimoire/types"
-	runtimes "github.com/jlkendrick/grimoire/core/runtimes"
 )
 
 type RuntimeAdapter interface {
@@ -96,7 +95,9 @@ func assignAdapter(function types.Function) (RuntimeAdapter, error) {
 		
 		switch file_extension {
 		case "py":
-			return &runtimes.PythonAdapter{}, nil
+			return &PythonAdapter{}, nil
+		case "go":
+			return &GoAdapter{}, nil
 		default:
 		return nil, fmt.Errorf("unsupported file extension: %s", file_extension)
 	}

@@ -1,15 +1,15 @@
-package core
+package runtimes
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"io"
 	"os"
+	"fmt"
+	"time"
+	"bytes"
 	"os/exec"
 	"strings"
 	"testing"
-	"time"
+	"encoding/json"
 
 	types "github.com/jlkendrick/grimoire/types"
 )
