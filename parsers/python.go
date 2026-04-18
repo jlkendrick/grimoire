@@ -19,11 +19,11 @@ func (a *PythonAnalyzer) ExtractSignature(path, funcName string) ([]types.Arg, e
 	return extractSignatureBase(pythonConfig, path, funcName)
 }
 
-func extractPythonParam(n *sitter.Node, src []byte) (types.Arg, bool) {
+func extractPythonParam(n *sitter.Node, src []byte) []types.Arg {
 	switch n.Type() {
 	case "identifier":
 		// def f(x):
-		return types.Arg{Name: string(n.Content(src))}, true
+		return []types.Arg{{Name: string(n.Content(src))}}
 
 	case "default_parameter":
 		// def f(x=1):
@@ -37,9 +37,9 @@ func extractPythonParam(n *sitter.Node, src []byte) (types.Arg, bool) {
 			}
 		}
 		if name == "" {
-			return types.Arg{}, false
+			return nil
 		}
-		return types.Arg{Name: name, Default: defaultText}, true
+		return []types.Arg{{Name: name, Default: defaultText}}
 
 	case "typed_parameter":
 		// def f(x: int):
@@ -56,9 +56,9 @@ func extractPythonParam(n *sitter.Node, src []byte) (types.Arg, bool) {
 			}
 		}
 		if name == "" {
-			return types.Arg{}, false
+			return nil
 		}
-		return types.Arg{Name: name, Type: typ}, true
+		return []types.Arg{{Name: name, Type: typ}}
 
 	case "typed_default_parameter":
 		// def f(x: int = 1):
@@ -66,7 +66,7 @@ func extractPythonParam(n *sitter.Node, src []byte) (types.Arg, bool) {
 		typeNode := n.ChildByFieldName("type")
 		valueNode := n.ChildByFieldName("value")
 		if nameNode == nil {
-			return types.Arg{}, false
+			return nil
 		}
 		arg := types.Arg{Name: string(nameNode.Content(src))}
 		if typeNode != nil {
@@ -75,21 +75,21 @@ func extractPythonParam(n *sitter.Node, src []byte) (types.Arg, bool) {
 		if valueNode != nil {
 			arg.Default = string(valueNode.Content(src))
 		}
-		return arg, true
+		return []types.Arg{arg}
 
 	case "list_splat_pattern": // *args
 		if n.NamedChildCount() == 0 {
-			return types.Arg{}, false
+			return nil
 		}
-		return types.Arg{Name: "*" + string(n.NamedChild(0).Content(src))}, true
+		return []types.Arg{{Name: "*" + string(n.NamedChild(0).Content(src))}}
 
 	case "dictionary_splat_pattern": // **kwargs
 		if n.NamedChildCount() == 0 {
-			return types.Arg{}, false
+			return nil
 		}
-		return types.Arg{Name: "**" + string(n.NamedChild(0).Content(src))}, true
+		return []types.Arg{{Name: "**" + string(n.NamedChild(0).Content(src))}}
 	}
 
 	// Unsupported param kind (pos-only marker '/', etc.)
-	return types.Arg{}, false
+	return nil
 }

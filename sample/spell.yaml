@@ -21,3 +21,9 @@ functions:
     args:
       - name: message
         type: str
+  - name: HelloWorld
+    path: go/hello_world.go
+    function: HelloWorld
+    args:
+      - name: "n"
+        type: int

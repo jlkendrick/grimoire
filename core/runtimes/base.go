@@ -99,6 +99,6 @@ func assignAdapter(function types.Function) (RuntimeAdapter, error) {
 		case "go":
 			return &GoAdapter{}, nil
 		default:
-		return nil, fmt.Errorf("unsupported file extension: %s", file_extension)
+			return nil, fmt.Errorf("unsupported file extension: %s", file_extension)
 	}
 }

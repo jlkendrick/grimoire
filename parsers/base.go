@@ -30,9 +30,11 @@ type grammarConfig struct {
 	// on the function node (almost always "parameters").
 	parametersField string
 
-	// extractParam converts a single parameter node into an Arg.
-	// Return (Arg{}, false) to skip unsupported node kinds.
-	extractParam func(n *sitter.Node, src []byte) (types.Arg, bool)
+	// extractParam converts a single parameter node into zero or more Args.
+	// Return nil to skip unsupported node kinds (e.g. position-only markers).
+	// Returning multiple Args handles languages like Go where one declaration
+	// can name several parameters sharing a type: func f(x, y int).
+	extractParam func(n *sitter.Node, src []byte) []types.Arg
 }
 
 func extractSignatureBase(cfg grammarConfig, path, funcName string) ([]types.Arg, error) {
@@ -65,9 +67,7 @@ func extractSignatureBase(cfg grammarConfig, path, funcName string) ([]types.Arg
 		if paramNode == nil {
 			continue
 		}
-		if arg, ok := cfg.extractParam(paramNode, src); ok {
-			args = append(args, arg)
-		}
+		args = append(args, cfg.extractParam(paramNode, src)...)
 	}
 
 	return args, nil

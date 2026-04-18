@@ -71,6 +71,8 @@ func (g *ConfigGenerator) GenerateFunctionConfig() (types.Function, error) {
 	switch file_extension {
 	case "py":
 		analyzer = &parsers.PythonAnalyzer{}
+	case "go":
+		analyzer = &parsers.GoAnalyzer{}
 	default:
 		return types.Function{}, fmt.Errorf("unsupported file extension: %s", file_extension)
 	}
