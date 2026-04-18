@@ -16,26 +16,30 @@ import (
 
 type PythonAdapter struct {}
 
-func (a *PythonAdapter) Provision(function types.Function) (string, error) {
+func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
+	function := execution_context.StateMap["function"].(types.Function)
+
 	// Option 1: Use the interpreter specified in the YAML
 	if function.Interpreter != "" {
 		p, err := utils.ExpandUserPath(function.Interpreter)
 		if err != nil {
-			return "", err
+			return err
 		}
-		return p, nil
+		execution_context.StateMap["interpreter"] = p
+		return nil
 	}
 
 	// Option 2: Search for virtual environment (and requirements.txt for next option)
 	expanded_target_file, err := utils.ExpandUserPath(function.TargetFile)
 	if err != nil {
-		return "", err
+		return err
 	}
 	start_dir := filepath.Dir(expanded_target_file)
 	matched_targets, found := utils.UpwardsTraversalForTargets(start_dir, []string{".venv", "pyproject.toml", "requirements.txt"})
 	// Option 5: No project root found, use the system interpreter
 	if !found {
-		return "python", nil
+		execution_context.StateMap["interpreter"] = "python"
+		return nil
 	}
 
 	// Unpack the matched targets
@@ -52,7 +56,8 @@ func (a *PythonAdapter) Provision(function types.Function) (string, error) {
 
 	// Option 3: Use the virtual environment
 	if venvPath != "" {
-		return filepath.Join(venvPath, "bin", "python"), nil
+		execution_context.StateMap["interpreter"] = filepath.Join(venvPath, "bin", "python")
+		return nil
 	}
 	
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
@@ -60,25 +65,31 @@ func (a *PythonAdapter) Provision(function types.Function) (string, error) {
 	if pyProjectPath != "" {
 		interpreter, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", abs_function_path)
 		if err != nil {
-			return "", err
+			return err
 		}
-		return interpreter, nil
+		execution_context.StateMap["interpreter"] = interpreter
+		return nil
 	} else if requirementsPath != "" {
 		interpreter, err := buildNewEnvironment(requirementsPath, "requirements.txt", abs_function_path)
 		if err != nil {
-			return "", err
+			return err
 		}
-		return interpreter, nil
+		execution_context.StateMap["interpreter"] = interpreter
+		return nil
 	}
 
-	return "", fmt.Errorf("should not happen")
+	return fmt.Errorf("should not happen")
 }
 
-func (a *PythonAdapter) Compile(function types.Function, interpreter string) error {
+func (a *PythonAdapter) Compile(execution_context *ExecutionContext) error {
 	return nil
 }
 
-func (a *PythonAdapter) PrepareCommand(function types.Function, interpreter string, args map[string]interface{}) (string, []string, []byte, error) {
+func (a *PythonAdapter) PrepareCommand(execution_context *ExecutionContext) error {
+	function := execution_context.StateMap["function"].(types.Function)
+	interpreter := execution_context.StateMap["interpreter"].(string)
+	args := execution_context.StateMap["args"].(map[string]interface{})
+
 	target_dir := filepath.Dir(function.TargetFile)
 	parts := strings.Split(function.TargetFile, "/")
 	module := strings.TrimSuffix(parts[len(parts)-1], ".py")
@@ -106,11 +117,14 @@ if result is not None:
 
   json_args, err := json.Marshal(args)
 	if err != nil {
-		return "", nil, nil, err
+		return err
 	}
 	
   // Return the binary and the flags to execute the string
-  return interpreter, []string{"-c", inlineScript}, json_args, nil
+  execution_context.StateMap["binary"] = interpreter
+  execution_context.StateMap["flags"] = []string{"-c", inlineScript}
+  execution_context.StateMap["json_args"] = json_args
+  return nil
 }
 
 func (a *PythonAdapter) GenerateCommand(function types.Function) (string, []string, error) {

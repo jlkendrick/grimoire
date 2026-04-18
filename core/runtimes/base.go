@@ -11,16 +11,25 @@ import (
 	types "github.com/jlkendrick/grimoire/types"
 )
 
+type ExecutionContext struct {
+	StateMap map[string]any
+}
+
 type RuntimeAdapter interface {
-	Provision(function types.Function) (string, error)
-	Compile(function types.Function, interpreter string) error
-	PrepareCommand(function types.Function, interpreter string, args map[string]interface{}) (string, []string, []byte, error)
+	Provision(execution_context *ExecutionContext) error
+	Compile(execution_context *ExecutionContext) error
+	PrepareCommand(execution_context *ExecutionContext) error
 
 	FormatError(err error) error
 }
 
 // Handles the entire execution flow of a function (provision, compile, execute)
 func Run(function types.Function, args map[string]interface{}) ([]byte, error) {
+	execution_context := ExecutionContext{
+		StateMap: make(map[string]any),
+	}
+	execution_context.StateMap["function"] = function
+	execution_context.StateMap["args"] = args
 
 	// Dynamically assign the appropriate adapter based on the function's target file extension
 	adapter, err := assignAdapter(function)
@@ -29,23 +38,23 @@ func Run(function types.Function, args map[string]interface{}) ([]byte, error) {
 	}
 
 	// Provision the runtime environment
-	interpreter, err := adapter.Provision(function)
+	err = adapter.Provision(&execution_context)
 	if err != nil {
 		return nil, err
 	}
 
 	// Compile the function (no-op for non-compiled languages)
-	err = adapter.Compile(function, interpreter)
+	err = adapter.Compile(&execution_context)
 	if err != nil {
 		return nil, err
 	}
 
-	binary, flags, json_args, err := adapter.PrepareCommand(function, interpreter, args)
+	err = adapter.PrepareCommand(&execution_context)
 	if err != nil {
 		return nil, err
 	}
 
-	output, err := Execute(binary, flags, json_args)
+	output, err := Execute(&execution_context)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +62,10 @@ func Run(function types.Function, args map[string]interface{}) ([]byte, error) {
 	return output, nil
 }
 
-func Execute(binary string, flags []string, json_args []byte) ([]byte, error) {
+func Execute(execution_context *ExecutionContext) ([]byte, error) {
+	binary := execution_context.StateMap["binary"].(string)
+	flags := execution_context.StateMap["flags"].([]string)
+	json_args := execution_context.StateMap["json_args"].([]byte)
 
 	cmd := exec.Command(binary, flags...)
 
