@@ -14,6 +14,7 @@ import (
 type ConfigGenerator struct {
 	PathToFunction string
 	FunctionName   string
+	CommandName    string
 }
 
 // Parse the user's configuration file
@@ -94,7 +95,7 @@ func (g *ConfigGenerator) GenerateFunctionConfig() (types.Function, error) {
 	}
 
 	return types.Function{
-		Name: g.FunctionName,
+		Name: g.CommandName,
 		TargetFile: g.PathToFunction,
 		TargetFunction: g.FunctionName,
 		Args: args,

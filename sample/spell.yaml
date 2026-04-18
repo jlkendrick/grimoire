@@ -21,7 +21,7 @@ functions:
     args:
       - name: message
         type: str
-  - name: HelloWorld
+  - name: go_world
     path: go/hello_world.go
     function: HelloWorld
     args:

@@ -25,10 +25,21 @@ var add_cmd = &cobra.Command{
 		path_to_function := parts[0]
 		function_name := parts[1]
 
+		// Get the global flag
 		global, err := cmd.Flags().GetBool("global")
 		if err != nil {
 			fmt.Printf("Error getting global flag: %v\n", err)
 			return
+		}
+
+		// Get the name flag
+		command_name, err := cmd.Flags().GetString("name")
+		if err != nil {
+			fmt.Printf("Error getting name flag: %v\n", err)
+			return
+		}
+		if command_name == "" {
+			command_name = function_name
 		}
 
 		var config_type string
@@ -51,7 +62,7 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		config_generator := config.ConfigGenerator{PathToFunction: path_to_function, FunctionName: function_name}
+		config_generator := config.ConfigGenerator{PathToFunction: path_to_function, FunctionName: function_name, CommandName: command_name}
 		function_config, err := config_generator.GenerateFunctionConfig()
 		if err != nil {
 			fmt.Printf("Error generating function config: %v\n", err)
@@ -66,11 +77,12 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("Function %s added to config file at %s\n", function_name, config_obj.Path)
+		fmt.Printf("Function %s added to config file at %s\n", command_name, config_obj.Path)
 	},
 }
 
 func init() {
 	add_cmd.Flags().BoolP("global", "g", false, "Add the function to the global grimoire")
+	add_cmd.Flags().StringP("name", "n", "", "Command name to use for the function")
 	rootCmd.AddCommand(add_cmd)
 }
