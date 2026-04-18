@@ -112,7 +112,7 @@ if result is not None:
     if isinstance(result, (dict, list)):
         print(json.dumps(result))
     else:
-        print(result)
+        print({"result": result})
 `, target_dir, module, function.TargetFunction)
 
   json_args, err := json.Marshal(args)
