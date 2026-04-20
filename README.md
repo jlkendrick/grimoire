@@ -67,7 +67,7 @@ Grimoire handles interpreter resolution (virtual environments, `pyproject.toml`,
 ```
 cmd/          CLI layer — command registration and flag generation
 core/         Execution engine — runtime dispatch and config loading
-  runtimes/   Language adapters (Python currently)
+  runtimes/   Language adapters (Python, Go)
 config/       YAML parsing and config generation
 parsers/      Source code analysis for signature extraction (tree-sitter)
 types/        Shared data structures
@@ -77,7 +77,8 @@ sample/       Example project with spell.yaml and Python scripts
 
 ## Current Language Support
 
-- **Python** — full support, including automatic virtual environment provisioning
+- **Python** — full support, including automatic virtual environment provisioning from `requirements.txt` or `pyproject.toml`
+- **Go** — full support; Grimoire creates an isolated wrapper module per project, compiles it on first use, and caches the binary for fast subsequent invocations
 
 More runtimes are planned. The adapter interface is designed to be language-agnostic from the start.
 

@@ -20,6 +20,28 @@ var clean_cmd = &cobra.Command{
 			fmt.Printf("Error getting global flag: %v\n", err)
 			return
 		}
+		force_clean, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			fmt.Printf("Error getting force flag: %v\n", err)
+			return
+		}
+		if force_clean {
+			// Delete all venvs in the .grimoire/envs directory
+			envs_dir, err := utils.ExpandUserPath("~/.grimoire/envs")
+			if err != nil {
+				fmt.Printf("Error expanding envs path: %v\n", err)
+				return
+			}
+			envs, err := os.ReadDir(envs_dir)
+			if err != nil {
+				fmt.Printf("Error reading envs directory: %v\n", err)
+				return
+			}
+			for _, env := range envs {
+				os.RemoveAll(filepath.Join(envs_dir, env.Name()))
+			}
+			return
+		}
 
 		var config_type string
 		if global {
@@ -42,7 +64,7 @@ var clean_cmd = &cobra.Command{
 		}
 
 		// Go through each venv and check if it is in the unused_functions map
-		venv_root, err := utils.ExpandUserPath("~/Code/Projects/grimoire/.grimoire/envs")
+		venv_root, err := utils.ExpandUserPath("~/.grimoire/envs")
 		if err != nil {
 			fmt.Printf("Error expanding user path: %v\n", err)
 			return
@@ -82,5 +104,6 @@ var clean_cmd = &cobra.Command{
 
 func init() {
 	clean_cmd.Flags().BoolP("global", "g", false, "Clean global venvs")
+	clean_cmd.Flags().BoolP("force", "f", false, "Force clean all venvs")
 	rootCmd.AddCommand(clean_cmd)
 }

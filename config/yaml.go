@@ -94,10 +94,14 @@ func (g *ConfigGenerator) GenerateFunctionConfig() (types.Function, error) {
 		}
 	}
 
+	name := g.CommandName
+	if name == "" {
+		name = g.FunctionName
+	}
 	return types.Function{
-		Name: g.CommandName,
-		TargetFile: g.PathToFunction,
+		Name:           name,
+		TargetFile:     g.PathToFunction,
 		TargetFunction: g.FunctionName,
-		Args: args,
+		Args:           args,
 	}, nil
 }

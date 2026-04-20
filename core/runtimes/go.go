@@ -1,32 +1,41 @@
 package runtimes
 
 import (
-	"os"
-	"fmt"
 	"bufio"
-	"strings"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
-	"encoding/json"
+	"unicode"
+	"unicode/utf8"
 
 	types "github.com/jlkendrick/grimoire/types"
 	utils "github.com/jlkendrick/grimoire/utils"
 )
+
+func uppercaseFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	r, size := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError && size == 0 {
+		return s
+	}
+	return string(unicode.ToUpper(r)) + s[size:]
+}
 
 
 type GoAdapter struct {}
 
 func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 	function := execution_context.StateMap["function"].(types.Function)
-	
-	// Get the go.mod file hash
-	expanded_target_file, err := utils.ExpandUserPath(function.TargetFile)
-	if err != nil {
-		return err
-	}
 
-	absolute_start_dir := filepath.Join(filepath.Dir(function.SpellPath), filepath.Dir(expanded_target_file))
+	// Get the go.mod file hash
+	absolute_start_dir := filepath.Join(filepath.Dir(function.SpellPath), filepath.Dir(function.TargetFile))
 	matched_targets, found := utils.UpwardsTraversalForTargets(absolute_start_dir, []string{"go.mod"})
 	if !found {
 		return fmt.Errorf("go.mod not found")
@@ -43,11 +52,11 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 
 	// Check to see if we already have an env for this hash
-	temp_grimoire_dir, err := utils.ExpandUserPath("~/Code/Projects/grimoire/.grimoire")
+	grimoire_dir, err := utils.ExpandUserPath("~/.grimoire")
 	if err != nil {
 		return err
 	}
-	env_path := filepath.Join(temp_grimoire_dir, "envs", file_hash)
+	env_path := filepath.Join(grimoire_dir, "envs", file_hash)
 	if _, err := os.Stat(env_path); os.IsNotExist(err) {
 		// Create the env
 		err = os.MkdirAll(env_path, 0755)
@@ -64,52 +73,50 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 		}
 	}
 
-	// Write the replace directive to the go.mod file
-
 	// Get the user's module name from the go.mod file
 	user_module_name, err := getModuleName(user_go_mod_path)
 	if err != nil {
 		return err
 	}
 
+	// Read the existing wrapper go.mod to extract the Go toolchain version
+	// written by `go mod init` (or a prior run).
 	generated_go_mod_path := filepath.Join(env_path, "go.mod")
 	generated_go_mod_content_bytes, err := os.ReadFile(generated_go_mod_path)
 	if err != nil {
 		return fmt.Errorf("error reading generated go.mod: %w", err)
 	}
-	generated_go_mod_content := string(generated_go_mod_content_bytes)
 
-	// Append the line to require the user's module, if it doesn't already exist
-	require_line := "require " + user_module_name + " v0.0.0"
-	if !strings.Contains(generated_go_mod_content, require_line) {
-		generated_go_mod_content += "\n" + require_line
+	// Extract the "go X.Y" line from the existing wrapper go.mod.
+	go_version_line := "go 1.21"
+	for _, line := range strings.Split(string(generated_go_mod_content_bytes), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "go ") {
+			go_version_line = trimmed
+			break
+		}
 	}
 
-	// Append the replace directive to the go.mod file if it doesn't already exist
-	replace_line := "replace " + user_module_name + " => " + filepath.Dir(user_go_mod_path)
-	if !strings.Contains(generated_go_mod_content, replace_line) {
-		generated_go_mod_content += "\n" + replace_line
-	}
-
-	err = os.WriteFile(generated_go_mod_path, []byte(generated_go_mod_content), 0644)
-	if err != nil {
+	// Always regenerate the wrapper go.mod so the replace directive reflects
+	// the current user module location. Incremental patching risks duplicate
+	// replace directives when the project path changes between runs.
+	wrapper_go_mod := fmt.Sprintf(
+		"module grimoire_wrapper\n\n%s\n\nrequire %s v0.0.0\n\nreplace %s => %s\n",
+		go_version_line, user_module_name, user_module_name, filepath.Dir(user_go_mod_path),
+	)
+	if err := os.WriteFile(generated_go_mod_path, []byte(wrapper_go_mod), 0644); err != nil {
 		return fmt.Errorf("error writing generated go.mod: %w", err)
 	}
 
-	// Do not run `go mod tidy` here: it removes "unused" require lines, and the wrapper
-	// module does not yet import the replaced module, so tidy would drop the require
-	// we just added even though it is needed for replace to apply on build.
-
 	execution_context.StateMap["user_go_mod_path"] = user_go_mod_path
 	execution_context.StateMap["user_module_name"] = user_module_name
-	execution_context.StateMap["generated_go_mod_path"] = generated_go_mod_path
 	execution_context.StateMap["env_path"] = env_path
 	return nil
 }
 
 type WrapperData struct {
-	UserModule string // e.g., "github.com/james/myproject/api"
-	FuncName   string // e.g., "Calculate"
+	UserModule string
+	FuncName   string
 	Args       []ArgDef
 }
 
@@ -192,29 +199,89 @@ func generateWrapper(outputPath string, data WrapperData) error {
 	return tmpl.Execute(file, data)
 }
 
+func shouldCompile(execution_context *ExecutionContext) bool {
+	// Check 1: if we haven't compiled before (no binary file exists)
+	binary_path := filepath.Join(execution_context.StateMap["env_path"].(string), "grimoire_exec")
+	if _, err := os.Stat(binary_path); os.IsNotExist(err) {
+		return true
+	}
+
+	// Check 2: if any source files have changed since last compile
+	// Get compile time of binary
+	binary_info, err := os.Stat(binary_path)
+	if err != nil {
+		return true
+	}
+	binary_compile_time := binary_info.ModTime()
+
+	// Scan user source files (and go.mod and go.sum) starting from the dir of function's corresponding go.mod file
+	user_go_mod_path_dir := filepath.Dir(execution_context.StateMap["user_go_mod_path"].(string))
+	needs_recompile := false
+	err = filepath.WalkDir(user_go_mod_path_dir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if strings.HasPrefix(entry.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "go.mod") || strings.HasSuffix(path, "go.sum") {
+			file_info, err := os.Stat(path)
+			if err != nil {
+				return err
+			}
+			if file_info.ModTime().After(binary_compile_time) {
+				needs_recompile = true
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return true
+	}
+
+	return needs_recompile
+}
+
 func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
+	// Check if we need to compile
+	if !shouldCompile(execution_context) {
+		execution_context.StateMap["binary"] = filepath.Join(execution_context.StateMap["env_path"].(string), "grimoire_exec")
+		return nil
+	}
+	
 	function := execution_context.StateMap["function"].(types.Function)
 	user_module_name := execution_context.StateMap["user_module_name"].(string)
 	user_go_mod_path := execution_context.StateMap["user_go_mod_path"].(string)
 	args_def := []ArgDef{}
 	for _, arg := range function.Args {
 		args_def = append(args_def, ArgDef{
-			Name: strings.Title(arg.Name),
+			Name: uppercaseFirst(arg.Name),
 			Type: arg.Type,
 			Key: strings.ToLower(arg.Name),
 		})
 	}
 
-	// Calculate the import path for the user's module
+	// Calculate the import path for the user's module.
 	absolute_function_path := filepath.Join(filepath.Dir(function.SpellPath), function.TargetFile)
 	user_module_path, err := utils.MakeRelativePath(filepath.Dir(absolute_function_path), filepath.Dir(user_go_mod_path))
 	if err != nil {
 		return err
 	}
+	// When the function lives in the module root, MakeRelativePath returns ".".
+	// "module/." is not a valid Go import path; use the module name directly.
+	var user_import_path string
+	if user_module_path == "." {
+		user_import_path = user_module_name
+	} else {
+		user_import_path = user_module_name + "/" + user_module_path
+	}
 	wrapper_data := WrapperData{
-		UserModule: user_module_name + "/" + user_module_path,
-		FuncName: function.TargetFunction,
-		Args: args_def,
+		UserModule: user_import_path,
+		FuncName:   function.TargetFunction,
+		Args:       args_def,
 	}
 
 	output_path := filepath.Join(execution_context.StateMap["env_path"].(string), "grimoire_wrapper.go")
@@ -232,7 +299,7 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	}
 
 	// Now run go build in the env
-	cmd = exec.Command("go", "build", "-o", "grimoire_exec", output_path)
+	cmd = exec.Command("go", "build", "-o", "grimoire_exec", ".")
 	cmd.Dir = execution_context.StateMap["env_path"].(string)
 	err = cmd.Run()
 	if err != nil {

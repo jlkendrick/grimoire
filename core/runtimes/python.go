@@ -112,7 +112,7 @@ if result is not None:
     if isinstance(result, (dict, list)):
         print(json.dumps(result))
     else:
-        print({"result": result})
+        print(result)
 `, target_dir, module, function.TargetFunction)
 
   json_args, err := json.Marshal(args)
@@ -246,7 +246,7 @@ func buildNewEnvironment(dependency_file string, dependency_type string, abs_fun
 		return "", err
 	}
 	// For development, put the .grimoire dir in the our local grimoire repo for easy access, will change later to a more permanent location
-	temp_grimoire_dir, err := utils.ExpandUserPath("~/Code/Projects/grimoire/.grimoire")
+	temp_grimoire_dir, err := utils.ExpandUserPath("~/.grimoire")
 	if err != nil {
 		return "", err
 	}
