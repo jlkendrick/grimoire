@@ -340,3 +340,45 @@ func TestMakeRelativePath(t *testing.T) {
 		})
 	}
 }
+
+func TestGrimoireHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir: %v", err)
+	}
+
+	t.Run("defaults_to_home_grimoire", func(t *testing.T) {
+		t.Setenv("GRIMOIRE_HOME", "")
+		got, err := GrimoireHome()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := filepath.Join(home, ".grimoire")
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("respects_GRIMOIRE_HOME_env_var", func(t *testing.T) {
+		t.Setenv("GRIMOIRE_HOME", "/custom/grimoire")
+		got, err := GrimoireHome()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != "/custom/grimoire" {
+			t.Errorf("got %q, want %q", got, "/custom/grimoire")
+		}
+	})
+
+	t.Run("tilde_expansion_in_GRIMOIRE_HOME", func(t *testing.T) {
+		t.Setenv("GRIMOIRE_HOME", "~/my-grimoire")
+		got, err := GrimoireHome()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		want := filepath.Join(home, "my-grimoire")
+		if got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+}

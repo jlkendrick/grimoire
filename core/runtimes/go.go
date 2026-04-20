@@ -52,7 +52,7 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 
 	// Check to see if we already have an env for this hash
-	grimoire_dir, err := utils.ExpandUserPath("~/.grimoire")
+	grimoire_dir, err := utils.GrimoireHome()
 	if err != nil {
 		return err
 	}
@@ -174,12 +174,17 @@ func main() {
 		result = out
 	}
 
-	// Wrap the result in JSON and send it back to Grimoire
-	if err := json.NewEncoder(os.Stdout).Encode(map[string]interface{}{
-		"result": result,
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "Grimoire Encoder Error: %v\n", err)
-		os.Exit(1)
+	// Print the result: strings are emitted raw; all other types are JSON-encoded.
+	if result != nil {
+		switch v := result.(type) {
+		case string:
+			fmt.Fprintln(os.Stdout, v)
+		default:
+			if err := json.NewEncoder(os.Stdout).Encode(v); err != nil {
+				fmt.Fprintf(os.Stderr, "Grimoire Encoder Error: %v\n", err)
+				os.Exit(1)
+			}
+		}
 	}
 }
 `

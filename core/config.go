@@ -25,8 +25,6 @@ func LoadConfig(config_type string) (*types.Config, error) {
 
 	switch config_type {
 	case "local":
-		fmt.Println("[DEBUG] Reading local config...")
-
 		current_dir, err := os.Getwd()
 		if err != nil {
 			return nil, err
@@ -38,11 +36,12 @@ func LoadConfig(config_type string) (*types.Config, error) {
 		if found {
 			config_path = matched_targets["spell.yaml"]
 		} else {
-			// Default to the global grimoire
-			config_path, err = utils.ExpandUserPath("~/Code/Projects/grimoire/.grimoire/grimoire.yaml") // UPDATE LATER WITH PERMANENT CONFIG FILE PATH
+			// Fall back to the global grimoire config
+			grimoire_home, err := utils.GrimoireHome()
 			if err != nil {
 				return nil, err
 			}
+			config_path = grimoire_home + "/grimoire.yaml"
 		}
 
 		// Parse the config file
@@ -57,12 +56,11 @@ func LoadConfig(config_type string) (*types.Config, error) {
 		return config, nil
 
 	case "global":
-		fmt.Println("[DEBUG] Reading global config...")
-
-		config_path, err := utils.ExpandUserPath("~/Code/Projects/grimoire/.grimoire/grimoire.yaml") // UPDATE LATER WITH PERMANENT CONFIG FILE PATH
+		grimoire_home, err := utils.GrimoireHome()
 		if err != nil {
 			return nil, err
 		}
+		config_path := grimoire_home + "/grimoire.yaml"
 
 		config, err := config.ParseConfig(config_path)
 		if err != nil {

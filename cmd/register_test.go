@@ -10,31 +10,19 @@ import (
 	core "github.com/jlkendrick/grimoire/core"
 )
 
-// globalConfigPath returns the hardcoded path to the global grimoire config,
-// skipping the test if the home directory cannot be resolved.
-func globalConfigPath(t *testing.T) string {
+// withTempGrimoireHome creates a temp dir with a minimal grimoire.yaml, sets
+// GRIMOIRE_HOME to that dir, and returns the config path. The env var and
+// config cache are both restored automatically when the test ends.
+func withTempGrimoireHome(t *testing.T) string {
 	t.Helper()
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skipf("could not get home dir: %v", err)
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "grimoire.yaml")
+	if err := os.WriteFile(configPath, []byte("{}\n"), 0644); err != nil {
+		t.Fatalf("creating temp grimoire.yaml: %v", err)
 	}
-	return filepath.Join(home, "Code/Projects/grimoire/.grimoire/grimoire.yaml")
-}
-
-// withGlobalConfig reads the current global config file and registers a cleanup
-// that restores it at the end of the test. Skips if the file is unavailable.
-func withGlobalConfig(t *testing.T) {
-	t.Helper()
-	path := globalConfigPath(t)
-	original, err := os.ReadFile(path)
-	if err != nil {
-		t.Skipf("global config not available at %s: %v", path, err)
-	}
-	t.Cleanup(func() {
-		if err := os.WriteFile(path, original, 0644); err != nil {
-			t.Logf("warning: could not restore global config: %v", err)
-		}
-	})
+	t.Setenv("GRIMOIRE_HOME", dir)
+	t.Cleanup(core.ResetConfigCache)
+	return configPath
 }
 
 func TestRegisterCmd(t *testing.T) {
@@ -60,8 +48,7 @@ func TestRegisterCmd(t *testing.T) {
 	})
 
 	t.Run("explicit_path_registers_project", func(t *testing.T) {
-		t.Cleanup(core.ResetConfigCache)
-		withGlobalConfig(t)
+		configPath := withTempGrimoireHome(t)
 
 		dir := t.TempDir()
 		spellPath := filepath.Join(dir, "spell.yaml")
@@ -78,7 +65,7 @@ func TestRegisterCmd(t *testing.T) {
 			t.Errorf("expected success message in output, got: %q", output)
 		}
 
-		updated, err := os.ReadFile(globalConfigPath(t))
+		updated, err := os.ReadFile(configPath)
 		if err != nil {
 			t.Fatalf("reading updated global config: %v", err)
 		}
@@ -88,8 +75,7 @@ func TestRegisterCmd(t *testing.T) {
 	})
 
 	t.Run("traversal_finds_spell_yaml", func(t *testing.T) {
-		t.Cleanup(core.ResetConfigCache)
-		withGlobalConfig(t)
+		withTempGrimoireHome(t)
 
 		// Create a parent with spell.yaml and a child subdir to run from.
 		parent := t.TempDir()

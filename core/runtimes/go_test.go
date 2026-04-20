@@ -274,7 +274,7 @@ func TestAssignAdapter_GoExtension(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------
-// Integration tests — require `go` on PATH and write to ~/.grimoire/envs/
+// Integration tests — require `go` on PATH and write to $GRIMOIRE_HOME/envs/
 // -------------------------------------------------------------------------
 
 func TestGoRun(t *testing.T) {
@@ -299,13 +299,8 @@ func TestGoRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-
-		var result map[string]interface{}
-		if err := json.Unmarshal(out, &result); err != nil {
-			t.Fatalf("output not valid JSON: %v\noutput: %q", err, out)
-		}
-		if result["result"] != float64(7) {
-			t.Errorf("expected result=7, got %v", result["result"])
+		if got := strings.TrimSpace(string(out)); got != "7" {
+			t.Errorf("expected %q, got %q", "7", got)
 		}
 	})
 
@@ -325,13 +320,8 @@ func TestGoRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-
-		var result map[string]interface{}
-		if err := json.Unmarshal(out, &result); err != nil {
-			t.Fatalf("output not valid JSON: %v\noutput: %q", err, out)
-		}
-		if result["result"] != "hello world" {
-			t.Errorf("expected result=%q, got %v", "hello world", result["result"])
+		if got := strings.TrimSpace(string(out)); got != "hello world" {
+			t.Errorf("expected %q, got %q", "hello world", got)
 		}
 	})
 
@@ -351,13 +341,8 @@ func TestGoRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-
-		var result map[string]interface{}
-		if err := json.Unmarshal(out, &result); err != nil {
-			t.Fatalf("output not valid JSON: %v\noutput: %q", err, out)
-		}
-		if result["result"] != nil {
-			t.Errorf("expected result=nil, got %v", result["result"])
+		if got := strings.TrimSpace(string(out)); got != "" {
+			t.Errorf("expected empty output, got %q", got)
 		}
 	})
 
@@ -377,13 +362,9 @@ func TestGoRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-
-		var result map[string]interface{}
-		if err := json.Unmarshal(out, &result); err != nil {
-			t.Fatalf("output not valid JSON: %v\noutput: %q", err, out)
-		}
-		if result["result"] != false {
-			t.Errorf("expected result=false, got %v", result["result"])
+		// bools are not strings so they come out JSON-encoded
+		if got := strings.TrimSpace(string(out)); got != "false" {
+			t.Errorf("expected %q, got %q", "false", got)
 		}
 	})
 
@@ -406,12 +387,8 @@ func TestGoRun(t *testing.T) {
 		if strings.Contains(string(out), "log line") {
 			t.Errorf("stderr leaked into stdout output: %q", out)
 		}
-		var result map[string]interface{}
-		if err := json.Unmarshal(out, &result); err != nil {
-			t.Fatalf("output not valid JSON: %v\noutput: %q", err, out)
-		}
-		if result["result"] != "value" {
-			t.Errorf("expected result=%q, got %v", "value", result["result"])
+		if got := strings.TrimSpace(string(out)); got != "value" {
+			t.Errorf("expected %q, got %q", "value", got)
 		}
 	})
 
@@ -442,12 +419,8 @@ func TestGoRun(t *testing.T) {
 		if string(out1) != string(out2) {
 			t.Errorf("outputs differ:\n  first:  %q\n  second: %q", out1, out2)
 		}
-		var result map[string]interface{}
-		if err := json.Unmarshal(out2, &result); err != nil {
-			t.Fatalf("output not valid JSON: %v", err)
-		}
-		if result["result"] != float64(10) {
-			t.Errorf("expected result=10, got %v", result["result"])
+		if got := strings.TrimSpace(string(out2)); got != "10" {
+			t.Errorf("expected %q, got %q", "10", got)
 		}
 	})
 }

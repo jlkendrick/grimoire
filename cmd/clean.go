@@ -27,11 +27,12 @@ var clean_cmd = &cobra.Command{
 		}
 		if force_clean {
 			// Delete all venvs in the .grimoire/envs directory
-			envs_dir, err := utils.ExpandUserPath("~/.grimoire/envs")
+			grimoire_home, err := utils.GrimoireHome()
 			if err != nil {
-				fmt.Printf("Error expanding envs path: %v\n", err)
+				fmt.Printf("Error resolving grimoire home: %v\n", err)
 				return
 			}
+			envs_dir := filepath.Join(grimoire_home, "envs")
 			envs, err := os.ReadDir(envs_dir)
 			if err != nil {
 				fmt.Printf("Error reading envs directory: %v\n", err)
@@ -64,11 +65,12 @@ var clean_cmd = &cobra.Command{
 		}
 
 		// Go through each venv and check if it is in the unused_functions map
-		venv_root, err := utils.ExpandUserPath("~/.grimoire/envs")
+		grimoire_home, err := utils.GrimoireHome()
 		if err != nil {
-			fmt.Printf("Error expanding user path: %v\n", err)
+			fmt.Printf("Error resolving grimoire home: %v\n", err)
 			return
 		}
+		venv_root := filepath.Join(grimoire_home, "envs")
 		venv_paths, err := os.ReadDir(venv_root)
 		if err != nil {
 			fmt.Printf("Error reading venvs: %v\n", err)

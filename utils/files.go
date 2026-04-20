@@ -10,6 +10,16 @@ import (
 	"path/filepath"
 )
 
+// GrimoireHome returns the grimoire home directory.
+// If the GRIMOIRE_HOME environment variable is set that value is used
+// (tilde expansion is applied); otherwise it defaults to ~/.grimoire.
+func GrimoireHome() (string, error) {
+	if h := os.Getenv("GRIMOIRE_HOME"); h != "" {
+		return ExpandUserPath(h)
+	}
+	return ExpandUserPath("~/.grimoire")
+}
+
 // ExpandUserPath replaces a leading "~" or "~/" with the current user's home
 // directory. Go does not expand shell tildes; paths like "~/foo" are literal.
 func ExpandUserPath(path string) (string, error) {
