@@ -39,7 +39,7 @@ func ParseConfig(path string) (*types.Config, error) {
 			// Store a reference to the spell path that the function originally belongs to
 			// Have to do this here so we don't lose what project the function originally belonged to
 			for i := range project_config.Functions {
-				project_config.Functions[i].SpellPath = project.Path
+				project_config.Functions[i].ScrollPath = project.Path
 			}
 			config.Functions = append(config.Functions, project_config.Functions...)
 		}
@@ -47,9 +47,9 @@ func ParseConfig(path string) (*types.Config, error) {
 		config.Context = types.ContextTypeGlobal
 	
 	} else {
-		// Need to set the SpellPaths here as well for clean command to work with local spells
+		// Need to set the ScrollPaths here as well for clean command to work with local spells
 		for i := range config.Functions {
-			config.Functions[i].SpellPath = path
+			config.Functions[i].ScrollPath = path
 		}
 		config.Context = types.ContextTypeLocal
 	}

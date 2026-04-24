@@ -11,9 +11,9 @@ import (
 
 var sync_cmd = &cobra.Command{
 	Use:   "sync",
-	Short: "Automatically generate arguments for all functions in the spell.yaml file",
+	Short: "Automatically generate arguments for all functions in the scroll.yaml file",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Automatically generating arguments for all functions in the spell.yaml file...")
+		fmt.Println("Automatically generating arguments for all functions in the scroll.yaml file...")
 
 		global, err := cmd.Flags().GetBool("global")
 		if err != nil {

@@ -21,8 +21,8 @@ func requireGo(t *testing.T) {
 }
 
 // makeTestGoModule creates a temp dir with a minimal Go module and returns
-// the spell path (tempDir/spell.yaml) to use as Function.SpellPath.
-func makeTestGoModule(t *testing.T, moduleName, filename, src string) (spellPath string) {
+// the spell path (tempDir/scroll.yaml) to use as Function.ScrollPath.
+func makeTestGoModule(t *testing.T, moduleName, filename, src string) (scrollPath string) {
 	t.Helper()
 	dir := t.TempDir()
 
@@ -33,7 +33,7 @@ func makeTestGoModule(t *testing.T, moduleName, filename, src string) (spellPath
 	if err := os.WriteFile(filepath.Join(dir, filename), []byte(src), 0644); err != nil {
 		t.Fatalf("WriteFile source: %v", err)
 	}
-	return filepath.Join(dir, "spell.yaml")
+	return filepath.Join(dir, "scroll.yaml")
 }
 
 // -------------------------------------------------------------------------
@@ -281,12 +281,12 @@ func TestGoRun(t *testing.T) {
 	requireGo(t)
 
 	t.Run("returns_int", func(t *testing.T) {
-		spellPath := makeTestGoModule(t, "testmod_add", "math.go",
+		scrollPath := makeTestGoModule(t, "testmod_add", "math.go",
 			"package testmod_add\n\nfunc Add(a, b int) int { return a + b }\n")
 
 		out, err := Run(
 			types.Function{
-				SpellPath:      spellPath,
+				ScrollPath:      scrollPath,
 				TargetFile:     "math.go",
 				TargetFunction: "Add",
 				Args: []types.Arg{
@@ -305,12 +305,12 @@ func TestGoRun(t *testing.T) {
 	})
 
 	t.Run("returns_string", func(t *testing.T) {
-		spellPath := makeTestGoModule(t, "testmod_greet", "greet.go",
+		scrollPath := makeTestGoModule(t, "testmod_greet", "greet.go",
 			"package testmod_greet\n\nfunc Greet(name string) string { return \"hello \" + name }\n")
 
 		out, err := Run(
 			types.Function{
-				SpellPath:      spellPath,
+				ScrollPath:      scrollPath,
 				TargetFile:     "greet.go",
 				TargetFunction: "Greet",
 				Args:           []types.Arg{{Name: "name", Type: "string"}},
@@ -326,12 +326,12 @@ func TestGoRun(t *testing.T) {
 	})
 
 	t.Run("no_args_no_return", func(t *testing.T) {
-		spellPath := makeTestGoModule(t, "testmod_noop", "noop.go",
+		scrollPath := makeTestGoModule(t, "testmod_noop", "noop.go",
 			"package testmod_noop\n\nfunc Noop() {}\n")
 
 		out, err := Run(
 			types.Function{
-				SpellPath:      spellPath,
+				ScrollPath:      scrollPath,
 				TargetFile:     "noop.go",
 				TargetFunction: "Noop",
 				Args:           []types.Arg{},
@@ -347,12 +347,12 @@ func TestGoRun(t *testing.T) {
 	})
 
 	t.Run("bool_arg", func(t *testing.T) {
-		spellPath := makeTestGoModule(t, "testmod_bool", "booltest.go",
+		scrollPath := makeTestGoModule(t, "testmod_bool", "booltest.go",
 			"package testmod_bool\n\nfunc Negate(b bool) bool { return !b }\n")
 
 		out, err := Run(
 			types.Function{
-				SpellPath:      spellPath,
+				ScrollPath:      scrollPath,
 				TargetFile:     "booltest.go",
 				TargetFunction: "Negate",
 				Args:           []types.Arg{{Name: "b", Type: "bool"}},
@@ -370,11 +370,11 @@ func TestGoRun(t *testing.T) {
 
 	t.Run("stderr_does_not_contaminate_stdout", func(t *testing.T) {
 		src := "package testmod_stderr\n\nimport (\n\t\"fmt\"\n\t\"os\"\n)\n\nfunc LogAndReturn() string {\n\tfmt.Fprintln(os.Stderr, \"log line\")\n\treturn \"value\"\n}\n"
-		spellPath := makeTestGoModule(t, "testmod_stderr", "logging.go", src)
+		scrollPath := makeTestGoModule(t, "testmod_stderr", "logging.go", src)
 
 		out, err := Run(
 			types.Function{
-				SpellPath:      spellPath,
+				ScrollPath:      scrollPath,
 				TargetFile:     "logging.go",
 				TargetFunction: "LogAndReturn",
 				Args:           []types.Arg{},
@@ -393,11 +393,11 @@ func TestGoRun(t *testing.T) {
 	})
 
 	t.Run("reuses_cached_binary_on_second_call", func(t *testing.T) {
-		spellPath := makeTestGoModule(t, "testmod_cache", "math.go",
+		scrollPath := makeTestGoModule(t, "testmod_cache", "math.go",
 			"package testmod_cache\n\nfunc Double(n int) int { return n * 2 }\n")
 
 		fn := types.Function{
-			SpellPath:      spellPath,
+			ScrollPath:      scrollPath,
 			TargetFile:     "math.go",
 			TargetFunction: "Double",
 			Args:           []types.Arg{{Name: "n", Type: "int"}},

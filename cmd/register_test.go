@@ -42,8 +42,8 @@ func TestRegisterCmd(t *testing.T) {
 			_ = rootCmd.Execute()
 		})
 
-		if !strings.Contains(output, "no spell.yaml file found") {
-			t.Errorf("expected 'no spell.yaml file found' in output, got: %q", output)
+		if !strings.Contains(output, "no scroll.yaml file found") {
+			t.Errorf("expected 'no scroll.yaml file found' in output, got: %q", output)
 		}
 	})
 
@@ -51,13 +51,13 @@ func TestRegisterCmd(t *testing.T) {
 		configPath := withTempGrimoireHome(t)
 
 		dir := t.TempDir()
-		spellPath := filepath.Join(dir, "spell.yaml")
-		if err := os.WriteFile(spellPath, []byte("{}\n"), 0644); err != nil {
+		scrollPath := filepath.Join(dir, "scroll.yaml")
+		if err := os.WriteFile(scrollPath, []byte("{}\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 
 		output := captureStdout(t, func() {
-			rootCmd.SetArgs([]string{"register", spellPath})
+			rootCmd.SetArgs([]string{"register", scrollPath})
 			_ = rootCmd.Execute()
 		})
 
@@ -69,18 +69,18 @@ func TestRegisterCmd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reading updated global config: %v", err)
 		}
-		if !strings.Contains(string(updated), spellPath) {
-			t.Errorf("expected %q in global config, got:\n%s", spellPath, string(updated))
+		if !strings.Contains(string(updated), scrollPath) {
+			t.Errorf("expected %q in global config, got:\n%s", scrollPath, string(updated))
 		}
 	})
 
 	t.Run("traversal_finds_spell_yaml", func(t *testing.T) {
 		withTempGrimoireHome(t)
 
-		// Create a parent with spell.yaml and a child subdir to run from.
+		// Create a parent with scroll.yaml and a child subdir to run from.
 		parent := t.TempDir()
-		spellPath := filepath.Join(parent, "spell.yaml")
-		if err := os.WriteFile(spellPath, []byte("{}\n"), 0644); err != nil {
+		scrollPath := filepath.Join(parent, "scroll.yaml")
+		if err := os.WriteFile(scrollPath, []byte("{}\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 		child := filepath.Join(parent, "subdir")
@@ -102,8 +102,8 @@ func TestRegisterCmd(t *testing.T) {
 		if !strings.Contains(output, "registered with the global grimoire") {
 			t.Errorf("expected success message in output, got: %q", output)
 		}
-		if !strings.Contains(output, spellPath) {
-			t.Errorf("expected spell path %q in output, got: %q", spellPath, output)
+		if !strings.Contains(output, scrollPath) {
+			t.Errorf("expected spell path %q in output, got: %q", scrollPath, output)
 		}
 	})
 }

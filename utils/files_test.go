@@ -198,7 +198,7 @@ func TestHashFilePathAndContent(t *testing.T) {
 func TestUpwardsTraversalForTargets(t *testing.T) {
 	t.Run("found in start dir", func(t *testing.T) {
 		dir := t.TempDir()
-		target := "spell.yaml"
+		target := "scroll.yaml"
 		if err := os.WriteFile(filepath.Join(dir, target), []byte(""), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -218,7 +218,7 @@ func TestUpwardsTraversalForTargets(t *testing.T) {
 		if err := os.Mkdir(child, 0755); err != nil {
 			t.Fatal(err)
 		}
-		target := "spell.yaml"
+		target := "scroll.yaml"
 		if err := os.WriteFile(filepath.Join(parent, target), []byte(""), 0644); err != nil {
 			t.Fatal(err)
 		}

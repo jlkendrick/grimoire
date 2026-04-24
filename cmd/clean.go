@@ -58,7 +58,7 @@ var clean_cmd = &cobra.Command{
 		// For each function, reconstruct the path to the function file and check if it exists
 		unused_functions := map[string]bool{}
 		for _, function := range config.Functions {
-			function_path := filepath.Join(filepath.Dir(function.SpellPath), function.TargetFile)
+			function_path := filepath.Join(filepath.Dir(function.ScrollPath), function.TargetFile)
 			if _, err := os.Stat(function_path); os.IsNotExist(err) {
 				unused_functions[function_path] = true
 			}
@@ -86,10 +86,10 @@ var clean_cmd = &cobra.Command{
 					fmt.Printf("Error reading origin pointer file: %v\n", err)
 					return
 				}
-				origin_spell_path := string(origin_pointer_file_content)
+				origin_scroll_path := string(origin_pointer_file_content)
 
 				// If the origin spell path is in the unused_functions map, delete the venv
-				if _, ok := unused_functions[origin_spell_path]; ok {
+				if _, ok := unused_functions[origin_scroll_path]; ok {
 					err = os.RemoveAll(filepath.Join(venv_root, venv.Name()))
 					if err != nil {
 						fmt.Printf("Error deleting venv: %v\n", err)

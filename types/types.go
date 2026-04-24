@@ -51,7 +51,7 @@ type Function struct {
 	Args  		  	 []Arg  `yaml:"args,omitempty"`
 	Interpreter 	 string `yaml:"interpreter,omitempty"`
 
-	SpellPath 		 string `yaml:"-"`
+	ScrollPath 		 string `yaml:"-"`
 }
 
 func (f Function) String() string {

@@ -4,3 +4,4 @@ CLAUDE.md
 sample/python/.venv
 **/__pycache__/**
 *.egg-info/
+.env

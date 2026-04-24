@@ -60,7 +60,7 @@ func TestCleanCmd(t *testing.T) {
 		t.Cleanup(core.ResetConfigCache)
 		root := envsRoot(t)
 
-		// Build a local spell.yaml whose function source does NOT exist.
+		// Build a local scroll.yaml whose function source does NOT exist.
 		dir := t.TempDir()
 		// Resolve symlinks so the path matches what os.Getwd() returns inside
 		// the command (on macOS /var/folders/... → /private/var/folders/...).
@@ -71,7 +71,7 @@ func TestCleanCmd(t *testing.T) {
 		unusedPath := filepath.Join(resolvedDir, "scripts", "gone.py")
 
 		grimContent := "functions:\n- name: gone\n  path: scripts/gone.py\n  function: gone\n"
-		if err := os.WriteFile(filepath.Join(dir, "spell.yaml"), []byte(grimContent), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "scroll.yaml"), []byte(grimContent), 0644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -124,7 +124,7 @@ func TestCleanCmd(t *testing.T) {
 		}
 
 		grimContent := "functions:\n- name: live\n  path: live.py\n  function: live\n"
-		if err := os.WriteFile(filepath.Join(resolvedDir, "spell.yaml"), []byte(grimContent), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(resolvedDir, "scroll.yaml"), []byte(grimContent), 0644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -159,13 +159,13 @@ func TestCleanCmd(t *testing.T) {
 		}
 	})
 
-	// no_functions_deletes_zero: an empty spell.yaml produces zero deletions.
+	// no_functions_deletes_zero: an empty scroll.yaml produces zero deletions.
 	t.Run("no_functions_deletes_zero", func(t *testing.T) {
 		t.Cleanup(core.ResetConfigCache)
 		root := envsRoot(t)
 
 		dir := t.TempDir()
-		if err := os.WriteFile(filepath.Join(dir, "spell.yaml"), []byte("{}\n"), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "scroll.yaml"), []byte("{}\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 

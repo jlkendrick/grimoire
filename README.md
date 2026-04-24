@@ -14,7 +14,7 @@ Later, the same configuration will also generate REST APIs from the same functio
 
 Grimoire is your personal spellbook. Every developer has random utility scripts scattered across their system — one-off data transforms, deployment helpers, local tools that only work on their machine. Grimoire brings them together into a single, unified interface.
 
-A `spell.yaml` file is a *spell*: a precise recipe that describes exactly how to invoke the functions in a specific repo. Unlike a generic script runner, a spell carries the full incantation — the function to call, the arguments it expects, the types, the defaults. Anyone with Grimoire installed can pick up a spell and cast it.
+A `scroll.yaml` file is a *spell*: a precise recipe that describes exactly how to invoke the functions in a specific repo. Unlike a generic script runner, a spell carries the full incantation — the function to call, the arguments it expects, the types, the defaults. Anyone with Grimoire installed can pick up a spell and cast it.
 
 ## Architecture
 
@@ -22,11 +22,11 @@ Grimoire has a hybrid local/global design.
 
 **The global grimoire** (`~/.grimoire/`) is your personal spellbook. Register functions from anywhere on your system — old shell scripts, Python utilities, tools you've written over the years — and invoke them from anywhere, under a single unified CLI.
 
-**Repo-level spells** (`spell.yaml`) are committed alongside your code. Push a `spell.yaml` to a shared repo and any teammate with Grimoire installed can immediately run the functions it describes, with full argument type-checking and automatic dependency provisioning — no setup instructions, no "it works on my machine."
+**Repo-level spells** (`scroll.yaml`) are committed alongside your code. Push a `scroll.yaml` to a shared repo and any teammate with Grimoire installed can immediately run the functions it describes, with full argument type-checking and automatic dependency provisioning — no setup instructions, no "it works on my machine."
 
 ## How It Works
 
-A `spell.yaml` declares the functions you want to expose:
+A `scroll.yaml` declares the functions you want to expose:
 
 ```yaml
 functions:
@@ -54,10 +54,10 @@ Grimoire handles interpreter resolution (virtual environments, `pyproject.toml`,
 
 | Command                          | Description                                                                                                              |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `grimoire init`                  | Scaffold a `spell.yaml` in the current directory                                                                         |
-| `grimoire add <file>:<function>` | Add a function to `spell.yaml` and auto-extract its signature                                                            |
+| `grimoire init`                  | Scaffold a `scroll.yaml` in the current directory                                                                         |
+| `grimoire add <file>:<function>` | Add a function to `scroll.yaml` and auto-extract its signature                                                            |
 | `grimoire sync`                  | Regenerate argument signatures for all registered functions                                                              |
-| `grimoire register [path]`       | Register a project's `spell.yaml` with the global grimoire (defaults to nearest `spell.yaml` found via upward traversal) |
+| `grimoire register [path]`       | Register a project's `scroll.yaml` with the global grimoire (defaults to nearest `scroll.yaml` found via upward traversal) |
 | `grimoire clean [--global]`      | Remove cached venvs for functions whose source files no longer exist                                                     |
 | `grimoire <name> [flags]`        | Run a function by its declared name                                                                                      |
 
@@ -72,7 +72,7 @@ config/       YAML parsing and config generation
 parsers/      Source code analysis for signature extraction (tree-sitter)
 types/        Shared data structures
 utils/        File utilities
-sample/       Example project with spell.yaml and Python scripts
+sample/       Example project with scroll.yaml and Python scripts
 ```
 
 ## Current Language Support

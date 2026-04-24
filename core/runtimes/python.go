@@ -61,7 +61,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 	
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
-	abs_function_path := filepath.Join(filepath.Dir(function.SpellPath), function.TargetFile)
+	abs_function_path := filepath.Join(filepath.Dir(function.ScrollPath), function.TargetFile)
 	if pyProjectPath != "" {
 		interpreter, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", abs_function_path)
 		if err != nil {
@@ -206,7 +206,7 @@ func (a *PythonAdapter) GetInterpreter(function types.Function) (string, error) 
 	}
 	
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
-	abs_function_path := filepath.Join(filepath.Dir(function.SpellPath), function.TargetFile)
+	abs_function_path := filepath.Join(filepath.Dir(function.ScrollPath), function.TargetFile)
 	if pyProjectPath != "" {
 		interpreter, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", abs_function_path)
 		if err != nil {

@@ -52,9 +52,9 @@ func TestMakeBlankGrimYAMLFile(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		content, err := os.ReadFile(filepath.Join(dir, "spell.yaml"))
+		content, err := os.ReadFile(filepath.Join(dir, "scroll.yaml"))
 		if err != nil {
-			t.Fatalf("reading spell.yaml: %v", err)
+			t.Fatalf("reading scroll.yaml: %v", err)
 		}
 		s := string(content)
 		for _, want := range []string{"functions:", "hello_world", "path/to/hello_world.py"} {
@@ -70,22 +70,22 @@ func TestMakeBlankGrimYAMLFile(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		content, err := os.ReadFile(filepath.Join(dir, "spell.yaml"))
+		content, err := os.ReadFile(filepath.Join(dir, "scroll.yaml"))
 		if err != nil {
-			t.Fatalf("reading spell.yaml: %v", err)
+			t.Fatalf("reading scroll.yaml: %v", err)
 		}
 		if strings.Contains(string(content), "hello_world") {
 			t.Errorf("expected no boilerplate content, got:\n%s", string(content))
 		}
 	})
 
-	t.Run("creates spell.yaml in specified directory", func(t *testing.T) {
+	t.Run("creates scroll.yaml in specified directory", func(t *testing.T) {
 		dir := t.TempDir()
 		if err := makeBlankGrimYAMLFile(dir, false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if _, err := os.Stat(filepath.Join(dir, "spell.yaml")); os.IsNotExist(err) {
-			t.Error("expected spell.yaml to be created in directory")
+		if _, err := os.Stat(filepath.Join(dir, "scroll.yaml")); os.IsNotExist(err) {
+			t.Error("expected scroll.yaml to be created in directory")
 		}
 	})
 
@@ -100,7 +100,7 @@ func TestMakeBlankGrimYAMLFile(t *testing.T) {
 func TestInitCmd(t *testing.T) {
 	rootCmd.SetErr(io.Discard)
 
-	t.Run("creates spell.yaml in current directory", func(t *testing.T) {
+	t.Run("creates scroll.yaml in current directory", func(t *testing.T) {
 		dir := t.TempDir()
 		origDir, err := os.Getwd()
 		if err != nil {
@@ -116,8 +116,8 @@ func TestInitCmd(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(dir, "spell.yaml")); os.IsNotExist(err) {
-			t.Error("expected spell.yaml to be created in current directory")
+		if _, err := os.Stat(filepath.Join(dir, "scroll.yaml")); os.IsNotExist(err) {
+			t.Error("expected scroll.yaml to be created in current directory")
 		}
 	})
 
@@ -137,9 +137,9 @@ func TestInitCmd(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		content, err := os.ReadFile(filepath.Join(dir, "spell.yaml"))
+		content, err := os.ReadFile(filepath.Join(dir, "scroll.yaml"))
 		if err != nil {
-			t.Fatalf("reading spell.yaml: %v", err)
+			t.Fatalf("reading scroll.yaml: %v", err)
 		}
 		s := string(content)
 		for _, want := range []string{"functions:", "hello_world"} {

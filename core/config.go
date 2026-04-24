@@ -32,9 +32,9 @@ func LoadConfig(config_type string) (*types.Config, error) {
 
 		// Determine the path to the config file
 		var config_path string
-		matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"spell.yaml"})
+		matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"scroll.yaml"})
 		if found {
-			config_path = matched_targets["spell.yaml"]
+			config_path = matched_targets["scroll.yaml"]
 		} else {
 			// Fall back to the global grimoire config
 			grimoire_home, err := utils.GrimoireHome()

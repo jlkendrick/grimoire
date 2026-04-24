@@ -25,7 +25,7 @@ func TestSyncCmd(t *testing.T) {
 		// Use absolute path in the config so ExtractSignature can find the file
 		// regardless of CWD.
 		grimContent := "functions:\n- name: greet\n  path: " + pyPath + "\n  function: greet\n"
-		grimPath := filepath.Join(dir, "spell.yaml")
+		grimPath := filepath.Join(dir, "scroll.yaml")
 		if err := os.WriteFile(grimPath, []byte(grimContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -48,7 +48,7 @@ func TestSyncCmd(t *testing.T) {
 		s := string(content)
 		for _, want := range []string{"name: name", "name: times"} {
 			if !strings.Contains(s, want) {
-				t.Errorf("expected %q in synced spell.yaml, got:\n%s", want, s)
+				t.Errorf("expected %q in synced scroll.yaml, got:\n%s", want, s)
 			}
 		}
 	})
@@ -57,7 +57,7 @@ func TestSyncCmd(t *testing.T) {
 		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
 		grimContent := "functions:\n- name: greet\n  path: /nonexistent/grimoire/path/greet.py\n  function: greet\n"
-		grimPath := filepath.Join(dir, "spell.yaml")
+		grimPath := filepath.Join(dir, "scroll.yaml")
 		if err := os.WriteFile(grimPath, []byte(grimContent), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestSyncCmd(t *testing.T) {
 	t.Run("empty functions list writes file without error", func(t *testing.T) {
 		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
-		grimPath := filepath.Join(dir, "spell.yaml")
+		grimPath := filepath.Join(dir, "scroll.yaml")
 		if err := os.WriteFile(grimPath, []byte("{}\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
