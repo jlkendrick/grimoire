@@ -48,7 +48,7 @@ var register_cmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("Project %s registered with the global grimoire\n", path_to_project)
+		fmt.Printf("+ Bound %s to the global grimoire\n", path_to_project)
 	},
 }
 

@@ -299,7 +299,7 @@ func TestGoRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "7" {
+		if got := strings.TrimSpace(string(out.Output)); got != "7" {
 			t.Errorf("expected %q, got %q", "7", got)
 		}
 	})
@@ -320,7 +320,7 @@ func TestGoRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "hello world" {
+		if got := strings.TrimSpace(string(out.Output)); got != "hello world" {
 			t.Errorf("expected %q, got %q", "hello world", got)
 		}
 	})
@@ -341,7 +341,7 @@ func TestGoRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "" {
+		if got := strings.TrimSpace(string(out.Output)); got != "" {
 			t.Errorf("expected empty output, got %q", got)
 		}
 	})
@@ -363,7 +363,7 @@ func TestGoRun(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		// bools are not strings so they come out JSON-encoded
-		if got := strings.TrimSpace(string(out)); got != "false" {
+		if got := strings.TrimSpace(string(out.Output)); got != "false" {
 			t.Errorf("expected %q, got %q", "false", got)
 		}
 	})
@@ -384,10 +384,10 @@ func TestGoRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if strings.Contains(string(out), "log line") {
-			t.Errorf("stderr leaked into stdout output: %q", out)
+		if strings.Contains(string(out.Output), "log line") {
+			t.Errorf("stderr leaked into stdout output: %q", out.Output)
 		}
-		if got := strings.TrimSpace(string(out)); got != "value" {
+		if got := strings.TrimSpace(string(out.Output)); got != "value" {
 			t.Errorf("expected %q, got %q", "value", got)
 		}
 	})
@@ -416,10 +416,10 @@ func TestGoRun(t *testing.T) {
 			t.Fatalf("second call unexpected error: %v", err)
 		}
 
-		if string(out1) != string(out2) {
+		if string(out1.Output) != string(out2.Output) {
 			t.Errorf("outputs differ:\n  first:  %q\n  second: %q", out1, out2)
 		}
-		if got := strings.TrimSpace(string(out2)); got != "10" {
+		if got := strings.TrimSpace(string(out2.Output)); got != "10" {
 			t.Errorf("expected %q, got %q", "10", got)
 		}
 	})

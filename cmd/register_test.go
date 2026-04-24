@@ -61,7 +61,7 @@ func TestRegisterCmd(t *testing.T) {
 			_ = rootCmd.Execute()
 		})
 
-		if !strings.Contains(output, "registered with the global grimoire") {
+		if !strings.Contains(output, "to the global grimoire") {
 			t.Errorf("expected success message in output, got: %q", output)
 		}
 
@@ -99,7 +99,7 @@ func TestRegisterCmd(t *testing.T) {
 			_ = rootCmd.Execute()
 		})
 
-		if !strings.Contains(output, "registered with the global grimoire") {
+		if !strings.Contains(output, "to the global grimoire") {
 			t.Errorf("expected success message in output, got: %q", output)
 		}
 		if !strings.Contains(output, scrollPath) {

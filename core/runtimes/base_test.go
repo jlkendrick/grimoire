@@ -117,7 +117,7 @@ func TestRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "hello world" {
+		if got := strings.TrimSpace(string(out.Output)); got != "hello world" {
 			t.Errorf("expected %q, got %q", "hello world", got)
 		}
 	})
@@ -134,7 +134,7 @@ func TestRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "" {
+		if got := strings.TrimSpace(string(out.Output)); got != "" {
 			t.Errorf("expected empty output, got %q", got)
 		}
 	})
@@ -153,8 +153,8 @@ func TestRun(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		var got map[string]interface{}
-		if err := json.Unmarshal(out, &got); err != nil {
-			t.Fatalf("output is not valid JSON: %v\noutput: %s", err, out)
+		if err := json.Unmarshal(out.Output, &got); err != nil {
+			t.Fatalf("output is not valid JSON: %v\noutput: %s", err, out.Output)
 		}
 		if got["k"] != "x" {
 			t.Errorf("expected k=%q, got %v", "x", got["k"])
@@ -178,8 +178,8 @@ func TestRun(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		var got []interface{}
-		if err := json.Unmarshal(out, &got); err != nil {
-			t.Fatalf("output is not valid JSON: %v\noutput: %s", err, out)
+		if err := json.Unmarshal(out.Output, &got); err != nil {
+			t.Fatalf("output is not valid JSON: %v\noutput: %s", err, out.Output)
 		}
 		if len(got) != 3 {
 			t.Fatalf("expected 3 elements, got %d", len(got))
@@ -201,7 +201,7 @@ func TestRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "7" {
+		if got := strings.TrimSpace(string(out.Output)); got != "7" {
 			t.Errorf("expected %q, got %q", "7", got)
 		}
 	})
@@ -218,7 +218,7 @@ func TestRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "ababab" {
+		if got := strings.TrimSpace(string(out.Output)); got != "ababab" {
 			t.Errorf("expected %q, got %q", "ababab", got)
 		}
 	})
@@ -284,10 +284,10 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if strings.Contains(string(out), "err") {
-			t.Errorf("stderr content leaked into returned bytes: %q", out)
+		if strings.Contains(string(out.Output), "err") {
+			t.Errorf("stderr content leaked into returned bytes: %q", out.Output)
 		}
-		if got := strings.TrimSpace(string(out)); got != "ok" {
+		if got := strings.TrimSpace(string(out.Output)); got != "ok" {
 			t.Errorf("expected %q, got %q", "ok", got)
 		}
 	})
@@ -304,7 +304,7 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "signal" {
+		if got := strings.TrimSpace(string(out.Output)); got != "signal" {
 			t.Errorf("expected %q, got %q", "signal", got)
 		}
 	})
@@ -321,7 +321,7 @@ func TestExecute(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if got := strings.TrimSpace(string(out)); got != "" {
+		if got := strings.TrimSpace(string(out.Output)); got != "" {
 			t.Errorf("expected empty output, got %q", got)
 		}
 	})
@@ -345,8 +345,8 @@ func TestExecute(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		var got []interface{}
-		if err := json.Unmarshal(out, &got); err != nil {
-			t.Fatalf("output is not valid JSON: %v\noutput: %s", err, out)
+		if err := json.Unmarshal(out.Output, &got); err != nil {
+			t.Fatalf("output is not valid JSON: %v\noutput: %s", err, out.Output)
 		}
 		if len(got) != 10000 {
 			t.Errorf("expected 10000 elements, got %d", len(got))

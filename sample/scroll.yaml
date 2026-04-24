@@ -6,24 +6,9 @@ functions:
       - name: "n"
         type: int
         default: 1
-  - name: print_rich_panel
+  - name: rich
     path: python/requirements/rich_greeting.py
     function: print_rich_panel
     args:
       - name: title
         type: str
-  - name: stream
-    path: python/log_streaming.py
-    function: print_logs
-  - name: tell_random_joke
-    path: python/pyproject/joke.py
-    function: tell_random_joke
-    args:
-      - name: message
-        type: str
-  - name: go_world
-    path: go/hello_world.go
-    function: HelloWorld
-    args:
-      - name: "n"
-        type: int

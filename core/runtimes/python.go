@@ -16,8 +16,34 @@ import (
 
 type PythonAdapter struct {}
 
+func getPythonVersion(interpreter string) string {
+	cmd := exec.Command(interpreter, "--version")
+	out, err := cmd.Output()
+	if err != nil {
+		// --version may write to stderr on older Python
+		cmd2 := exec.Command(interpreter, "--version")
+		combined, err2 := cmd2.CombinedOutput()
+		if err2 != nil {
+			return "python"
+		}
+		out = combined
+	}
+	// "Python 3.12.0\n" -> "python 3.12"
+	parts := strings.Fields(string(out))
+	if len(parts) >= 2 {
+		vparts := strings.Split(parts[1], ".")
+		if len(vparts) >= 2 {
+			return "python " + vparts[0] + "." + vparts[1]
+		}
+		return "python " + parts[1]
+	}
+	return "python"
+}
+
 func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 	function := execution_context.StateMap["function"].(types.Function)
+
+	execution_context.StateMap["provision_label"] = "provisioning venv"
 
 	// Option 1: Use the interpreter specified in the YAML
 	if function.Interpreter != "" {
@@ -26,6 +52,8 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 			return err
 		}
 		execution_context.StateMap["interpreter"] = p
+		execution_context.StateMap["cache_status"] = "explicit"
+		execution_context.StateMap["runtime_version"] = getPythonVersion(p)
 		return nil
 	}
 
@@ -39,6 +67,8 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 	// Option 5: No project root found, use the system interpreter
 	if !found {
 		execution_context.StateMap["interpreter"] = "python"
+		execution_context.StateMap["cache_status"] = "system"
+		execution_context.StateMap["runtime_version"] = getPythonVersion("python")
 		return nil
 	}
 
@@ -56,10 +86,13 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 
 	// Option 3: Use the virtual environment
 	if venvPath != "" {
-		execution_context.StateMap["interpreter"] = filepath.Join(venvPath, "bin", "python")
+		interp := filepath.Join(venvPath, "bin", "python")
+		execution_context.StateMap["interpreter"] = interp
+		execution_context.StateMap["cache_status"] = "cached"
+		execution_context.StateMap["runtime_version"] = getPythonVersion(interp)
 		return nil
 	}
-	
+
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
 	abs_function_path := filepath.Join(filepath.Dir(function.ScrollPath), function.TargetFile)
 	if pyProjectPath != "" {
@@ -68,6 +101,8 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 			return err
 		}
 		execution_context.StateMap["interpreter"] = interpreter
+		execution_context.StateMap["cache_status"] = "fresh"
+		execution_context.StateMap["runtime_version"] = getPythonVersion(interpreter)
 		return nil
 	} else if requirementsPath != "" {
 		interpreter, err := buildNewEnvironment(requirementsPath, "requirements.txt", abs_function_path)
@@ -75,6 +110,8 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 			return err
 		}
 		execution_context.StateMap["interpreter"] = interpreter
+		execution_context.StateMap["cache_status"] = "fresh"
+		execution_context.StateMap["runtime_version"] = getPythonVersion(interpreter)
 		return nil
 	}
 

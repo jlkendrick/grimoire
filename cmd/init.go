@@ -60,7 +60,7 @@ var init_cmd = &cobra.Command{
 
 		// Check if a scroll.yaml file already exists
 		if _, err := os.Stat(path.Join(current_dir, "scroll.yaml")); !os.IsNotExist(err) {
-			fmt.Printf("scroll.yaml file already exists at %s\n", path.Join(current_dir, "scroll.yaml"))
+			fmt.Printf("A scroll already exists at %s\n", path.Join(current_dir, "scroll.yaml"))
 			return
 		}
 
@@ -69,7 +69,7 @@ var init_cmd = &cobra.Command{
 			fmt.Printf("Error generating boilerplate scroll.yaml file: %v\n", err)
 			return
 		}
-		fmt.Printf("Boilerplate scroll.yaml file generated at %s\n", path.Join(current_dir, "scroll.yaml"))
+		fmt.Printf("+ Inscribed scroll.yaml\n  · %s\n", path.Join(current_dir, "scroll.yaml"))
 	},
 }
 

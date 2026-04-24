@@ -10,6 +10,7 @@ import (
 	config "github.com/jlkendrick/grimoire/config"
 	utils "github.com/jlkendrick/grimoire/utils"
 	core "github.com/jlkendrick/grimoire/core"
+	types "github.com/jlkendrick/grimoire/types"
 )
 
 var add_cmd = &cobra.Command{
@@ -62,12 +63,48 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
+		fmt.Println("+ Divining signature...")
+
 		config_generator := config.ConfigGenerator{PathToFunction: path_to_function, FunctionName: function_name, CommandName: command_name}
 		function_config, err := config_generator.GenerateFunctionConfig()
 		if err != nil {
 			fmt.Printf("Error generating function config: %v\n", err)
 			return
 		}
+
+		// Format the args tree line
+		argParts := make([]string, 0, len(function_config.Args))
+		for _, arg := range function_config.Args {
+			if arg.Default != nil {
+				argParts = append(argParts, fmt.Sprintf("%s:%s=%v", arg.Name, arg.Type, arg.Default))
+			} else {
+				argParts = append(argParts, fmt.Sprintf("%s:%s", arg.Name, arg.Type))
+			}
+		}
+
+		// Detect language and dep file for the runtime line
+		ext := strings.TrimPrefix(filepath.Ext(absolute_path_to_function), ".")
+		lang := ext
+		if ext == "py" {
+			lang = "python"
+		}
+		runtimeLine := lang
+		depTargets, depFound := utils.UpwardsTraversalForTargets(filepath.Dir(absolute_path_to_function), []string{"pyproject.toml", "requirements.txt"})
+		if depFound {
+			if _, ok := depTargets["pyproject.toml"]; ok {
+				runtimeLine = lang + " · pyproject.toml"
+			} else if _, ok := depTargets["requirements.txt"]; ok {
+				runtimeLine = lang + " · requirements.txt"
+			}
+		}
+
+		// Print the signature tree
+		fmt.Printf("├── function %s\n", function_name)
+		if len(argParts) > 0 {
+			fmt.Printf("├── args %s\n", strings.Join(argParts, " "))
+		}
+		fmt.Printf("└── runtime %s\n", runtimeLine)
+
 		config_obj.Functions = append(config_obj.Functions, function_config)
 
 		// Write the updated config file
@@ -77,7 +114,12 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("Function %s added to config file at %s\n", command_name, config_obj.Path)
+		// Scroll name: directory containing the scroll
+		scroll_name := filepath.Base(filepath.Dir(config_obj.Path))
+		if config_obj.Context == types.ContextTypeGlobal {
+			scroll_name = "the grimoire"
+		}
+		fmt.Printf("+ Bound to scroll %s\n", scroll_name)
 	},
 }
 

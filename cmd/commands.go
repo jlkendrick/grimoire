@@ -3,6 +3,8 @@ package cmd
 import (
 	"os"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,20 +19,26 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 		command := &cobra.Command{
 			Use: function.Name,
 			Run: func(cmd *cobra.Command, args []string) {
-				// start_time := time.Now()
 				payload := buildPayload(function, cmd)
 
-				result, err := runtimes.Run(function, payload)
+				start := time.Now()
+				runResult, err := runtimes.Run(function, payload)
+				elapsed := time.Since(start)
 				if err != nil {
-					fmt.Printf("Error executing function: %v\n", err)
+					fmt.Fprintf(os.Stderr, "Error executing function: %v\n", err)
 					os.Exit(1)
 				}
 
-				// end_time := time.Now()
-				// duration := end_time.Sub(start_time)
-				// fmt.Printf("Function %s executed in %v\n", function.Name, duration)
+				fmt.Println(string(runResult.Output))
 
-				fmt.Println(string(result))
+				footerParts := []string{fmt.Sprintf("%.2fs", elapsed.Seconds())}
+				if runResult.CacheStatus != "" {
+					footerParts = append(footerParts, runResult.CacheStatus)
+				}
+				if runResult.Runtime != "" {
+					footerParts = append(footerParts, runResult.Runtime)
+				}
+				fmt.Fprintf(os.Stderr, "\n◈ %s\n", strings.Join(footerParts, " · "))
 			},
 		}
 

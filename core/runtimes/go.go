@@ -111,6 +111,10 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 	execution_context.StateMap["user_go_mod_path"] = user_go_mod_path
 	execution_context.StateMap["user_module_name"] = user_module_name
 	execution_context.StateMap["env_path"] = env_path
+	execution_context.StateMap["provision_label"] = "forging binary"
+	// Extract "go X.Y" from the version line already parsed above
+	goVer := strings.TrimPrefix(go_version_line, "go ")
+	execution_context.StateMap["runtime_version"] = "go " + goVer
 	return nil
 }
 
@@ -254,8 +258,10 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	// Check if we need to compile
 	if !shouldCompile(execution_context) {
 		execution_context.StateMap["binary"] = filepath.Join(execution_context.StateMap["env_path"].(string), "grimoire_exec")
+		execution_context.StateMap["cache_status"] = "cached"
 		return nil
 	}
+	execution_context.StateMap["cache_status"] = "compiled"
 	
 	function := execution_context.StateMap["function"].(types.Function)
 	user_module_name := execution_context.StateMap["user_module_name"].(string)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"bufio"
 	"bytes"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -23,8 +24,14 @@ type RuntimeAdapter interface {
 	FormatError(err error) error
 }
 
+type RunResult struct {
+	Output      []byte
+	CacheStatus string
+	Runtime     string
+}
+
 // Handles the entire execution flow of a function (provision, compile, execute)
-func Run(function types.Function, args map[string]interface{}) ([]byte, error) {
+func Run(function types.Function, args map[string]interface{}) (*RunResult, error) {
 	execution_context := ExecutionContext{
 		StateMap: make(map[string]any),
 	}
@@ -49,6 +56,14 @@ func Run(function types.Function, args map[string]interface{}) ([]byte, error) {
 		return nil, err
 	}
 
+	// Print provisioning and casting lines now that both Provision and Compile have run
+	// (cache_status for Go is set in Compile, so we wait until here)
+	if label, ok := execution_context.StateMap["provision_label"].(string); ok {
+		status, _ := execution_context.StateMap["cache_status"].(string)
+		fmt.Fprintf(os.Stderr, "◈ %s [····] %s\n", label, status)
+	}
+	fmt.Fprintf(os.Stderr, "◈ casting spell %s\n\n", function.Name)
+
 	err = adapter.PrepareCommand(&execution_context)
 	if err != nil {
 		return nil, err
@@ -59,7 +74,14 @@ func Run(function types.Function, args map[string]interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return output, nil
+	result := &RunResult{Output: output}
+	if cs, ok := execution_context.StateMap["cache_status"].(string); ok {
+		result.CacheStatus = cs
+	}
+	if rv, ok := execution_context.StateMap["runtime_version"].(string); ok {
+		result.Runtime = rv
+	}
+	return result, nil
 }
 
 func Execute(execution_context *ExecutionContext) ([]byte, error) {

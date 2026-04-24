@@ -45,7 +45,7 @@ func TestAddCmd(t *testing.T) {
 			_ = rootCmd.Execute()
 		})
 
-		if !strings.Contains(output, "Function greet added") {
+		if !strings.Contains(output, "Bound to spell") {
 			t.Errorf("expected success message in output, got: %q", output)
 		}
 
