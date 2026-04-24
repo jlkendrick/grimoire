@@ -63,7 +63,7 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		fmt.Println("+ Divining signature...")
+		fmt.Printf("%s Divining signature...\n", accent("+"))
 
 		config_generator := config.ConfigGenerator{PathToFunction: path_to_function, FunctionName: function_name, CommandName: command_name}
 		function_config, err := config_generator.GenerateFunctionConfig()
@@ -99,11 +99,11 @@ var add_cmd = &cobra.Command{
 		}
 
 		// Print the signature tree
-		fmt.Printf("├── function %s\n", function_name)
+		fmt.Printf("%s function %s\n", accent("├──"), spell(function_name))
 		if len(argParts) > 0 {
-			fmt.Printf("├── args %s\n", strings.Join(argParts, " "))
+			fmt.Printf("%s args %s\n", accent("├──"), strings.Join(argParts, " "))
 		}
-		fmt.Printf("└── runtime %s\n", runtimeLine)
+		fmt.Printf("%s runtime %s\n", accent("└──"), runtimeLine)
 
 		config_obj.Functions = append(config_obj.Functions, function_config)
 
@@ -119,7 +119,7 @@ var add_cmd = &cobra.Command{
 		if config_obj.Context == types.ContextTypeGlobal {
 			scroll_name = "the grimoire"
 		}
-		fmt.Printf("+ Bound to scroll %s\n", scroll_name)
+		fmt.Printf("%s Bound to scroll %s\n", accent("+"), spell(scroll_name))
 	},
 }
 

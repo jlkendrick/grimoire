@@ -60,9 +60,9 @@ func Run(function types.Function, args map[string]interface{}) (*RunResult, erro
 	// (cache_status for Go is set in Compile, so we wait until here)
 	if label, ok := execution_context.StateMap["provision_label"].(string); ok {
 		status, _ := execution_context.StateMap["cache_status"].(string)
-		fmt.Fprintf(os.Stderr, "◈ %s [····] %s\n", label, status)
+		fmt.Fprintf(os.Stderr, "%s %s %s %s\n", accent("◈"), label, accent("[····]"), dim(status))
 	}
-	fmt.Fprintf(os.Stderr, "◈ casting spell %s\n\n", function.Name)
+	fmt.Fprintf(os.Stderr, "%s casting spell %s\n\n", accent("◈"), spell(function.Name))
 
 	err = adapter.PrepareCommand(&execution_context)
 	if err != nil {

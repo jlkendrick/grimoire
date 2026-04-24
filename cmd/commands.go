@@ -38,7 +38,7 @@ func GenerateCommands(config *types.Config) ([]*cobra.Command, error) {
 				if runResult.Runtime != "" {
 					footerParts = append(footerParts, runResult.Runtime)
 				}
-				fmt.Fprintf(os.Stderr, "\n◈ %s\n", strings.Join(footerParts, " · "))
+				fmt.Fprintf(os.Stderr, "\n%s %s\n", accent("◈"), dim(strings.Join(footerParts, " · ")))
 			},
 		}
 

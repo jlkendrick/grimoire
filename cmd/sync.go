@@ -13,7 +13,7 @@ var sync_cmd = &cobra.Command{
 	Use:   "sync",
 	Short: "Automatically generate arguments for all functions in the scroll.yaml file",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("+ Scrying all functions...")
+		fmt.Printf("%s Scrying all functions...\n", accent("+"))
 
 		global, err := cmd.Flags().GetBool("global")
 		if err != nil {
@@ -43,7 +43,7 @@ var sync_cmd = &cobra.Command{
 			if i == len(config_obj.Functions)-1 {
 				prefix = "└──"
 			}
-			fmt.Printf("%s attuned %s\n", prefix, function.Name)
+			fmt.Printf("%s attuned %s\n", accent(prefix), spell(function.Name))
 		}
 
 		// Write the updated config file
@@ -52,7 +52,7 @@ var sync_cmd = &cobra.Command{
 			fmt.Printf("Error writing config file: %v\n", err)
 			return
 		}
-		fmt.Printf("+ Harmonized %d spells\n", len(config_obj.Functions))
+		fmt.Printf("%s Harmonized %d spells\n", accent("+"), len(config_obj.Functions))
 	},
 }
 

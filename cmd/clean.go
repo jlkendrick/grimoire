@@ -41,7 +41,7 @@ var clean_cmd = &cobra.Command{
 			for _, env := range envs {
 				os.RemoveAll(filepath.Join(envs_dir, env.Name()))
 			}
-			fmt.Println("+ Purged all conjured environments")
+			fmt.Printf("%s Purged all conjured environments\n", accent("+"))
 			return
 		}
 
@@ -102,9 +102,9 @@ var clean_cmd = &cobra.Command{
 		}
 
 		if deleted_venvs == 0 {
-			fmt.Println("+ No dormant environments to dispel")
+			fmt.Printf("%s No dormant environments to dispel\n", accent("+"))
 		} else {
-			fmt.Printf("+ Dispelled %d dormant environments\n", deleted_venvs)
+			fmt.Printf("%s Dispelled %d dormant environments\n", accent("+"), deleted_venvs)
 		}
 	},
 }

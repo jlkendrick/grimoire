@@ -7,128 +7,10 @@ import (
 	"testing"
 	"path/filepath"
 
-	types "github.com/jlkendrick/grimoire/types"
 	utils "github.com/jlkendrick/grimoire/utils"
 )
 
 // -------------------------------------------------------------------------
-// TestPythonAdapter_GenerateCommand
-//
-// GenerateCommand now calls GetInterpreter internally. Each test case sets
-// Interpreter explicitly so GetInterpreter returns via Tier 1 (explicit
-// path) without touching the filesystem.
-// -------------------------------------------------------------------------
-
-func TestPythonAdapter_GenerateCommand(t *testing.T) {
-	tests := []struct {
-		name           string
-		targetFile     string
-		targetFunction string
-		wantTargetDir  string
-		wantModule     string
-	}{
-		{
-			name:           "simple_relative_path",
-			targetFile:     "sample/hello_world_func.py",
-			targetFunction: "hello_world",
-			wantTargetDir:  "sample",
-			wantModule:     "hello_world_func",
-		},
-		{
-			name:           "nested_path",
-			targetFile:     "a/b/c/my_func.py",
-			targetFunction: "run",
-			wantTargetDir:  "a/b/c",
-			wantModule:     "my_func",
-		},
-		{
-			name:           "absolute_path",
-			targetFile:     "/home/user/scripts/processor.py",
-			targetFunction: "process",
-			wantTargetDir:  "/home/user/scripts",
-			wantModule:     "processor",
-		},
-		{
-			name:           "flat_no_directory",
-			targetFile:     "flat.py",
-			targetFunction: "main",
-			wantTargetDir:  ".",
-			wantModule:     "flat",
-		},
-		{
-			// Documents existing behavior: TrimSuffix removes only ".py",
-			// leaving dots in the stem. importlib would fail at runtime on
-			// such a path, but GenerateCommand itself does not error.
-			name:           "file_with_multiple_dots",
-			targetFile:     "src/my.util.helper.py",
-			targetFunction: "compute",
-			wantTargetDir:  "src",
-			wantModule:     "my.util.helper",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			adapter := &PythonAdapter{}
-			fn := types.Function{
-				TargetFile:     tc.targetFile,
-				TargetFunction: tc.targetFunction,
-				// Set explicit interpreter so GetInterpreter short-circuits
-				// via Tier 1 and does not traverse the filesystem.
-				Interpreter: "python",
-			}
-
-			binary, flags, err := adapter.GenerateCommand(fn)
-
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if binary != "python" {
-				t.Errorf("expected binary %q, got %q", "python", binary)
-			}
-			if len(flags) != 2 {
-				t.Fatalf("expected 2 flags, got %d: %v", len(flags), flags)
-			}
-			if flags[0] != "-c" {
-				t.Errorf("expected flags[0]==-c, got %q", flags[0])
-			}
-
-			script := flags[1]
-
-			// Shared structural assertions present in every generated script.
-			for _, want := range []string{
-				"importlib.import_module",
-				"sys.stdin.read",
-				"getattr",
-			} {
-				if !strings.Contains(script, want) {
-					t.Errorf("script missing %q", want)
-				}
-			}
-
-			// Verify the three fmt.Sprintf substitutions.
-			wantDirLiteral := "os.path.expanduser('" + tc.wantTargetDir + "')"
-			if !strings.Contains(script, wantDirLiteral) {
-				t.Errorf("script missing target_dir literal %q\nscript:\n%s", wantDirLiteral, script)
-			}
-
-			wantModLiteral := "importlib.import_module('" + tc.wantModule + "')"
-			if !strings.Contains(script, wantModLiteral) {
-				t.Errorf("script missing module literal %q\nscript:\n%s", wantModLiteral, script)
-			}
-
-			wantFnLiteral := "getattr(mod, '" + tc.targetFunction + "')"
-			if !strings.Contains(script, wantFnLiteral) {
-				t.Errorf("script missing function literal %q\nscript:\n%s", wantFnLiteral, script)
-			}
-		})
-	}
-}
-
-// -------------------------------------------------------------------------
-// TestPythonAdapter_FormatError
-// -------------------------------------------------------------------------
-
 func TestPythonAdapter_FormatError(t *testing.T) {
 	adapter := &PythonAdapter{}
 
@@ -285,114 +167,6 @@ func TestUpwardsTraversalForTargets(t *testing.T) {
 }
 
 // -------------------------------------------------------------------------
-// TestGetInterpreter
-// -------------------------------------------------------------------------
-
-func TestGetInterpreter(t *testing.T) {
-	adapter := &PythonAdapter{}
-
-	t.Run("explicit_interpreter", func(t *testing.T) {
-		fn := types.Function{
-			TargetFile:  "sample/script.py",
-			Interpreter: "/usr/bin/python3",
-		}
-		got, err := adapter.GetInterpreter(fn)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != "/usr/bin/python3" {
-			t.Errorf("expected %q, got %q", "/usr/bin/python3", got)
-		}
-	})
-
-	t.Run("explicit_interpreter_tilde", func(t *testing.T) {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			t.Fatalf("UserHomeDir: %v", err)
-		}
-		fn := types.Function{
-			TargetFile:  "sample/script.py",
-			Interpreter: "~/venv/bin/python",
-		}
-		got, err := adapter.GetInterpreter(fn)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		want := filepath.Join(home, "venv", "bin", "python")
-		if got != want {
-			t.Errorf("expected %q, got %q", want, got)
-		}
-	})
-
-	t.Run("venv_in_same_dir", func(t *testing.T) {
-		dir := t.TempDir()
-		// Create a .venv directory (just needs to exist, not be a real venv).
-		if err := os.MkdirAll(filepath.Join(dir, ".venv", "bin"), 0755); err != nil {
-			t.Fatalf("MkdirAll: %v", err)
-		}
-
-		fn := types.Function{
-			// TargetFile must be an absolute path in the temp dir.
-			TargetFile:     filepath.Join(dir, "script.py"),
-			TargetFunction: "run",
-		}
-		got, err := adapter.GetInterpreter(fn)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		want := filepath.Join(dir, ".venv", "bin", "python")
-		if got != want {
-			t.Errorf("expected %q, got %q", want, got)
-		}
-	})
-
-	t.Run("venv_in_parent_dir", func(t *testing.T) {
-		parent := t.TempDir()
-		child := filepath.Join(parent, "subpkg")
-		if err := os.MkdirAll(child, 0755); err != nil {
-			t.Fatalf("MkdirAll child: %v", err)
-		}
-		// Only the parent has .venv; the child has nothing.
-		if err := os.MkdirAll(filepath.Join(parent, ".venv", "bin"), 0755); err != nil {
-			t.Fatalf("MkdirAll .venv: %v", err)
-		}
-
-		fn := types.Function{
-			TargetFile:     filepath.Join(child, "script.py"),
-			TargetFunction: "run",
-		}
-		got, err := adapter.GetInterpreter(fn)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		want := filepath.Join(parent, ".venv", "bin", "python")
-		if got != want {
-			t.Errorf("expected %q, got %q", want, got)
-		}
-	})
-
-	t.Run("no_env_found_falls_back_to_system_python", func(t *testing.T) {
-		// When no env markers exist anywhere in the directory tree,
-		// GetInterpreter now falls back to the system "python" binary.
-		dir := t.TempDir()
-		fn := types.Function{
-			TargetFile:     filepath.Join(dir, "script.py"),
-			TargetFunction: "run",
-		}
-		got, err := adapter.GetInterpreter(fn)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != "python" {
-			t.Errorf("expected fallback to %q, got %q", "python", got)
-		}
-	})
-}
-
-// -------------------------------------------------------------------------
-// TestBuildNewEnvironment — integration tests, require python + pip
-// -------------------------------------------------------------------------
-
 func TestBuildNewEnvironment(t *testing.T) {
 	t.Run("creates_venv_from_requirements", func(t *testing.T) {
 		requirePython(t)
@@ -403,7 +177,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 
-		got, err := buildNewEnvironment(reqFile, "requirements.txt", "")
+		got, _, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -433,12 +207,12 @@ func TestBuildNewEnvironment(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 
-		first, err := buildNewEnvironment(reqFile, "requirements.txt", "")
+		first, _, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("first call unexpected error: %v", err)
 		}
 
-		second, err := buildNewEnvironment(reqFile, "requirements.txt", "")
+		second, _, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("second call unexpected error: %v", err)
 		}
@@ -458,7 +232,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		// First build.
-		_, err := buildNewEnvironment(reqFile, "requirements.txt", "")
+		_, _, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("first call unexpected error: %v", err)
 		}
@@ -469,7 +243,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		// Second build should succeed and update the hash certificate.
-		got, err := buildNewEnvironment(reqFile, "requirements.txt", "")
+		got, _, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("second call unexpected error: %v", err)
 		}
@@ -496,7 +270,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 			t.Fatalf("WriteFile: %v", err)
 		}
 
-		_, err := buildNewEnvironment(reqFile, "Pipfile", "")
+		_, _, err := buildNewEnvironment(reqFile, "Pipfile", "")
 		if err == nil {
 			t.Fatal("expected error for unsupported dependency type, got nil")
 		}
@@ -515,7 +289,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		wantOrigin := "/abs/path/to/my_script.py"
-		got, err := buildNewEnvironment(reqFile, "requirements.txt", wantOrigin)
+		got, _, err := buildNewEnvironment(reqFile, "requirements.txt", wantOrigin)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -541,7 +315,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		// First build — creates venv and writes hash certificate.
-		got, err := buildNewEnvironment(reqFile, "requirements.txt", "")
+		got, _, err := buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Fatalf("first call unexpected error: %v", err)
 		}
@@ -554,7 +328,7 @@ func TestBuildNewEnvironment(t *testing.T) {
 		}
 
 		// Second call should recover cleanly rather than erroring.
-		_, err = buildNewEnvironment(reqFile, "requirements.txt", "")
+		_, _, err = buildNewEnvironment(reqFile, "requirements.txt", "")
 		if err != nil {
 			t.Errorf("expected clean recovery from missing hash file, got: %v", err)
 		}

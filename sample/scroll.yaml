@@ -12,3 +12,15 @@ functions:
     args:
       - name: title
         type: str
+  - name: hi
+    path: go/hello_world.go
+    function: HelloWorld
+    args:
+      - name: "n"
+        type: int
+  - name: joke
+    path: python/pyproject/joke.py
+    function: tell_random_joke
+    args:
+      - name: message
+        type: str
