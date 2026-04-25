@@ -8,14 +8,18 @@ builds:
   - id: grimoire
     binary: grimoire
     main: .
-    env:
-      - CGO_ENABLED=0
     goos:
       - darwin
       - linux
     goarch:
       - amd64
       - arm64
+    overrides:
+      - goos: linux
+        goarch: arm64
+        env:
+          - CGO_ENABLED=1
+          - CC=aarch64-linux-gnu-gcc
 
 archives:
   - id: grimoire
@@ -25,7 +29,7 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
-brews:
+homebrew_casks:
   - name: grimoire
     repository:
       owner: jlkendrick
