@@ -51,6 +51,14 @@ var add_cmd = &cobra.Command{
 		}
 		config_obj, err := core.LoadConfig(config_type)
 
+		// Check if a spell with the same command name already exists in the config
+		for _, function := range config_obj.Functions {
+			if function.Name == command_name {
+				fmt.Printf("%s Spell named %s already exists in the scroll\n", accent("+"), spell(command_name))
+				return
+			}
+		}
+
 		// Make the path_to_function relative to the config file that we found
 		absolute_path_to_function, err := filepath.Abs(path_to_function)
 		if err != nil {
