@@ -1,0 +1,307 @@
+<!DOCTYPE html><html data-src-ver="9c3129d5" lang="en"><head>
+
+
+
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>Grimoire — A Spellbook for Your Codebase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;family=IM+Fell+English:ital@0;1&amp;family=IM+Fell+English+SC&amp;family=UnifrakturCook:wght@700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1c1710;
+    --ink-soft: #3b3024;
+    --ink-faded: #6b5a43;
+    --parchment: #e9dcba;
+    --parchment-warm: #ddc99a;
+    --parchment-deep: #c6ac78;
+    --vellum: #f2e6c4;
+    --stone: #2a241c;
+    --stone-hi: #4a3f30;
+    --stone-shadow: #13100b;
+    --gold: #a87a2e;
+    --gold-bright: #d4a84a;
+    --ember: #8b2e1f;
+    --ember-bright: #b8442c;
+    --moss: #556b2b;
+    --rune-blue: #2d4a5c;
+    --iron: #2b2a26;
+
+    --serif: "IM Fell English", "Cormorant Garamond", Garamond, serif;
+    --serif-sc: "IM Fell English SC", "IM Fell English", serif;
+    --display: "UnifrakturCook", "IM Fell English", serif;
+    --display-2: "Cormorant Garamond", Garamond, serif;
+    --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--serif);
+    color: var(--ink);
+    background: #0a0806;
+    min-width: 1280px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ---------- Global textures (SVG-as-data-uri) ---------- */
+  .tex-parchment {
+    background-color: var(--parchment);
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(139,46,31,0.08), transparent 60%),
+      radial-gradient(ellipse at 85% 100%, rgba(28,23,16,0.15), transparent 55%),
+      radial-gradient(ellipse at 50% 50%, rgba(139,46,31,0.04), transparent 70%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.11 0 0 0 0 0.09 0 0 0 0 0.06 0 0 0 0.22 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/></svg>");
+  }
+  .tex-parchment::before {
+    content: "";
+    position: absolute; inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse at top left, transparent 60%, rgba(28,23,16,0.28) 100%),
+      radial-gradient(ellipse at bottom right, transparent 60%, rgba(28,23,16,0.35) 100%);
+    mix-blend-mode: multiply;
+  }
+  .tex-stone {
+    background-color: var(--stone);
+    background-image:
+      radial-gradient(ellipse at 30% 20%, rgba(255,220,150,0.06), transparent 45%),
+      radial-gradient(ellipse at 70% 80%, rgba(0,0,0,0.6), transparent 50%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.13 0 0 0 0 0.09 0 0 0 0.7 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* ---------- Ornate borders ---------- */
+  .frame-stone {
+    position: relative;
+    border: 2px solid #0a0806;
+    outline: 1px solid var(--stone-hi);
+    outline-offset: -6px;
+    box-shadow:
+      inset 0 0 0 4px var(--stone-shadow),
+      inset 0 0 40px rgba(0,0,0,0.55),
+      0 2px 0 #000;
+  }
+  .frame-stone::before, .frame-stone::after {
+    content: "";
+    position: absolute;
+    width: 14px; height: 14px;
+    background: radial-gradient(circle at 30% 30%, #6b5a3b, #1a140c 70%);
+    border-radius: 50%;
+    box-shadow: 0 1px 1px #000, inset -2px -2px 3px rgba(0,0,0,0.6);
+  }
+  .frame-stone::before { top: 4px; left: 4px; }
+  .frame-stone::after { bottom: 4px; right: 4px; }
+
+  .stud-corners > i {
+    position: absolute;
+    width: 10px; height: 10px;
+    background: radial-gradient(circle at 30% 30%, #776044, #1a140c 70%);
+    border-radius: 50%;
+    box-shadow: 0 1px 0 #000, inset -1px -1px 2px rgba(0,0,0,0.7);
+    z-index: 3;
+  }
+  .stud-corners > i:nth-child(1) { top: 6px; left: 6px; }
+  .stud-corners > i:nth-child(2) { top: 6px; right: 6px; }
+  .stud-corners > i:nth-child(3) { bottom: 6px; left: 6px; }
+  .stud-corners > i:nth-child(4) { bottom: 6px; right: 6px; }
+
+  /* ---------- Initial capitals ---------- */
+  .drop-cap::first-letter {
+    font-family: var(--display);
+    font-size: 4.2em;
+    float: left;
+    line-height: 0.82;
+    padding: 0.06em 0.1em 0 0;
+    color: var(--ember);
+  }
+
+  /* ---------- Links ---------- */
+  a { color: var(--ember); text-decoration: none; border-bottom: 1px dotted currentColor; }
+  a:hover { color: var(--ember-bright); background: rgba(168,122,46,0.12); }
+
+  /* ---------- Scrollbar on terminal ---------- */
+  .orb-scroll::-webkit-scrollbar { width: 10px; }
+  .orb-scroll::-webkit-scrollbar-track { background: #0a0f12; }
+  .orb-scroll::-webkit-scrollbar-thumb { background: #2a3b45; border: 2px solid #0a0f12; }
+
+  /* ---------- Flicker ---------- */
+  @keyframes flicker {
+    0%, 100% { opacity: 0.92; filter: brightness(1); }
+    40% { opacity: 1; filter: brightness(1.1); }
+    55% { opacity: 0.85; filter: brightness(0.95); }
+    70% { opacity: 1; filter: brightness(1.12); }
+  }
+  .flicker { animation: flicker 4.5s infinite ease-in-out; }
+
+  @keyframes blink { 50% { opacity: 0; } }
+  .cursor-blink { animation: blink 1.1s steps(2, end) infinite; }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  @keyframes book-spin {
+    0%   { transform: rotateY(0deg)   rotateX(-8deg); }
+    100% { transform: rotateY(360deg) rotateX(-8deg); }
+  }
+
+  @keyframes wiz-turn {
+    0%   { transform: rotateY(0deg)   rotateX(-6deg); }
+    100% { transform: rotateY(360deg) rotateX(-6deg); }
+  }
+
+  @keyframes rune-glow {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(212,168,74,0.6)) drop-shadow(0 0 8px rgba(212,168,74,0.3)); }
+    50%      { filter: drop-shadow(0 0 8px rgba(212,168,74,0.9)) drop-shadow(0 0 16px rgba(212,168,74,0.5)); }
+  }
+
+  /* ---------- Section hinge ---------- */
+  .hinge {
+    width: 100%; height: 28px;
+    background:
+      linear-gradient(180deg, transparent 45%, #0a0806 45%, #0a0806 55%, transparent 55%),
+      radial-gradient(circle at 20px 14px, #776044 0 4px, transparent 5px),
+      radial-gradient(circle at calc(100% - 20px) 14px, #776044 0 4px, transparent 5px);
+  }
+
+  /* ---------- Utility ---------- */
+  .smallcaps { font-family: var(--serif-sc); letter-spacing: 0.04em; }
+  .blackletter { font-family: var(--display); font-weight: 700; }
+  .mono { font-family: var(--mono); }
+
+  /* ---------- Sidebar spellbook nav ---------- */
+  .sidebox {
+    background: linear-gradient(180deg, #14100a 0%, #0a0806 100%);
+    color: var(--parchment);
+    border: 1px solid #000;
+    outline: 1px solid #3b3024;
+    outline-offset: -4px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.7);
+    position: relative;
+  }
+  .sidebox h3 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 17px;
+    margin: 0;
+    padding: 12px 16px 8px;
+    color: var(--gold-bright);
+    text-align: center;
+    text-shadow: 0 1px 0 #000;
+    border-bottom: 1px solid #2a241c;
+    letter-spacing: 0.04em;
+  }
+  .sidebox ul { list-style: none; margin: 0; padding: 4px 0; }
+  .sidebox li a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 16px;
+    color: #b8a876;
+    font-family: var(--serif);
+    font-size: 14px;
+    border-bottom: none;
+    letter-spacing: 0.01em;
+  }
+  .sidebox li a:hover { background: rgba(168,122,46,0.18); color: var(--gold-bright); }
+  .sidebox li a .sigil {
+    width: 18px; height: 18px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gold-bright);
+  }
+
+  /* ---------- Code blocks ---------- */
+  .codeblock {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: #12100c;
+    color: #d6c79c;
+    border: 1px solid #000;
+    outline: 1px solid #3b3024;
+    outline-offset: -3px;
+    padding: 14px 18px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    line-height: 1.65;
+    white-space: pre;
+    overflow-x: auto;
+    position: relative;
+  }
+  .codeblock .prompt { color: var(--ember-bright); user-select: none; }
+  .codeblock .cmd    { color: var(--gold-bright); }
+  .codeblock .arg    { color: #b6c28a; }
+  .codeblock .str    { color: #c08a6a; }
+  .codeblock .cmt    { color: #6b5a43; font-style: italic; }
+  .codeblock .key    { color: #c09a5a; }
+  .codeblock .val    { color: #b6c28a; }
+
+  /* ---------- Buttons ---------- */
+  .btn-stone {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--serif-sc);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--parchment);
+    padding: 10px 18px;
+    background:
+      radial-gradient(ellipse at 50% 0%, #4a3f30 0%, #2a241c 60%, #1a140c 100%);
+    border: 1px solid #000;
+    outline: 1px solid #6b5a3b;
+    outline-offset: -3px;
+    box-shadow: inset 0 1px 0 rgba(255,220,150,0.15), inset 0 0 20px rgba(0,0,0,0.6), 0 2px 0 #000;
+    cursor: pointer;
+    position: relative;
+    text-shadow: 0 1px 0 #000;
+  }
+  .btn-stone:hover { color: var(--gold-bright); }
+  .btn-stone.primary {
+    background: radial-gradient(ellipse at 50% 0%, #b8442c 0%, #6b1f12 60%, #3a100a 100%);
+    outline-color: #c68a3a;
+  }
+  .btn-stone.primary:hover { color: #fff2cf; }
+
+  /* ---------- Table (commands grimoire) ---------- */
+  table.grimoire {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 15px;
+    color: var(--ink);
+  }
+  table.grimoire th {
+    font-family: var(--serif-sc);
+    letter-spacing: 0.1em;
+    font-weight: 400;
+    font-size: 12px;
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--ember);
+    border-bottom: 1px solid var(--ink);
+    background: rgba(168,122,46,0.08);
+  }
+  table.grimoire td {
+    padding: 12px 14px;
+    vertical-align: top;
+    border-bottom: 1px dotted #9a8660;
+  }
+  table.grimoire td.cmd { font-family: var(--mono); font-size: 14px; color: var(--ink); white-space: nowrap; }
+  table.grimoire tr:hover td { background: rgba(168,122,46,0.1); }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx" data-filename="tweaks-panel.jsx"></script>
+<script type="text/babel" src="icons.jsx" data-filename="icons.jsx"></script>
+<script type="text/babel" src="animated.jsx" data-filename="animated.jsx"></script>
+<script type="text/babel" src="terminal.jsx" data-filename="terminal.jsx"></script>
+<script type="text/babel" src="app.jsx" data-filename="app.jsx"></script>
+</head>
+<body style="background-color: #423a34;">
+  <div id="root"></div>
+</body>
+</html>
