@@ -82,6 +82,26 @@ sample/       Example project with scroll.yaml and Python scripts
 
 More runtimes are planned. The adapter interface is designed to be language-agnostic from the start.
 
+## Installation
+
+**Homebrew (recommended):**
+
+```sh
+brew tap jlkendrick/tap
+brew install grimoire
+```
+
+**`go install`:**
+
+```sh
+go install github.com/jlkendrick/grimoire@latest
+```
+
+> **Note:** Grimoire uses [tree-sitter](https://tree-sitter.github.io/) for source code analysis, which requires cgo and a C compiler (`gcc` or `clang`). Make sure one is installed before building.
+>
+> On macOS: `xcode-select --install`
+> On Linux: `sudo apt install gcc` (or your distro's equivalent)
+
 ## Development
 
 ```sh
@@ -89,4 +109,4 @@ go build -o grimoire .
 go test ./...
 ```
 
-Requires Go 1.23+.
+Requires Go 1.23+ and a C compiler (see Installation note above).
