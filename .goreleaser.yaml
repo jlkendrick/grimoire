@@ -31,7 +31,3 @@ homebrew_casks:
     homepage: "https://jlkendrick.github.io/janus"
     description: "A declarative, language-agnostic execution framework. Write pure functions, describe them in spell.yaml, get a fully typed CLI."
     license: "MIT"
-    install: |
-      bin.install "grimoire"
-    test: |
-      system "#{bin}/grimoire", "--version"
