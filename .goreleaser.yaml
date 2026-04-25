@@ -10,16 +10,9 @@ builds:
     main: .
     goos:
       - darwin
-      - linux
     goarch:
       - amd64
       - arm64
-    overrides:
-      - goos: linux
-        goarch: arm64
-        env:
-          - CGO_ENABLED=1
-          - CC=aarch64-linux-gnu-gcc
 
 archives:
   - id: grimoire
