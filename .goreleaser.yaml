@@ -23,13 +23,3 @@ archives:
 
 checksum:
   name_template: "checksums.txt"
-
-homebrew_casks:
-  - name: grimoire
-    repository:
-      owner: jlkendrick
-      name: homebrew-grimoire
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: "https://jlkendrick.github.io/janus"
-    description: "A declarative, language-agnostic execution framework. Write pure functions, describe them in spell.yaml, get a fully typed CLI."
-    license: "MIT"
