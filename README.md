@@ -19,7 +19,7 @@ brew tap jlkendrick/tap
 brew install grimoire
 ```
 
-**`go install`:**
+`**go install`:**
 
 ```sh
 go install github.com/jlkendrick/grimoire@latest
@@ -34,7 +34,7 @@ go install github.com/jlkendrick/grimoire@latest
 
 Grimoire is your personal spellbook. Every developer has random utility scripts scattered across their system — one-off data transforms, deployment helpers, local tools that only work on their machine. Grimoire brings them together into a single, unified interface.
 
-A `scroll.yaml` file is a *spell*: a precise recipe that describes exactly how to invoke the functions in a specific repo. Unlike a generic script runner, a spell carries the full incantation — the function to call, the arguments it expects, the types, the defaults. Anyone with Grimoire installed can pick up a spell and cast it.
+Each entry in your `scroll.yaml` files is a *spell*: a precise recipe that describes exactly how to invoke the functions in a specific repo. Unlike a generic script runner, a spell carries the full incantation — the function to call, the arguments it expects, the types, the defaults. Anyone with Grimoire installed can pick up a spell and cast it.
 
 ## Architecture
 
@@ -72,14 +72,14 @@ Grimoire handles interpreter resolution (virtual environments, `pyproject.toml`,
 ## Key Commands
 
 
-| Command                          | Description                                                                                                              |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `grimoire init`                  | Scaffold a `scroll.yaml` in the current directory                                                                         |
-| `grimoire add <file>:<function>` | Add a function to `scroll.yaml` and auto-extract its signature                                                            |
-| `grimoire sync`                  | Regenerate argument signatures for all registered functions                                                              |
+| Command                          | Description                                                                                                                |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `grimoire init`                  | Scaffold a `scroll.yaml` in the current directory                                                                          |
+| `grimoire add <file>:<function>` | Add a function to `scroll.yaml` and auto-extract its signature                                                             |
+| `grimoire sync`                  | Regenerate argument signatures for all registered functions                                                                |
 | `grimoire register [path]`       | Register a project's `scroll.yaml` with the global grimoire (defaults to nearest `scroll.yaml` found via upward traversal) |
-| `grimoire clean [--global]`      | Remove cached venvs for functions whose source files no longer exist                                                     |
-| `grimoire <name> [flags]`        | Run a function by its declared name                                                                                      |
+| `grimoire clean [--global]`      | Remove cached venvs for functions whose source files no longer exist                                                       |
+| `grimoire <name> [flags]`        | Run a function by its declared name                                                                                        |
 
 
 ## Project Structure
