@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	core "github.com/jlkendrick/grimoire/core"
+	utils "github.com/jlkendrick/grimoire/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -42,6 +43,9 @@ var staticCommands = map[string]bool{
 }
 
 func Execute() {
+	if err := utils.EnsureGrimoireHome(); err != nil {
+		fmt.Printf("Warning: could not initialize grimoire home: %v\n", err)
+	}
 
 	// Only build the commands if the user has not requested a static command
 	var static_command_called bool

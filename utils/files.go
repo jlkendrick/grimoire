@@ -36,6 +36,23 @@ func ExpandUserPath(path string) (string, error) {
 	return path, nil
 }
 
+// EnsureGrimoireHome creates ~/.grimoire and ~/.grimoire/grimoire.yaml if they
+// don't already exist.
+func EnsureGrimoireHome() error {
+	home, err := GrimoireHome()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(home, 0755); err != nil {
+		return err
+	}
+	configPath := filepath.Join(home, "grimoire.yaml")
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return os.WriteFile(configPath, []byte("registered_projects: []\n"), 0644)
+	}
+	return nil
+}
+
 func HashFilePathAndContent(path string) (string,string, error) {
 	// Hash the file path (path of the dependency file used to build the venv)
 	path_hash := sha256.New()
