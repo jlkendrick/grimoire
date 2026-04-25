@@ -24,3 +24,21 @@ functions:
     args:
       - name: message
         type: str
+  - name: print_rich_panel
+    path: python/requirements/rich_greeting.py
+    function: print_rich_panel
+    args:
+      - name: title
+        type: str
+  - name: print_rich_panel
+    path: python/requirements/rich_greeting.py
+    function: print_rich_panel
+    args:
+      - name: title
+        type: str
+  - name: HelloWorld
+    path: go/hello_world.go
+    function: HelloWorld
+    args:
+      - name: "n"
+        type: int

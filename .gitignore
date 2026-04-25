@@ -5,3 +5,4 @@ sample/python/.venv
 **/__pycache__/**
 *.egg-info/
 .env
+sample/scroll.yaml
