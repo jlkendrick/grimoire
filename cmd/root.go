@@ -16,12 +16,17 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "grimoire",
 	Short: "Universal declarative execution framework",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
+	Long: `Grimoire is a declarative, language-agnostic execution framework that
+turns plain functions into fully typed CLI commands using YAML configuration.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Define your functions once in a spell.yaml file, and Grimoire generates
+subcommands with proper argument parsing, type coercion, and help text —
+no boilerplate required.
+
+  grimoire init          Initialize a spell.yaml in the current directory
+  grimoire add <file>    Auto-detect functions and add them to spell.yaml
+  grimoire sync          Sync changes from spell.yaml to the CLI
+  grimoire <command>     Run any function defined in spell.yaml`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
