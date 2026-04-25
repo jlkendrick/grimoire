@@ -10,6 +10,26 @@ Grimoire is a declarative, language-agnostic execution framework. The core idea 
 
 Later, the same configuration will also generate REST APIs from the same functions, with no changes to your code.
 
+## Installation
+
+**Homebrew (recommended):**
+
+```sh
+brew tap jlkendrick/tap
+brew install grimoire
+```
+
+**`go install`:**
+
+```sh
+go install github.com/jlkendrick/grimoire@latest
+```
+
+> **Note:** Grimoire uses [tree-sitter](https://tree-sitter.github.io/) for source code analysis, which requires cgo and a C compiler (`gcc` or `clang`). Make sure one is installed before building.
+>
+> On macOS: `xcode-select --install`
+> On Linux: `sudo apt install gcc` (or your distro's equivalent)
+
 ## The Metaphor
 
 Grimoire is your personal spellbook. Every developer has random utility scripts scattered across their system — one-off data transforms, deployment helpers, local tools that only work on their machine. Grimoire brings them together into a single, unified interface.
@@ -81,26 +101,6 @@ sample/       Example project with scroll.yaml and Python scripts
 - **Go** — full support; Grimoire creates an isolated wrapper module per project, compiles it on first use, and caches the binary for fast subsequent invocations
 
 More runtimes are planned. The adapter interface is designed to be language-agnostic from the start.
-
-## Installation
-
-**Homebrew (recommended):**
-
-```sh
-brew tap jlkendrick/tap
-brew install grimoire
-```
-
-**`go install`:**
-
-```sh
-go install github.com/jlkendrick/grimoire@latest
-```
-
-> **Note:** Grimoire uses [tree-sitter](https://tree-sitter.github.io/) for source code analysis, which requires cgo and a C compiler (`gcc` or `clang`). Make sure one is installed before building.
->
-> On macOS: `xcode-select --install`
-> On Linux: `sudo apt install gcc` (or your distro's equivalent)
 
 ## Development
 
