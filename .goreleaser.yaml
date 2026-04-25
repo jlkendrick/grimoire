@@ -8,6 +8,8 @@ builds:
   - id: grimoire
     binary: grimoire
     main: .
+    env:
+      - CGO_ENABLED=1
     goos:
       - darwin
     goarch:
