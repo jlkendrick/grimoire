@@ -1,0 +1,40 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: grimoire
+    binary: grimoire
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: grimoire
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+brews:
+  - name: grimoire
+    repository:
+      owner: jlkendrick
+      name: homebrew-grimoire
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://jlkendrick.github.io/janus"
+    description: "A declarative, language-agnostic execution framework. Write pure functions, describe them in spell.yaml, get a fully typed CLI."
+    license: "MIT"
+    install: |
+      bin.install "grimoire"
+    test: |
+      system "#{bin}/grimoire", "--version"
