@@ -296,10 +296,7 @@ function QuickStart() {
               I · VIA HOMEBREW
             </div>
             <div className="codeblock">
-              <span className="prompt">$ </span><span className="cmd">brew tap</span> <span className="arg">jlkendrick/grimoire</span>
-              {"\n"}
-              <span className="prompt">$ </span><span className="cmd">brew install</span> <span className="arg">grimoire</span>
-         
+              <span className="prompt">$ </span><span className="cmd">brew install</span> <span className="arg">jlkendrick/tap/grimoire</span>
             </div>
           </div>
           {/* <div>
