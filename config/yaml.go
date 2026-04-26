@@ -4,17 +4,20 @@ import (
 	"os"
 	"fmt"
 	"strings"
+	"path/filepath"
 
-	types "github.com/jlkendrick/grimoire/types"
 	parsers "github.com/jlkendrick/grimoire/parsers"
+	types "github.com/jlkendrick/grimoire/types"
+	utils "github.com/jlkendrick/grimoire/utils"
 
 	"github.com/goccy/go-yaml"
 )
 
 type ConfigGenerator struct {
-	PathToFunction string
-	FunctionName   string
-	CommandName    string
+	AbsPathToFunction string
+	ScrollPath        string
+	FunctionName   	  string
+	CommandName    	  string
 }
 
 // Parse the user's configuration file
@@ -62,12 +65,12 @@ func ParseConfig(path string) (*types.Config, error) {
 func (g *ConfigGenerator) GenerateFunctionConfig() (types.Function, error) {
 	var analyzer parsers.LanguageAnalyzer
 
-	if !strings.Contains(g.PathToFunction, ".") {
-		return types.Function{}, fmt.Errorf("no file extension found: %s", g.PathToFunction)
+	if !strings.Contains(g.AbsPathToFunction, ".") {
+		return types.Function{}, fmt.Errorf("no file extension found: %s", g.AbsPathToFunction)
 	}
 
 	// Determine the file extension and use the appropriate analyzer
-	file_extensions := strings.Split(g.PathToFunction, ".")
+	file_extensions := strings.Split(g.AbsPathToFunction, ".")
 	file_extension := file_extensions[len(file_extensions)-1]
 	switch file_extension {
 	case "py":
@@ -79,7 +82,7 @@ func (g *ConfigGenerator) GenerateFunctionConfig() (types.Function, error) {
 	}
 
 	// Extract the function signature from the source code
-	args, err := analyzer.ExtractSignature(g.PathToFunction, g.FunctionName)
+	args, err := analyzer.ExtractSignature(g.AbsPathToFunction, g.FunctionName)
 	if err != nil {
 		return types.Function{}, err
 	}
@@ -98,9 +101,15 @@ func (g *ConfigGenerator) GenerateFunctionConfig() (types.Function, error) {
 	if name == "" {
 		name = g.FunctionName
 	}
+
+	relative_target_file, err := utils.MakeRelativePath(g.AbsPathToFunction, filepath.Dir(g.ScrollPath))
+	if err != nil {
+		return types.Function{}, err
+	}
+
 	return types.Function{
 		Name:           name,
-		TargetFile:     g.PathToFunction,
+		TargetFile:     relative_target_file,
 		TargetFunction: g.FunctionName,
 		Args:           args,
 	}, nil

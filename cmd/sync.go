@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	
 	config "github.com/jlkendrick/grimoire/config"
 	core "github.com/jlkendrick/grimoire/core"
@@ -31,7 +32,8 @@ var sync_cmd = &cobra.Command{
 
 		// For each function in the config, generate the function config
 		for i, function := range config_obj.Functions {
-			config_generator := config.ConfigGenerator{PathToFunction: function.TargetFile, FunctionName: function.TargetFunction}
+			absolute_target_file := filepath.Join(filepath.Dir(config_obj.Path), function.TargetFile)
+			config_generator := config.ConfigGenerator{AbsPathToFunction: absolute_target_file, ScrollPath: config_obj.Path, FunctionName: function.TargetFunction}
 			function_config, err := config_generator.GenerateFunctionConfig()
 			if err != nil {
 				fmt.Printf("Error generating function config: %v\n", err)

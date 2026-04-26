@@ -10,7 +10,7 @@ import (
 )
 
 type LanguageAnalyzer interface {
-	ExtractSignature(path_to_function string, function_name string) ([]types.Arg, error)
+	ExtractSignature(abs_path_to_function string, function_name string) ([]types.Arg, error)
 }
 
 // grammarConfig holds the language-specific knobs needed to extract a

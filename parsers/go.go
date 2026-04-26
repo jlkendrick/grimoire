@@ -15,8 +15,8 @@ var goConfig = grammarConfig{
 
 type GoAnalyzer struct{}
 
-func (a *GoAnalyzer) ExtractSignature(path, funcName string) ([]types.Arg, error) {
-	return extractSignatureBase(goConfig, path, funcName)
+func (a *GoAnalyzer) ExtractSignature(abs_path_to_function, funcName string) ([]types.Arg, error) {
+	return extractSignatureBase(goConfig, abs_path_to_function, funcName)
 }
 
 func extractGoParam(n *sitter.Node, src []byte) []types.Arg {

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"fmt"
 	"strings"
 	"path/filepath"
@@ -51,6 +52,28 @@ var add_cmd = &cobra.Command{
 		}
 		config_obj, err := core.LoadConfig(config_type)
 
+		// If we used the global grimoire, then we need to 'init' and then 'register' a new scroll.yaml file
+		if config_obj.Context == types.ContextTypeGlobal {
+			fmt.Printf("%s No scroll found, initializing new scroll\n", accent("+"))
+			init_cmd.Run(cmd, []string{})
+			
+			// Set the config object to the newly created scroll (can just manualy create it)
+			current_dir, err := os.Getwd()
+			if err != nil {
+				fmt.Printf("Error getting current directory: %v\n", err)
+				return
+			}
+			new_config_path := filepath.Join(current_dir, "scroll.yaml")
+			config_obj = &types.Config{
+				Context: types.ContextTypeLocal,
+				Path: new_config_path,
+				Functions: []types.Function{},
+			}
+
+			// Register the new scroll
+			register_cmd.Run(cmd, []string{config_obj.Path})
+		}
+
 		// Check if a spell with the same command name already exists in the config
 		for _, function := range config_obj.Functions {
 			if function.Name == command_name {
@@ -59,21 +82,16 @@ var add_cmd = &cobra.Command{
 			}
 		}
 
-		// Make the path_to_function relative to the config file that we found
+		// Get the absolute path to the function
 		absolute_path_to_function, err := filepath.Abs(path_to_function)
 		if err != nil {
 			fmt.Printf("Error getting absolute path to function: %v\n", err)
 			return
 		}
-		path_to_function, err = utils.MakeRelativePath(absolute_path_to_function, filepath.Dir(config_obj.Path))
-		if err != nil {
-			fmt.Printf("Error making path to function relative: %v\n", err)
-			return
-		}
 
 		fmt.Printf("%s Divining signature...\n", accent("+"))
 
-		config_generator := config.ConfigGenerator{PathToFunction: path_to_function, FunctionName: function_name, CommandName: command_name}
+		config_generator := config.ConfigGenerator{AbsPathToFunction: absolute_path_to_function, ScrollPath: config_obj.Path, FunctionName: function_name, CommandName: command_name}
 		function_config, err := config_generator.GenerateFunctionConfig()
 		if err != nil {
 			fmt.Printf("Error generating function config: %v\n", err)
