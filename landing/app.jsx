@@ -287,7 +287,7 @@ function QuickStart() {
           framework code shall touch your own manuscripts.
         </p>
 
-        <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 28, marginTop: 32}}>
+        <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 28, marginTop: 32}}>
           <div>
             <div style={{
               fontFamily: "var(--serif-sc)", fontSize: 11, letterSpacing: "0.16em",

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <radialGradient id="cover" cx="30%" cy="20%" r="90%" gradientUnits="objectBoundingBox">
+      <stop offset="0%"   stop-color="#6a3a22"/>
+      <stop offset="45%"  stop-color="#4a1f10"/>
+      <stop offset="100%" stop-color="#2a0f08"/>
+    </radialGradient>
+    <linearGradient id="clasp" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#d4a84a"/>
+      <stop offset="100%" stop-color="#8a6020"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Cover face (W ≈ 0.76 × H from RotatingBook) -->
+  <rect x="2" y="1" width="23" height="30" rx="1"
+        fill="url(#cover)" stroke="#1a0a04" stroke-width="1.5"/>
+
+  <!-- Gold inner trim (inset 8px in original) -->
+  <rect x="4" y="3" width="19" height="26" rx="0.5"
+        fill="none" stroke="#a87a2e" stroke-width="0.8"/>
+
+  <!-- Pentacle outer circle -->
+  <circle cx="13.5" cy="16" r="6.5"
+          fill="none" stroke="#d4a84a" stroke-width="0.8"/>
+
+  <!-- Pentacle inner circle -->
+  <circle cx="13.5" cy="16" r="5.2"
+          fill="none" stroke="#a87a2e" stroke-width="0.4"/>
+
+  <!--
+    Five-pointed star: regular pentagon vertices (r=6.5, center 13.5,16)
+    connected in skip-one order (P0→P2→P4→P1→P3→close).
+    P0(top)=(13.5,9)  P1=(20.2,13.8)  P2=(17.6,21.7)
+    P3=(9.4,21.7)     P4=(6.8,13.8)
+  -->
+  <path d="M13.5 9 L17.6 21.7 L6.8 13.8 L20.2 13.8 L9.4 21.7 Z"
+        fill="none" stroke="#d4a84a" stroke-width="0.9"/>
+
+  <!-- Clasp (right edge, mirrors original `right:-3` overhang) -->
+  <rect x="24.5" y="13" width="4" height="6" rx="0.5"
+        fill="url(#clasp)" stroke="#1a0a04" stroke-width="0.5"/>
+</svg>
