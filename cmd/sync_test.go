@@ -78,6 +78,72 @@ func TestSyncCmd(t *testing.T) {
 		}
 	})
 
+	t.Run("global syncs every registered scroll without corrupting index", func(t *testing.T) {
+		t.Cleanup(core.ResetConfigCache)
+
+		// Two registered scrolls, each with one Python function.
+		scroll_a_dir := t.TempDir()
+		py_a := "def alpha(count: int):\n    pass\n"
+		if err := os.WriteFile(filepath.Join(scroll_a_dir, "alpha.py"), []byte(py_a), 0644); err != nil {
+			t.Fatal(err)
+		}
+		scroll_a_path := filepath.Join(scroll_a_dir, "scroll.yaml")
+		scroll_a_content := "functions:\n- name: alpha\n  path: alpha.py\n  function: alpha\n"
+		if err := os.WriteFile(scroll_a_path, []byte(scroll_a_content), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		scroll_b_dir := t.TempDir()
+		py_b := "def beta(label: str = \"hi\"):\n    pass\n"
+		if err := os.WriteFile(filepath.Join(scroll_b_dir, "beta.py"), []byte(py_b), 0644); err != nil {
+			t.Fatal(err)
+		}
+		scroll_b_path := filepath.Join(scroll_b_dir, "scroll.yaml")
+		scroll_b_content := "functions:\n- name: beta\n  path: beta.py\n  function: beta\n"
+		if err := os.WriteFile(scroll_b_path, []byte(scroll_b_content), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Global grimoire pointing at both.
+		home := t.TempDir()
+		global_path := filepath.Join(home, "grimoire.yaml")
+		global_content := "registered_projects:\n- path: " + scroll_a_path + "\n- path: " + scroll_b_path + "\n"
+		if err := os.WriteFile(global_path, []byte(global_content), 0644); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("GRIMOIRE_HOME", home)
+
+		rootCmd.SetArgs([]string{"sync", "-g"})
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		updated_a, err := os.ReadFile(scroll_a_path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(updated_a), "name: count") {
+			t.Errorf("expected scroll A to gain arg 'count', got:\n%s", string(updated_a))
+		}
+
+		updated_b, err := os.ReadFile(scroll_b_path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(updated_b), "name: label") {
+			t.Errorf("expected scroll B to gain arg 'label', got:\n%s", string(updated_b))
+		}
+
+		// The global file must remain a pure index — no inlined functions.
+		updated_global, err := os.ReadFile(global_path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(updated_global), "functions:") {
+			t.Errorf("global grimoire should not contain inlined functions, got:\n%s", string(updated_global))
+		}
+	})
+
 	t.Run("empty functions list writes file without error", func(t *testing.T) {
 		t.Cleanup(core.ResetConfigCache)
 		dir := t.TempDir()
