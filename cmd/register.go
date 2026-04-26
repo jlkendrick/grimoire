@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"os"
 	"fmt"
+	"os"
 
 	core "github.com/jlkendrick/grimoire/core"
-	utils "github.com/jlkendrick/grimoire/utils"
-	types "github.com/jlkendrick/grimoire/types"
 
 	"github.com/spf13/cobra"
 )
@@ -25,26 +23,16 @@ var register_cmd = &cobra.Command{
 				fmt.Printf("Error: %v\n", err)
 				return
 			}
-			matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"scroll.yaml"})
-			if found {
-				path_to_project = matched_targets["scroll.yaml"]
-			} else {
+			scroll_path, found := core.FindLocalScroll(current_dir)
+			if !found {
 				fmt.Printf("Error: no scroll.yaml file found in the current directory or any parent directories\n")
 				return
 			}
+			path_to_project = scroll_path
 		}
 
-		config, err := core.LoadConfig("global")
-		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
-			return
-		}
-
-		config.RegisteredProjects = append(config.RegisteredProjects, types.Project{Path: path_to_project})
-
-		err = config.Write()
-		if err != nil {
-			fmt.Printf("Error writing config: %v\n", err)
+		if err := core.RegisterScroll(path_to_project); err != nil {
+			fmt.Printf("Error registering scroll: %v\n", err)
 			return
 		}
 

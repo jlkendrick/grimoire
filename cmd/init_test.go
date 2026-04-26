@@ -45,58 +45,6 @@ func captureStdout(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-func TestMakeBlankGrimYAMLFile(t *testing.T) {
-	t.Run("with boilerplate creates expected content", func(t *testing.T) {
-		dir := t.TempDir()
-		if err := makeBlankGrimYAMLFile(dir, true); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		content, err := os.ReadFile(filepath.Join(dir, "scroll.yaml"))
-		if err != nil {
-			t.Fatalf("reading scroll.yaml: %v", err)
-		}
-		s := string(content)
-		for _, want := range []string{"functions:", "hello_world", "path/to/hello_world.py"} {
-			if !strings.Contains(s, want) {
-				t.Errorf("expected %q in output, got:\n%s", want, s)
-			}
-		}
-	})
-
-	t.Run("without boilerplate omits example function", func(t *testing.T) {
-		dir := t.TempDir()
-		if err := makeBlankGrimYAMLFile(dir, false); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		content, err := os.ReadFile(filepath.Join(dir, "scroll.yaml"))
-		if err != nil {
-			t.Fatalf("reading scroll.yaml: %v", err)
-		}
-		if strings.Contains(string(content), "hello_world") {
-			t.Errorf("expected no boilerplate content, got:\n%s", string(content))
-		}
-	})
-
-	t.Run("creates scroll.yaml in specified directory", func(t *testing.T) {
-		dir := t.TempDir()
-		if err := makeBlankGrimYAMLFile(dir, false); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if _, err := os.Stat(filepath.Join(dir, "scroll.yaml")); os.IsNotExist(err) {
-			t.Error("expected scroll.yaml to be created in directory")
-		}
-	})
-
-	t.Run("nonexistent directory returns error", func(t *testing.T) {
-		err := makeBlankGrimYAMLFile("/nonexistent/path/that/does/not/exist", false)
-		if err == nil {
-			t.Error("expected error for nonexistent directory, got nil")
-		}
-	})
-}
-
 func TestInitCmd(t *testing.T) {
 	rootCmd.SetErr(io.Discard)
 

@@ -1,17 +1,17 @@
 package cmd
 
 import (
-	"os"
 	"fmt"
-	"strings"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	config "github.com/jlkendrick/grimoire/config"
-	utils "github.com/jlkendrick/grimoire/utils"
 	core "github.com/jlkendrick/grimoire/core"
 	types "github.com/jlkendrick/grimoire/types"
+	utils "github.com/jlkendrick/grimoire/utils"
 )
 
 var add_cmd = &cobra.Command{
@@ -27,14 +27,6 @@ var add_cmd = &cobra.Command{
 		path_to_function := parts[0]
 		function_name := parts[1]
 
-		// Get the global flag
-		global, err := cmd.Flags().GetBool("global")
-		if err != nil {
-			fmt.Printf("Error getting global flag: %v\n", err)
-			return
-		}
-
-		// Get the name flag
 		command_name, err := cmd.Flags().GetString("name")
 		if err != nil {
 			fmt.Printf("Error getting name flag: %v\n", err)
@@ -44,34 +36,10 @@ var add_cmd = &cobra.Command{
 			command_name = function_name
 		}
 
-		var config_type string
-		if global {
-			config_type = "global"
-		} else {
-			config_type = "local"
-		}
-		config_obj, err := core.LoadConfig(config_type)
-
-		// If we used the global grimoire, then we need to 'init' and then 'register' a new scroll.yaml file
-		if config_obj.Context == types.ContextTypeGlobal {
-			fmt.Printf("%s No scroll found, initializing new scroll\n", accent("+"))
-			init_cmd.Run(cmd, []string{})
-			
-			// Set the config object to the newly created scroll (can just manualy create it)
-			current_dir, err := os.Getwd()
-			if err != nil {
-				fmt.Printf("Error getting current directory: %v\n", err)
-				return
-			}
-			new_config_path := filepath.Join(current_dir, "scroll.yaml")
-			config_obj = &types.Config{
-				Context: types.ContextTypeLocal,
-				Path: new_config_path,
-				Functions: []types.Function{},
-			}
-
-			// Register the new scroll
-			register_cmd.Run(cmd, []string{config_obj.Path})
+		config_obj, err := resolveAddConfig()
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
 		}
 
 		// Check if a spell with the same command name already exists in the config
@@ -82,7 +50,6 @@ var add_cmd = &cobra.Command{
 			}
 		}
 
-		// Get the absolute path to the function
 		absolute_path_to_function, err := filepath.Abs(path_to_function)
 		if err != nil {
 			fmt.Printf("Error getting absolute path to function: %v\n", err)
@@ -91,7 +58,12 @@ var add_cmd = &cobra.Command{
 
 		fmt.Printf("%s Divining signature...\n", accent("+"))
 
-		config_generator := config.ConfigGenerator{AbsPathToFunction: absolute_path_to_function, ScrollPath: config_obj.Path, FunctionName: function_name, CommandName: command_name}
+		config_generator := config.ConfigGenerator{
+			AbsPathToFunction: absolute_path_to_function,
+			ScrollPath:        config_obj.Path,
+			FunctionName:      function_name,
+			CommandName:       command_name,
+		}
 		function_config, err := config_generator.GenerateFunctionConfig()
 		if err != nil {
 			fmt.Printf("Error generating function config: %v\n", err)
@@ -133,24 +105,43 @@ var add_cmd = &cobra.Command{
 
 		config_obj.Functions = append(config_obj.Functions, function_config)
 
-		// Write the updated config file
-		err = config_obj.Write()
-		if err != nil {
+		if err := config_obj.Write(); err != nil {
 			fmt.Printf("Error writing config file: %v\n", err)
 			return
 		}
 
-		// Scroll name: directory containing the scroll
 		scroll_name := filepath.Base(filepath.Dir(config_obj.Path))
-		if config_obj.Context == types.ContextTypeGlobal {
-			scroll_name = "the grimoire"
-		}
 		fmt.Printf("%s Bound to scroll %s\n", accent("+"), spell(scroll_name))
 	},
 }
 
+// resolveAddConfig returns the local scroll that `add` should write into. If
+// no scroll exists in cwd or any parent, initializes one in cwd and registers
+// it with the global grimoire.
+func resolveAddConfig() (*types.Config, error) {
+	current_dir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("Error getting current directory: %v", err)
+	}
+
+	if _, found := core.FindLocalScroll(current_dir); found {
+		return core.LoadConfig("local")
+	}
+
+	fmt.Printf("%s No scroll found, initializing new scroll\n", accent("+"))
+	cfg, err := core.InitScroll(current_dir, false)
+	if err != nil {
+		return nil, fmt.Errorf("Error initializing scroll: %v", err)
+	}
+	fmt.Printf("%s Inscribed scroll.yaml\n  · %s\n", accent("+"), dim(cfg.Path))
+	if err := core.RegisterScroll(cfg.Path); err != nil {
+		return nil, fmt.Errorf("Error registering scroll: %v", err)
+	}
+	fmt.Printf("%s Bound %s to the global grimoire\n", accent("+"), cfg.Path)
+	return cfg, nil
+}
+
 func init() {
-	add_cmd.Flags().BoolP("global", "g", false, "Add the function to the global grimoire")
 	add_cmd.Flags().StringP("name", "n", "", "Command name to use for the function")
 	rootCmd.AddCommand(add_cmd)
 }

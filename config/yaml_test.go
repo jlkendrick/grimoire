@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -88,7 +89,10 @@ func TestGenerateFunctionConfig(t *testing.T) {
 			"def greet(name: str, times: int = 3):\n    pass\n")
 		defer pyCleanup()
 
-		g := &ConfigGenerator{PathToFunction: pyPath, FunctionName: "greet"}
+		// ScrollPath shares pyPath's directory so the resulting TargetFile is
+		// just the basename — predictable across test runs.
+		scrollPath := filepath.Join(filepath.Dir(pyPath), "scroll.yaml")
+		g := &ConfigGenerator{AbsPathToFunction: pyPath, ScrollPath: scrollPath, FunctionName: "greet"}
 		got, err := g.GenerateFunctionConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -96,7 +100,7 @@ func TestGenerateFunctionConfig(t *testing.T) {
 
 		want := types.Function{
 			Name:           "greet",
-			TargetFile:     pyPath,
+			TargetFile:     filepath.Base(pyPath),
 			TargetFunction: "greet",
 			Args: []types.Arg{
 				{Name: "name", Type: "str", Default: nil},
@@ -109,7 +113,7 @@ func TestGenerateFunctionConfig(t *testing.T) {
 	})
 
 	t.Run("no file extension", func(t *testing.T) {
-		g := &ConfigGenerator{PathToFunction: "script", FunctionName: "run"}
+		g := &ConfigGenerator{AbsPathToFunction: "script", FunctionName: "run"}
 		_, err := g.GenerateFunctionConfig()
 		if err == nil {
 			t.Fatal("expected error for missing extension, got nil")
@@ -123,7 +127,7 @@ func TestGenerateFunctionConfig(t *testing.T) {
 		rbPath, rbCleanup := writeTempFile(t, "test_*.rb", "")
 		defer rbCleanup()
 
-		g := &ConfigGenerator{PathToFunction: rbPath, FunctionName: "some_func"}
+		g := &ConfigGenerator{AbsPathToFunction: rbPath, FunctionName: "some_func"}
 		_, err := g.GenerateFunctionConfig()
 		if err == nil {
 			t.Fatal("expected error for unsupported extension, got nil")
@@ -138,7 +142,8 @@ func TestGenerateFunctionConfig(t *testing.T) {
 			"def other():\n    pass\n")
 		defer pyCleanup()
 
-		g := &ConfigGenerator{PathToFunction: pyPath, FunctionName: "missing_func"}
+		scrollPath := filepath.Join(filepath.Dir(pyPath), "scroll.yaml")
+		g := &ConfigGenerator{AbsPathToFunction: pyPath, ScrollPath: scrollPath, FunctionName: "missing_func"}
 		_, err := g.GenerateFunctionConfig()
 		if err == nil {
 			t.Error("expected error for missing function, got nil")

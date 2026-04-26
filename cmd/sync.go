@@ -32,7 +32,10 @@ var sync_cmd = &cobra.Command{
 
 		// For each function in the config, generate the function config
 		for i, function := range config_obj.Functions {
-			absolute_target_file := filepath.Join(filepath.Dir(config_obj.Path), function.TargetFile)
+			absolute_target_file := function.TargetFile
+			if !filepath.IsAbs(absolute_target_file) {
+				absolute_target_file = filepath.Join(filepath.Dir(config_obj.Path), absolute_target_file)
+			}
 			config_generator := config.ConfigGenerator{AbsPathToFunction: absolute_target_file, ScrollPath: config_obj.Path, FunctionName: function.TargetFunction}
 			function_config, err := config_generator.GenerateFunctionConfig()
 			if err != nil {
