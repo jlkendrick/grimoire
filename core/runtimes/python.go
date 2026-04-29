@@ -58,11 +58,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 
 	// Option 2: Search for virtual environment (and requirements.txt for next option)
-	expanded_target_file, err := utils.ExpandUserPath(function.TargetFile)
-	if err != nil {
-		return err
-	}
-	start_dir := filepath.Dir(expanded_target_file)
+	start_dir := filepath.Dir(function.AbsTargetFile)
 	matched_targets, found := utils.UpwardsTraversalForTargets(start_dir, []string{".venv", "pyproject.toml", "requirements.txt"})
 	// Option 5: No project root found, use the system interpreter
 	if !found {
@@ -94,9 +90,8 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
-	abs_function_path := filepath.Join(filepath.Dir(function.ScrollPath), function.TargetFile)
 	if pyProjectPath != "" {
-		interpreter, cached, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", abs_function_path)
+		interpreter, cached, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", function.AbsTargetFile)
 		if err != nil {
 			return err
 		}
@@ -109,7 +104,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 		execution_context.StateMap["runtime_version"] = getPythonVersion(interpreter)
 		return nil
 	} else if requirementsPath != "" {
-		interpreter, cached, err := buildNewEnvironment(requirementsPath, "requirements.txt", abs_function_path)
+		interpreter, cached, err := buildNewEnvironment(requirementsPath, "requirements.txt", function.AbsTargetFile)
 		if err != nil {
 			return err
 		}
@@ -135,11 +130,11 @@ func (a *PythonAdapter) PrepareCommand(execution_context *ExecutionContext) erro
 	interpreter := execution_context.StateMap["interpreter"].(string)
 	args := execution_context.StateMap["args"].(map[string]interface{})
 
-	target_dir := filepath.Dir(function.TargetFile)
-	parts := strings.Split(function.TargetFile, "/")
-	module := strings.TrimSuffix(parts[len(parts)-1], ".py")
+	// Use the absolute path so we can run the script from any directory
+	// (e.g. invoking a global-grimoire-registered scroll from an unrelated cwd)
+	target_dir := filepath.Dir(function.AbsTargetFile)
+	module := strings.TrimSuffix(filepath.Base(function.AbsTargetFile), ".py")
 
-    
   inlineScript := fmt.Sprintf(`
 import sys, json, importlib, os
 from contextlib import redirect_stdout

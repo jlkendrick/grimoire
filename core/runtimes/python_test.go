@@ -7,6 +7,7 @@ import (
 	"testing"
 	"path/filepath"
 
+	types "github.com/jlkendrick/grimoire/types"
 	utils "github.com/jlkendrick/grimoire/utils"
 )
 
@@ -333,4 +334,53 @@ func TestBuildNewEnvironment(t *testing.T) {
 			t.Errorf("expected clean recovery from missing hash file, got: %v", err)
 		}
 	})
+}
+
+// TestPythonAdapter_RunFromUnrelatedCwd reproduces the bug where invoking a
+// global-grimoire-registered scroll's function from an unrelated cwd produced
+// `ModuleNotFoundError`. The function file lives in scrollDir; the test
+// chdirs to an unrelated dir before calling Run. The adapter must rely on
+// AbsTargetFile (not on cwd-relative resolution) to load the module.
+func TestPythonAdapter_RunFromUnrelatedCwd(t *testing.T) {
+	requirePython(t)
+
+	// Scroll dir holds the function source.
+	scrollDir := t.TempDir()
+	scrollPath := filepath.Join(scrollDir, "scroll.yaml")
+	srcRel := "lib/greet.py"
+	srcAbs := filepath.Join(scrollDir, srcRel)
+	if err := os.MkdirAll(filepath.Dir(srcAbs), 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(srcAbs, []byte("def hello(name):\n    return 'hi ' + name\n"), 0644); err != nil {
+		t.Fatalf("WriteFile source: %v", err)
+	}
+
+	// Chdir into a completely unrelated directory — this is the cwd state
+	// the user reported (running global grimoire from ~).
+	otherDir := t.TempDir()
+	origDir, _ := os.Getwd()
+	t.Cleanup(func() { os.Chdir(origDir) })
+	if err := os.Chdir(otherDir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+
+	// Function shaped exactly like ParseConfig's global path produces:
+	// TargetFile is relative to the scroll, AbsTargetFile is the resolved abs path.
+	out, err := Run(
+		types.Function{
+			Name:           "greet",
+			TargetFile:     srcRel,
+			AbsTargetFile:  srcAbs,
+			ScrollPath:     scrollPath,
+			TargetFunction: "hello",
+		},
+		map[string]interface{}{"name": "world"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error running from unrelated cwd: %v", err)
+	}
+	if got := strings.TrimSpace(string(out.Output)); got != "hi world" {
+		t.Errorf("expected %q, got %q", "hi world", got)
+	}
 }

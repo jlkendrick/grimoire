@@ -111,7 +111,7 @@ func TestRun(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "greet"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "greet"},
 			map[string]interface{}{"name": "world"},
 		)
 		if err != nil {
@@ -128,7 +128,7 @@ func TestRun(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "noop"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "noop"},
 			map[string]interface{}{},
 		)
 		if err != nil {
@@ -146,7 +146,7 @@ func TestRun(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "make_dict"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "make_dict"},
 			map[string]interface{}{"k": "x", "v": 99},
 		)
 		if err != nil {
@@ -171,7 +171,7 @@ func TestRun(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "make_list"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "make_list"},
 			map[string]interface{}{"n": 3},
 		)
 		if err != nil {
@@ -195,7 +195,7 @@ func TestRun(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "add"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "add"},
 			map[string]interface{}{"a": 3, "b": 4},
 		)
 		if err != nil {
@@ -212,7 +212,7 @@ func TestRun(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "repeat"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "repeat"},
 			map[string]interface{}{"s": "ab", "times": 3},
 		)
 		if err != nil {
@@ -231,7 +231,7 @@ func TestRun(t *testing.T) {
 		// Execute is now language-agnostic and returns the raw cmd.Wait error;
 		// Run does not call FormatError on it.
 		_, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "boom"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "boom"},
 			map[string]interface{}{},
 		)
 		if err == nil {
@@ -278,7 +278,7 @@ func TestExecute(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "f"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
 		if err != nil {
@@ -298,7 +298,7 @@ func TestExecute(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "f"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
 		if err != nil {
@@ -315,7 +315,7 @@ func TestExecute(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "f"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
 		if err != nil {
@@ -338,7 +338,7 @@ func TestExecute(t *testing.T) {
 		defer cleanup()
 
 		out, err := Run(
-			types.Function{TargetFile: path, TargetFunction: "f"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
 		if err != nil {
@@ -368,7 +368,7 @@ func TestExecute(t *testing.T) {
 		os.Stdout = w
 
 		_, execErr := Run(
-			types.Function{TargetFile: path, TargetFunction: "f"},
+			types.Function{TargetFile: path, AbsTargetFile: path, TargetFunction: "f"},
 			map[string]interface{}{},
 		)
 

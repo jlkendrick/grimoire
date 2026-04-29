@@ -35,7 +35,7 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 	function := execution_context.StateMap["function"].(types.Function)
 
 	// Get the go.mod file hash
-	absolute_start_dir := filepath.Join(filepath.Dir(function.ScrollPath), filepath.Dir(function.TargetFile))
+	absolute_start_dir := filepath.Dir(function.AbsTargetFile)
 	matched_targets, found := utils.UpwardsTraversalForTargets(absolute_start_dir, []string{"go.mod"})
 	if !found {
 		return fmt.Errorf("go.mod not found")
@@ -276,8 +276,7 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	}
 
 	// Calculate the import path for the user's module.
-	absolute_function_path := filepath.Join(filepath.Dir(function.ScrollPath), function.TargetFile)
-	user_module_path, err := utils.MakeRelativePath(filepath.Dir(absolute_function_path), filepath.Dir(user_go_mod_path))
+	user_module_path, err := utils.MakeRelativePath(filepath.Dir(function.AbsTargetFile), filepath.Dir(user_go_mod_path))
 	if err != nil {
 		return err
 	}

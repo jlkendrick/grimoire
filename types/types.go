@@ -52,6 +52,7 @@ type Function struct {
 	Interpreter 	 string `yaml:"interpreter,omitempty"`
 
 	ScrollPath 		 string `yaml:"-"`
+	AbsTargetFile  string `yaml:"-"`
 }
 
 func (f Function) String() string {

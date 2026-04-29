@@ -43,6 +43,7 @@ func ParseConfig(path string) (*types.Config, error) {
 			// Have to do this here so we don't lose what project the function originally belonged to
 			for i := range project_config.Functions {
 				project_config.Functions[i].ScrollPath = project.Path
+				project_config.Functions[i].AbsTargetFile = filepath.Join(filepath.Dir(project.Path), project_config.Functions[i].TargetFile)
 			}
 			config.Functions = append(config.Functions, project_config.Functions...)
 		}
@@ -53,6 +54,7 @@ func ParseConfig(path string) (*types.Config, error) {
 		// Need to set the ScrollPaths here as well for clean command to work with local spells
 		for i := range config.Functions {
 			config.Functions[i].ScrollPath = path
+			config.Functions[i].AbsTargetFile = filepath.Join(filepath.Dir(path), config.Functions[i].TargetFile)
 		}
 		config.Context = types.ContextTypeLocal
 	}
