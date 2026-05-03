@@ -12,17 +12,17 @@ import (
 	runtime "github.com/jlkendrick/grimoire/internal/runtime"
 )
 
-func GenerateCommands(descriptors []*descriptor.FunctionDescriptor) ([]*cobra.Command, error) {
+func GenerateCommands(descriptors *[]descriptor.FunctionDescriptor) ([]*cobra.Command, error) {
 	commands := []*cobra.Command{}
 
-	for _, descriptor := range descriptors {
+	for _, descriptor := range *descriptors {
 		command := &cobra.Command{
 			Use: descriptor.CommandName,
 			Run: func(cmd *cobra.Command, args []string) {
-				payload := buildPayload(descriptor, cmd)
+				payload := buildPayload(&descriptor, cmd)
 
 				start := time.Now()
-				runResult, err := runtime.Run(descriptor, payload)
+				runResult, err := runtime.Run(&descriptor, payload)
 				elapsed := time.Since(start)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error executing function: %v\n", err)

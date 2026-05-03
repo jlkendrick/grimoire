@@ -8,9 +8,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	utils "github.com/jlkendrick/grimoire/internal/utils"
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	cache "github.com/jlkendrick/grimoire/internal/cache"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 	extract "github.com/jlkendrick/grimoire/internal/extract"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 var add_cmd = &cobra.Command{
@@ -35,14 +37,15 @@ var add_cmd = &cobra.Command{
 			command_name = function_name
 		}
 
-		config_obj, err := resolveAddConfig()
+		// 1. Find or create scroll to add function to
+		scroll_obj, err := resolveAddScroll()
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			return
 		}
 
 		// Check if a spell with the same command name already exists in the config
-		for _, spell := range config_obj.Spells {
+		for _, spell := range scroll_obj.Spells {
 			if spell.Command == command_name {
 				fmt.Printf("%s Spell named %s already exists in the scroll\n", accent_style("+"), spell_style(command_name))
 				return
@@ -55,9 +58,8 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
+		// 2. Extract -> function descriptor (partially complete)
 		fmt.Printf("%s Divining signature...\n", accent_style("+"))
-
-		// Generate the function descriptor
 		function_descriptor_generator := extract.FunctionDescriptorGenerator{
 			AbsPathToFunction: absolute_path_to_function,
 			FunctionName:   	 function_name,
@@ -69,7 +71,73 @@ var add_cmd = &cobra.Command{
 		}
 		// Manually set the command name and scroll path (not needed by the extractor above)
 		function_descriptor.CommandName = command_name
-		function_descriptor.ScrollPath = config_obj.Path
+		function_descriptor.ScrollPath = scroll_obj.Path
+
+		// 3. Resolve -> function descriptor (fully complete)
+		// TODO
+
+		// 4. Read existing scroll entry to perform overrides if spell is already defined
+		var existing_spell scroll.Spell
+		for _, spell := range scroll_obj.Spells {
+			if spell.Command == command_name {
+				existing_spell = spell
+				break
+			}
+		}
+		if existing_spell.Command != "" {
+			// Map spell fields to IR fields
+			function_descriptor.CommandName = existing_spell.Command
+
+			if existing_spell.Path != "" {
+				function_descriptor.SourceFile, err = utils.MakeScrollRelPathAbs(existing_spell.Path, scroll_obj.Path)
+				if err != nil {
+					fmt.Printf("Error making scroll rel path abs: %v\n", err)
+					return
+				}
+			}
+
+			if existing_spell.Function != "" {
+				function_descriptor.FunctionName = existing_spell.Function
+			}
+
+			if len(existing_spell.Params) > 0 {
+				for _, existing_param := range existing_spell.Params {
+					// Look up param in function_descriptor.Params by name
+					for i, ir_param := range function_descriptor.Params {
+						if ir_param.Name == existing_param.Name {
+							function_descriptor.Params[i].ResolvedType = &descriptor.TypeInfo{
+								Name: existing_param.Type,
+							}
+							function_descriptor.Params[i].Default = existing_param.Default
+							break
+						}
+					}
+				}
+			}
+
+			if existing_spell.Interpreter != "" {
+				function_descriptor.Interpreter = existing_spell.Interpreter
+			}
+		}
+
+		// 5. Write the final descriptor to the cache
+		err = cache.WriteCache([]descriptor.FunctionDescriptor{function_descriptor})
+		if err != nil {
+			fmt.Printf("Error writing cache: %v\n", err)
+			return
+		}
+
+		// 6. Write the minimal entry to scroll.yaml (unless overrides exist)
+		if existing_spell.Command != "" {
+			scroll_obj.Spells = append(scroll_obj.Spells, existing_spell)
+		} else {
+			spell, err := scroll.GenerateMinimalSpellFromFunctionDescriptor(function_descriptor)
+			if err != nil {
+				fmt.Printf("Error generating minimal spell: %v\n", err)
+				return
+			}
+			scroll_obj.Spells = append(scroll_obj.Spells, spell)
+		}
 
 		// Format the args tree line
 		argParts := make([]string, 0, len(function_descriptor.Params))
@@ -104,23 +172,20 @@ var add_cmd = &cobra.Command{
 		}
 		fmt.Printf("%s runtime %s\n", accent_style("└──"), runtimeLine)
 
-		// Minify the spell descriptor to just include the command, path, and function name
-		config_obj.Spells = append(config_obj.Spells, scroll.GenerateSpellFromFunctionDescriptor(function_descriptor))
-
-		if err := config_obj.Write(); err != nil {
+		if err := scroll_obj.Write(); err != nil {
 			fmt.Printf("Error writing config file: %v\n", err)
 			return
 		}
 
-		scroll_name := filepath.Base(filepath.Dir(config_obj.Path))
+		scroll_name := filepath.Base(filepath.Dir(scroll_obj.Path))
 		fmt.Printf("%s Bound to scroll %s\n", accent_style("+"), spell_style(scroll_name))
 	},
 }
 
-// resolveAddConfig returns the local scroll that `add` should write into. If
+// resolveAddScroll returns the local scroll that `add` should write into. If
 // no scroll exists in cwd or any parent, initializes one in cwd and registers
 // it with the global grimoire.
-func resolveAddConfig() (*scroll.Scroll, error) {
+func resolveAddScroll() (*scroll.Scroll, error) {
 	current_dir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("Error getting current directory: %v", err)

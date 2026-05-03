@@ -84,7 +84,7 @@ func describeFunctionBase(cfg grammarConfig, path, funcName string) (descriptor.
 	var function_descriptor descriptor.FunctionDescriptor
 
 	// Fill in the easy stuff
-	function_descriptor.CommandName = funcName
+	function_descriptor.FunctionName = funcName
 	function_descriptor.SourceFile = path
 
 	// Extract the function signature using our method of choice (determined in ExtractParams)

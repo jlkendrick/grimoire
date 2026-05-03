@@ -111,3 +111,7 @@ func MakeRelativePath(path string, base string) (string, error) {
 	}
 	return rel, nil
 }
+
+func MakeScrollRelPathAbs(rel_path string, scroll_path string) (string, error) {
+	return filepath.Join(filepath.Dir(scroll_path), rel_path), nil
+}

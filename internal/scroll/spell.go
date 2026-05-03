@@ -4,7 +4,8 @@ import (
 	"os"
 	"fmt"
 	"strconv"
-	
+	"path/filepath"
+
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
@@ -20,12 +21,16 @@ type Spell struct {
 	AbsPath 		string `yaml:"-"`
 }
 
-func GenerateSpellFromFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) Spell {
+func GenerateMinimalSpellFromFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) (Spell, error) {
+	rel_path, err := utils.MakeRelativePath(function_descriptor.SourceFile, filepath.Dir(function_descriptor.ScrollPath))
+	if err != nil {
+		return Spell{}, fmt.Errorf("error making relative path: %v", err)
+	}
 	return Spell{
 		Command: function_descriptor.CommandName,
-		Path: function_descriptor.SourceFile,
+		Path: rel_path,
 		Function: function_descriptor.FunctionName,
-	}
+	}, nil
 }
 
 func (s Spell) String() string {

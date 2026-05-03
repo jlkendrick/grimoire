@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	core "github.com/jlkendrick/grimoire/core"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 
 	"github.com/spf13/cobra"
 )
@@ -23,7 +23,7 @@ var register_cmd = &cobra.Command{
 				fmt.Printf("Error: %v\n", err)
 				return
 			}
-			scroll_path, found := core.FindLocalScroll(current_dir)
+			scroll_path, found := scroll.FindLocalScroll(current_dir)
 			if !found {
 				fmt.Printf("Error: no scroll.yaml file found in the current directory or any parent directories\n")
 				return
@@ -31,7 +31,7 @@ var register_cmd = &cobra.Command{
 			path_to_project = scroll_path
 		}
 
-		if err := core.RegisterScroll(path_to_project); err != nil {
+		if err := scroll.RegisterScroll(path_to_project); err != nil {
 			fmt.Printf("Error registering scroll: %v\n", err)
 			return
 		}

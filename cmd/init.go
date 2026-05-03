@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	core "github.com/jlkendrick/grimoire/core"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 
 	"github.com/spf13/cobra"
 )
@@ -20,8 +20,8 @@ var init_cmd = &cobra.Command{
 			return
 		}
 
-		cfg, err := core.InitScroll(current_dir, true)
-		if errors.Is(err, core.ErrScrollExists) {
+		cfg, err := scroll.InitScroll(current_dir, true)
+		if errors.Is(err, scroll.ErrScrollExists) {
 			fmt.Printf("A scroll already exists at %s\n", dim_style(current_dir+"/scroll.yaml"))
 			return
 		}
