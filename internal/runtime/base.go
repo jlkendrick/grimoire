@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
@@ -60,9 +61,9 @@ func Run(function scroll.Spell, args map[string]interface{}) (*RunResult, error)
 	// (cache_status for Go is set in Compile, so we wait until here)
 	if label, ok := execution_context.StateMap["provision_label"].(string); ok {
 		status, _ := execution_context.StateMap["cache_status"].(string)
-		fmt.Fprintf(os.Stderr, "%s %s %s %s\n", accent("◈"), label, accent("[····]"), dim(status))
+		fmt.Fprintf(os.Stderr, "%s %s %s %s\n", utils.AccentStyle("◈"), label, utils.AccentStyle("[····]"), utils.DimStyle(status))
 	}
-	fmt.Fprintf(os.Stderr, "%s casting spell %s\n\n", accent("◈"), spell(function.Name))
+	fmt.Fprintf(os.Stderr, "%s casting spell %s\n\n", utils.AccentStyle("◈"), function.Command)
 
 	err = adapter.PrepareCommand(&execution_context)
 	if err != nil {

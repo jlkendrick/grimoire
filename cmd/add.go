@@ -10,6 +10,7 @@ import (
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	extract "github.com/jlkendrick/grimoire/internal/extract"
 )
 
 var add_cmd = &cobra.Command{
@@ -56,23 +57,23 @@ var add_cmd = &cobra.Command{
 
 		fmt.Printf("%s Divining signature...\n", accent_style("+"))
 
-		// Generate the spell descriptor
-		spell_generator := scroll.SpellGenerator{
+		// Generate the function descriptor
+		function_descriptor_generator := extract.FunctionDescriptorGenerator{
 			AbsPathToFunction: absolute_path_to_function,
 			FunctionName:   	 function_name,
 		}
-		spell_descriptor, err := spell_generator.GenerateDescriptor()
+		function_descriptor, err := function_descriptor_generator.GenerateDescriptor()
 		if err != nil {
 			fmt.Printf("Error generating spell descriptor: %v\n", err)
 			return
 		}
 		// Manually set the command name and scroll path (not needed by the extractor above)
-		spell_descriptor.CommandName = command_name
-		spell_descriptor.ScrollPath = config_obj.Path
+		function_descriptor.CommandName = command_name
+		function_descriptor.ScrollPath = config_obj.Path
 
 		// Format the args tree line
-		argParts := make([]string, 0, len(spell_descriptor.Params))
-		for _, param := range spell_descriptor.Params {
+		argParts := make([]string, 0, len(function_descriptor.Params))
+		for _, param := range function_descriptor.Params {
 			if param.Default != nil {
 				argParts = append(argParts, fmt.Sprintf("%s:%s=%v", param.Name, param.ResolvedType.Name, param.Default))
 			} else {
@@ -104,7 +105,7 @@ var add_cmd = &cobra.Command{
 		fmt.Printf("%s runtime %s\n", accent_style("└──"), runtimeLine)
 
 		// Minify the spell descriptor to just include the command, path, and function name
-		config_obj.Spells = append(config_obj.Spells, scroll.MinifySpellDescriptor(spell_descriptor))
+		config_obj.Spells = append(config_obj.Spells, scroll.GenerateSpellFromFunctionDescriptor(function_descriptor))
 
 		if err := config_obj.Write(); err != nil {
 			fmt.Printf("Error writing config file: %v\n", err)

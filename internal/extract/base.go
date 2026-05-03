@@ -6,9 +6,10 @@ import (
 	"context"
 	"strings"
 
-	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
-	"github.com/jlkendrick/grimoire/internal/scroll"
 	sitter "github.com/smacker/go-tree-sitter"
+
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
 type FunctionDescriptorGenerator struct {
@@ -168,3 +169,4 @@ func findFunctionNode(root *sitter.Node, src []byte, funcName, functionNodeType 
 	}
 	return dfs(root)
 }
+
