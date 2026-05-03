@@ -36,7 +36,7 @@ var register_cmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%s Bound %s to the global grimoire\n", accent("+"), path_to_project)
+		fmt.Printf("%s Bound %s to the global grimoire\n", accent_style("+"), path_to_project)
 	},
 }
 

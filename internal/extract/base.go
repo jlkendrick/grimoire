@@ -1,13 +1,55 @@
 package extract
 
 import (
-	"context"
-	"fmt"
 	"os"
+	"fmt"
+	"context"
+	"strings"
 
-	sitter "github.com/smacker/go-tree-sitter"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	"github.com/jlkendrick/grimoire/internal/scroll"
+	sitter "github.com/smacker/go-tree-sitter"
 )
+
+type FunctionDescriptorGenerator struct {
+	AbsPathToFunction string
+	FunctionName   	  string
+}
+
+func (g *FunctionDescriptorGenerator) GenerateDescriptor() (descriptor.FunctionDescriptor, error) {
+	var extractor LanguageExtractor
+
+	if !strings.Contains(g.AbsPathToFunction, ".") {
+		return descriptor.FunctionDescriptor{}, fmt.Errorf("no file extension found: %s", g.AbsPathToFunction)
+	}
+
+	// Determine the file extension and use the appropriate analyzer
+	file_extensions := strings.Split(g.AbsPathToFunction, ".")
+	file_extension := file_extensions[len(file_extensions)-1]
+	switch file_extension {
+	case "py":
+		extractor = &PythonExtractor{}
+	case "go":
+		extractor = &GoExtractor{} // TODO
+	default:
+		return descriptor.FunctionDescriptor{}, fmt.Errorf("unsupported file extension: %s", file_extension)
+	}
+
+	function_descriptor, err := extractor.DescribeFunction(g.AbsPathToFunction, g.FunctionName)
+	if err != nil {
+		return descriptor.FunctionDescriptor{}, err
+	}
+
+	return function_descriptor, nil
+}
+
+func MinifyFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) scroll.Spell {
+	return scroll.Spell{
+		Command: function_descriptor.CommandName,
+		Path: function_descriptor.SourceFile,
+		Function: function_descriptor.FunctionName,
+	}
+}
 
 type LanguageExtractor interface {
 	DescribeFunction(abs_path_to_function string, function_name string) (descriptor.FunctionDescriptor, error)

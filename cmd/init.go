@@ -22,14 +22,14 @@ var init_cmd = &cobra.Command{
 
 		cfg, err := core.InitScroll(current_dir, true)
 		if errors.Is(err, core.ErrScrollExists) {
-			fmt.Printf("A scroll already exists at %s\n", dim(current_dir+"/scroll.yaml"))
+			fmt.Printf("A scroll already exists at %s\n", dim_style(current_dir+"/scroll.yaml"))
 			return
 		}
 		if err != nil {
 			fmt.Printf("Error generating boilerplate scroll.yaml file: %v\n", err)
 			return
 		}
-		fmt.Printf("%s Inscribed scroll.yaml\n  · %s\n", accent("+"), dim(cfg.Path))
+		fmt.Printf("%s Inscribed scroll.yaml\n  · %s\n", accent_style("+"), dim_style(cfg.Path))
 	},
 }
 

@@ -7,8 +7,9 @@ import (
 	"os"
 	"fmt"
 
-	core "github.com/jlkendrick/grimoire/core"
-	utils "github.com/jlkendrick/grimoire/utils"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 
 	"github.com/spf13/cobra"
 )
@@ -62,14 +63,14 @@ func Execute() {
 		// Do nothing
 	} else {
 		// Build the commands
-		config, err := core.LoadConfig("local")
+		scroll, err := scroll.LoadScroll("local")
 		if err != nil {
 			fmt.Printf("Error loading config: %v\n", err)
 			return
 		}
 
-		if config != nil {
-			commands, err := GenerateCommands(config)
+		if scroll != nil {
+			commands, err := GenerateCommands(scroll)
 			if err != nil {
 				fmt.Printf("Error generating commands: %v\n", err)
 				return
