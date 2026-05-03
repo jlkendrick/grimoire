@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
 type ExecutionContext struct {
@@ -32,15 +32,15 @@ type RunResult struct {
 }
 
 // Handles the entire execution flow of a function (provision, compile, execute)
-func Run(function scroll.Spell, args map[string]interface{}) (*RunResult, error) {
+func Run(descriptor *descriptor.FunctionDescriptor, args map[string]interface{}) (*RunResult, error) {
 	execution_context := ExecutionContext{
 		StateMap: make(map[string]any),
 	}
-	execution_context.StateMap["function"] = function
+	execution_context.StateMap["function"] = descriptor
 	execution_context.StateMap["args"] = args
 
 	// Dynamically assign the appropriate adapter based on the function's target file extension
-	adapter, err := assignAdapter(function)
+	adapter, err := assignAdapter(descriptor.SourceFile)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func Run(function scroll.Spell, args map[string]interface{}) (*RunResult, error)
 		status, _ := execution_context.StateMap["cache_status"].(string)
 		fmt.Fprintf(os.Stderr, "%s %s %s %s\n", utils.AccentStyle("◈"), label, utils.AccentStyle("[····]"), utils.DimStyle(status))
 	}
-	fmt.Fprintf(os.Stderr, "%s casting spell %s\n\n", utils.AccentStyle("◈"), function.Command)
+	fmt.Fprintf(os.Stderr, "%s casting spell %s\n\n", utils.AccentStyle("◈"), descriptor.CommandName)
 
 	err = adapter.PrepareCommand(&execution_context)
 	if err != nil {
@@ -120,12 +120,12 @@ func Execute(execution_context *ExecutionContext) ([]byte, error) {
 }
 
 
-func assignAdapter(function scroll.Spell) (RuntimeAdapter, error) {
-		if !strings.Contains(function.Path, ".") {
-			return nil, fmt.Errorf("no file extension found: %s", function.Path)
+func assignAdapter(function_path string) (RuntimeAdapter, error) {
+		if !strings.Contains(function_path, ".") {
+			return nil, fmt.Errorf("no file extension found: %s", function_path)
 		}
 	
-		file_extensions := strings.Split(function.Path, ".")
+		file_extensions := strings.Split(function_path, ".")
 		file_extension := file_extensions[len(file_extensions)-1]
 		
 		switch file_extension {

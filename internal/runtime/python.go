@@ -10,8 +10,8 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
 type PythonAdapter struct {}
@@ -41,13 +41,13 @@ func getPythonVersion(interpreter string) string {
 }
 
 func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
-	spell := execution_context.StateMap["spell"].(scroll.Spell)
+	descriptor := execution_context.StateMap["descriptor"].(*descriptor.FunctionDescriptor)
 
 	execution_context.StateMap["provision_label"] = "provisioning venv"
 
 	// Option 1: Use the interpreter specified in the YAML
-	if spell.Interpreter != "" {
-		p, err := utils.ExpandUserPath(spell.Interpreter)
+	if descriptor.Interpreter != "" {
+		p, err := utils.ExpandUserPath(descriptor.Interpreter)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 
 	// Option 2: Search for virtual environment (and requirements.txt for next option)
-	start_dir := filepath.Dir(spell.AbsPath)
+	start_dir := filepath.Dir(descriptor.SourceFile)
 	matched_targets, found := utils.UpwardsTraversalForTargets(start_dir, []string{".venv", "pyproject.toml", "requirements.txt"})
 	// Option 5: No project root found, use the system interpreter
 	if !found {
@@ -91,7 +91,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
 	if pyProjectPath != "" {
-		interpreter, cached, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", spell.AbsPath)
+		interpreter, cached, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", descriptor.SourceFile)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 		execution_context.StateMap["runtime_version"] = getPythonVersion(interpreter)
 		return nil
 	} else if requirementsPath != "" {
-		interpreter, cached, err := buildNewEnvironment(requirementsPath, "requirements.txt", spell.AbsPath)
+		interpreter, cached, err := buildNewEnvironment(requirementsPath, "requirements.txt", descriptor.SourceFile)
 		if err != nil {
 			return err
 		}
@@ -126,14 +126,14 @@ func (a *PythonAdapter) Compile(execution_context *ExecutionContext) error {
 }
 
 func (a *PythonAdapter) PrepareCommand(execution_context *ExecutionContext) error {
-	spell := execution_context.StateMap["spell"].(scroll.Spell)
+	descriptor := execution_context.StateMap["descriptor"].(*descriptor.FunctionDescriptor)
 	interpreter := execution_context.StateMap["interpreter"].(string)
 	args := execution_context.StateMap["args"].(map[string]interface{})
 
 	// Use the absolute path so we can run the script from any directory
 	// (e.g. invoking a global-grimoire-registered scroll from an unrelated cwd)
-	target_dir := filepath.Dir(spell.AbsPath)
-	module := strings.TrimSuffix(filepath.Base(spell.AbsPath), ".py")
+	target_dir := filepath.Dir(descriptor.SourceFile)
+	module := strings.TrimSuffix(filepath.Base(descriptor.SourceFile), ".py")
 
   inlineScript := fmt.Sprintf(`
 import sys, json, importlib, os
@@ -153,7 +153,7 @@ if result is not None:
         print(json.dumps(result))
     else:
         print(result)
-`, target_dir, module, spell.Function)
+`, target_dir, module, descriptor.FunctionName)
 
   json_args, err := json.Marshal(args)
 	if err != nil {

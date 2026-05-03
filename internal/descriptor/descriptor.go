@@ -1,11 +1,12 @@
 package descriptor
 
 type FunctionDescriptor struct {
-	CommandName  string
-	FunctionName string
-	SourceFile   string
-	ScrollPath   string
-	Params       []ParamDescriptor
+	CommandName   string
+	FunctionName  string
+	SourceFile    string
+	ScrollPath    string
+	Params        []ParamDescriptor
+	Interpreter   string
 	// Return type coming soon
 }
 
