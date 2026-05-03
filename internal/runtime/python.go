@@ -1,4 +1,4 @@
-package runtimes
+package runtime
 
 import (
 	"os"
@@ -10,8 +10,8 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	types "github.com/jlkendrick/grimoire/types"
-	utils "github.com/jlkendrick/grimoire/utils"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 type PythonAdapter struct {}
@@ -41,13 +41,13 @@ func getPythonVersion(interpreter string) string {
 }
 
 func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
-	function := execution_context.StateMap["function"].(types.Function)
+	spell := execution_context.StateMap["spell"].(scroll.Spell)
 
 	execution_context.StateMap["provision_label"] = "provisioning venv"
 
 	// Option 1: Use the interpreter specified in the YAML
-	if function.Interpreter != "" {
-		p, err := utils.ExpandUserPath(function.Interpreter)
+	if spell.Interpreter != "" {
+		p, err := utils.ExpandUserPath(spell.Interpreter)
 		if err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 
 	// Option 2: Search for virtual environment (and requirements.txt for next option)
-	start_dir := filepath.Dir(function.AbsTargetFile)
+	start_dir := filepath.Dir(spell.AbsPath)
 	matched_targets, found := utils.UpwardsTraversalForTargets(start_dir, []string{".venv", "pyproject.toml", "requirements.txt"})
 	// Option 5: No project root found, use the system interpreter
 	if !found {
@@ -91,7 +91,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
 	if pyProjectPath != "" {
-		interpreter, cached, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", function.AbsTargetFile)
+		interpreter, cached, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", spell.AbsPath)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 		execution_context.StateMap["runtime_version"] = getPythonVersion(interpreter)
 		return nil
 	} else if requirementsPath != "" {
-		interpreter, cached, err := buildNewEnvironment(requirementsPath, "requirements.txt", function.AbsTargetFile)
+		interpreter, cached, err := buildNewEnvironment(requirementsPath, "requirements.txt", spell.AbsPath)
 		if err != nil {
 			return err
 		}
@@ -126,14 +126,14 @@ func (a *PythonAdapter) Compile(execution_context *ExecutionContext) error {
 }
 
 func (a *PythonAdapter) PrepareCommand(execution_context *ExecutionContext) error {
-	function := execution_context.StateMap["function"].(types.Function)
+	spell := execution_context.StateMap["spell"].(scroll.Spell)
 	interpreter := execution_context.StateMap["interpreter"].(string)
 	args := execution_context.StateMap["args"].(map[string]interface{})
 
 	// Use the absolute path so we can run the script from any directory
 	// (e.g. invoking a global-grimoire-registered scroll from an unrelated cwd)
-	target_dir := filepath.Dir(function.AbsTargetFile)
-	module := strings.TrimSuffix(filepath.Base(function.AbsTargetFile), ".py")
+	target_dir := filepath.Dir(spell.AbsPath)
+	module := strings.TrimSuffix(filepath.Base(spell.AbsPath), ".py")
 
   inlineScript := fmt.Sprintf(`
 import sys, json, importlib, os
@@ -153,7 +153,7 @@ if result is not None:
         print(json.dumps(result))
     else:
         print(result)
-`, target_dir, module, function.TargetFunction)
+`, target_dir, module, spell.Function)
 
   json_args, err := json.Marshal(args)
 	if err != nil {
@@ -177,7 +177,7 @@ type PyProject struct {
 	} `toml:"project"`
 }
 
-func buildNewEnvironment(dependency_file string, dependency_type string, abs_function_path string) (string, bool, error) {
+func buildNewEnvironment(dependency_file string, dependency_type string, abs_spell_path string) (string, bool, error) {
 	run_venv_cmd := func(venv_path string) error {
 		create_cmd := exec.Command("python", "-m", "venv", venv_path)
 		err := create_cmd.Run()
@@ -281,7 +281,7 @@ func buildNewEnvironment(dependency_file string, dependency_type string, abs_fun
 
 	// Write the origin function path to the venv_path/.grimoire_origin file. This is our certificate of origin.
 	origin_function_path := filepath.Join(venv_path, ".grimoire_origin")
-	if err := os.WriteFile(origin_function_path, []byte(abs_function_path), 0644); err != nil {
+	if err := os.WriteFile(origin_function_path, []byte(abs_spell_path), 0644); err != nil {
 		os.RemoveAll(venv_path)
 		return "", false, fmt.Errorf("error writing origin function path file: %v", err)
 	}

@@ -1,22 +1,22 @@
-package parsers
+package extract
 
 import (
 	"context"
 	"fmt"
 	"os"
 
-	types "github.com/jlkendrick/grimoire/types"
 	sitter "github.com/smacker/go-tree-sitter"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
-type LanguageAnalyzer interface {
-	ExtractSignature(abs_path_to_function string, function_name string) ([]types.Arg, error)
+type LanguageExtractor interface {
+	DescribeFunction(abs_path_to_function string, function_name string) (descriptor.FunctionDescriptor, error)
 }
 
 // grammarConfig holds the language-specific knobs needed to extract a
 // function signature. The pipeline itself (file I/O, parsing, tree
 // traversal, parameter accumulation) lives in extractSignatureBase and is
-// shared by every LanguageAnalyzer implementation.
+// shared by every LanguageExtractor implementation.
 type grammarConfig struct {
 	// language returns the tree-sitter grammar to use.
 	language func() *sitter.Language
@@ -34,10 +34,29 @@ type grammarConfig struct {
 	// Return nil to skip unsupported node kinds (e.g. position-only markers).
 	// Returning multiple Args handles languages like Go where one declaration
 	// can name several parameters sharing a type: func f(x, y int).
-	extractParam func(n *sitter.Node, src []byte) []types.Arg
+	extractParam func(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
 }
 
-func extractSignatureBase(cfg grammarConfig, path, funcName string) ([]types.Arg, error) {
+func describeFunctionBase(cfg grammarConfig, path, funcName string) (descriptor.FunctionDescriptor, error) {
+	var function_descriptor descriptor.FunctionDescriptor
+
+	// Fill in the easy stuff
+	function_descriptor.CommandName = funcName
+	function_descriptor.SourceFile = path
+
+	// Extract the function signature using our method of choice (determined in ExtractParams)
+	params, err := extractParamsBase(cfg, path, funcName)
+	if err != nil {
+		return descriptor.FunctionDescriptor{}, err
+	}
+
+	// Fill in the params
+	function_descriptor.Params = params
+
+	return function_descriptor, nil
+}
+
+func extractParamsBase(cfg grammarConfig, path, funcName string) ([]descriptor.ParamDescriptor, error) {
 	parser := sitter.NewParser()
 	parser.SetLanguage(cfg.language())
 
@@ -58,19 +77,19 @@ func extractSignatureBase(cfg grammarConfig, path, funcName string) ([]types.Arg
 
 	paramsNode := fnNode.ChildByFieldName(cfg.parametersField)
 	if paramsNode == nil {
-		return []types.Arg{}, nil
+		return []descriptor.ParamDescriptor{}, nil
 	}
 
-	args := []types.Arg{}
+	params := []descriptor.ParamDescriptor{}
 	for i := 0; i < int(paramsNode.NamedChildCount()); i++ {
 		paramNode := paramsNode.NamedChild(i)
 		if paramNode == nil {
 			continue
 		}
-		args = append(args, cfg.extractParam(paramNode, src)...)
+		params = append(params, cfg.extractParam(paramNode, src)...)
 	}
 
-	return args, nil
+	return params, nil
 }
 
 // findFunctionNode performs a DFS over the AST looking for a node of

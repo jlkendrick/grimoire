@@ -7,6 +7,6 @@ const (
 	colorReset  = "\033[0m"
 )
 
-func accent(s string) string { return colorAccent + s + colorReset }
-func spell(s string) string  { return colorSpell + s + colorReset }
-func dim(s string) string    { return colorDim + s + colorReset }
+func accent_style(s string) string { return colorAccent + s + colorReset }
+func spell_style(s string) string  { return colorSpell + s + colorReset }
+func dim_style(s string) string    { return colorDim + s + colorReset }

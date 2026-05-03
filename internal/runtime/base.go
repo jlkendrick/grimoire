@@ -1,4 +1,4 @@
-package runtimes
+package runtime
 
 import (
 	"io"
@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	types "github.com/jlkendrick/grimoire/types"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
 type ExecutionContext struct {
@@ -31,7 +31,7 @@ type RunResult struct {
 }
 
 // Handles the entire execution flow of a function (provision, compile, execute)
-func Run(function types.Function, args map[string]interface{}) (*RunResult, error) {
+func Run(function scroll.Spell, args map[string]interface{}) (*RunResult, error) {
 	execution_context := ExecutionContext{
 		StateMap: make(map[string]any),
 	}
@@ -119,12 +119,12 @@ func Execute(execution_context *ExecutionContext) ([]byte, error) {
 }
 
 
-func assignAdapter(function types.Function) (RuntimeAdapter, error) {
-		if !strings.Contains(function.TargetFile, ".") {
-			return nil, fmt.Errorf("no file extension found: %s", function.TargetFile)
+func assignAdapter(function scroll.Spell) (RuntimeAdapter, error) {
+		if !strings.Contains(function.Path, ".") {
+			return nil, fmt.Errorf("no file extension found: %s", function.Path)
 		}
 	
-		file_extensions := strings.Split(function.TargetFile, ".")
+		file_extensions := strings.Split(function.Path, ".")
 		file_extension := file_extensions[len(file_extensions)-1]
 		
 		switch file_extension {

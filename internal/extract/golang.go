@@ -1,9 +1,10 @@
-package parsers
+package extract
 
 import (
-	types "github.com/jlkendrick/grimoire/types"
-	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
+
+	sitter "github.com/smacker/go-tree-sitter"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
 var goConfig = grammarConfig{
@@ -13,18 +14,18 @@ var goConfig = grammarConfig{
 	extractParam:     extractGoParam,
 }
 
-type GoAnalyzer struct{}
+type GoExtractor struct{}
 
-func (a *GoAnalyzer) ExtractSignature(abs_path_to_function, funcName string) ([]types.Arg, error) {
-	return extractSignatureBase(goConfig, abs_path_to_function, funcName)
+func (a *GoExtractor) DescribeFunction(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
+	return describeFunctionBase(goConfig, abs_path_to_function, funcName)
 }
 
-func extractGoParam(n *sitter.Node, src []byte) []types.Arg {
+func extractGoParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor {
 	switch n.Type() {
 	case "parameter_declaration":
 		// Collect identifier children (names); the last non-identifier named
 		// child is the type. One declaration may name multiple params:
-		//   func f(x, y int)  →  [{x int}, {y int}]
+		// func f(x, y int)  →  [{x int}, {y int}]
 		var names []string
 		var typ string
 		for i := 0; i < int(n.NamedChildCount()); i++ {
@@ -37,11 +38,19 @@ func extractGoParam(n *sitter.Node, src []byte) []types.Arg {
 		}
 		if len(names) == 0 {
 			// Unnamed parameter: func f(int)
-			return []types.Arg{{Type: typ}}
+			return []descriptor.ParamDescriptor{}
 		}
-		args := make([]types.Arg, len(names))
+		args := make([]descriptor.ParamDescriptor, len(names))
 		for i, name := range names {
-			args[i] = types.Arg{Name: name, Type: typ}
+			args[i] = descriptor.ParamDescriptor{
+				Name: name,
+				RawTypeText: typ,
+				ResolvedType: &descriptor.TypeInfo{
+					Name: typ,
+				},
+				Default: nil,
+				ExtractorNotes: []string{},
+			}
 		}
 		return args
 
@@ -58,7 +67,15 @@ func extractGoParam(n *sitter.Node, src []byte) []types.Arg {
 				typ = string(child.Content(src))
 			}
 		}
-		return []types.Arg{{Name: name, Type: "..." + typ}}
+		return []descriptor.ParamDescriptor{
+			{
+				Name: name, 
+				RawTypeText: "..." + typ, 
+				ResolvedType: &descriptor.TypeInfo{Name: "..." + typ}, 
+				Default: nil, 
+				ExtractorNotes: []string{},
+			},
+		}
 	}
 
 	return nil

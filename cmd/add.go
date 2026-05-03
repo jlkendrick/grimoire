@@ -8,10 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	config "github.com/jlkendrick/grimoire/config"
-	core "github.com/jlkendrick/grimoire/core"
-	types "github.com/jlkendrick/grimoire/types"
-	utils "github.com/jlkendrick/grimoire/utils"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
 var add_cmd = &cobra.Command{
@@ -43,9 +41,9 @@ var add_cmd = &cobra.Command{
 		}
 
 		// Check if a spell with the same command name already exists in the config
-		for _, function := range config_obj.Functions {
-			if function.Name == command_name {
-				fmt.Printf("%s Spell named %s already exists in the scroll\n", accent("+"), spell(command_name))
+		for _, spell := range config_obj.Spells {
+			if spell.Command == command_name {
+				fmt.Printf("%s Spell named %s already exists in the scroll\n", accent_style("+"), spell_style(command_name))
 				return
 			}
 		}
@@ -56,27 +54,29 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%s Divining signature...\n", accent("+"))
+		fmt.Printf("%s Divining signature...\n", accent_style("+"))
 
-		config_generator := config.ConfigGenerator{
+		// Generate the spell descriptor
+		spell_generator := scroll.SpellGenerator{
 			AbsPathToFunction: absolute_path_to_function,
-			ScrollPath:        config_obj.Path,
-			FunctionName:      function_name,
-			CommandName:       command_name,
+			FunctionName:   	 function_name,
 		}
-		function_config, err := config_generator.GenerateFunctionConfig()
+		spell_descriptor, err := spell_generator.GenerateDescriptor()
 		if err != nil {
-			fmt.Printf("Error generating function config: %v\n", err)
+			fmt.Printf("Error generating spell descriptor: %v\n", err)
 			return
 		}
+		// Manually set the command name and scroll path (not needed by the extractor above)
+		spell_descriptor.CommandName = command_name
+		spell_descriptor.ScrollPath = config_obj.Path
 
 		// Format the args tree line
-		argParts := make([]string, 0, len(function_config.Args))
-		for _, arg := range function_config.Args {
-			if arg.Default != nil {
-				argParts = append(argParts, fmt.Sprintf("%s:%s=%v", arg.Name, arg.Type, arg.Default))
+		argParts := make([]string, 0, len(spell_descriptor.Params))
+		for _, param := range spell_descriptor.Params {
+			if param.Default != nil {
+				argParts = append(argParts, fmt.Sprintf("%s:%s=%v", param.Name, param.ResolvedType.Name, param.Default))
 			} else {
-				argParts = append(argParts, fmt.Sprintf("%s:%s", arg.Name, arg.Type))
+				argParts = append(argParts, fmt.Sprintf("%s:%s", param.Name, param.ResolvedType.Name))
 			}
 		}
 
@@ -97,13 +97,14 @@ var add_cmd = &cobra.Command{
 		}
 
 		// Print the signature tree
-		fmt.Printf("%s function %s\n", accent("├──"), spell(function_name))
+		fmt.Printf("%s function %s\n", accent_style("├──"), spell_style(function_name))
 		if len(argParts) > 0 {
-			fmt.Printf("%s args %s\n", accent("├──"), strings.Join(argParts, " "))
+			fmt.Printf("%s args %s\n", accent_style("├──"), strings.Join(argParts, " "))
 		}
-		fmt.Printf("%s runtime %s\n", accent("└──"), runtimeLine)
+		fmt.Printf("%s runtime %s\n", accent_style("└──"), runtimeLine)
 
-		config_obj.Functions = append(config_obj.Functions, function_config)
+		// Minify the spell descriptor to just include the command, path, and function name
+		config_obj.Spells = append(config_obj.Spells, scroll.MinifySpellDescriptor(spell_descriptor))
 
 		if err := config_obj.Write(); err != nil {
 			fmt.Printf("Error writing config file: %v\n", err)
@@ -111,33 +112,33 @@ var add_cmd = &cobra.Command{
 		}
 
 		scroll_name := filepath.Base(filepath.Dir(config_obj.Path))
-		fmt.Printf("%s Bound to scroll %s\n", accent("+"), spell(scroll_name))
+		fmt.Printf("%s Bound to scroll %s\n", accent_style("+"), spell_style(scroll_name))
 	},
 }
 
 // resolveAddConfig returns the local scroll that `add` should write into. If
 // no scroll exists in cwd or any parent, initializes one in cwd and registers
 // it with the global grimoire.
-func resolveAddConfig() (*types.Config, error) {
+func resolveAddConfig() (*scroll.Scroll, error) {
 	current_dir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("Error getting current directory: %v", err)
 	}
 
-	if _, found := core.FindLocalScroll(current_dir); found {
-		return core.LoadConfig("local")
+	if _, found := scroll.FindLocalScroll(current_dir); found {
+		return scroll.LoadScroll("local")
 	}
 
-	fmt.Printf("%s No scroll found, initializing new scroll\n", accent("+"))
-	cfg, err := core.InitScroll(current_dir, false)
+	fmt.Printf("%s No scroll found, initializing new scroll\n", accent_style("+"))
+	cfg, err := scroll.InitScroll(current_dir, false)
 	if err != nil {
 		return nil, fmt.Errorf("Error initializing scroll: %v", err)
 	}
-	fmt.Printf("%s Inscribed scroll.yaml\n  · %s\n", accent("+"), dim(cfg.Path))
-	if err := core.RegisterScroll(cfg.Path); err != nil {
+	fmt.Printf("%s Inscribed scroll.yaml\n  · %s\n", accent_style("+"), dim_style(cfg.Path))
+	if err := scroll.RegisterScroll(cfg.Path); err != nil {
 		return nil, fmt.Errorf("Error registering scroll: %v", err)
 	}
-	fmt.Printf("%s Bound %s to the global grimoire\n", accent("+"), cfg.Path)
+	fmt.Printf("%s Bound %s to the global grimoire\n", accent_style("+"), cfg.Path)
 	return cfg, nil
 }
 

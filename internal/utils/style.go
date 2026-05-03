@@ -1,4 +1,4 @@
-package runtimes
+package utils
 
 const (
 	colorAccent = "\033[38;5;136m" // amber/dark gold — aged bronze feel
@@ -7,6 +7,6 @@ const (
 	colorReset  = "\033[0m"
 )
 
-func accent(s string) string { return colorAccent + s + colorReset }
-func spell(s string) string  { return colorSpell + s + colorReset }
-func dim(s string) string    { return colorDim + s + colorReset }
+func Accent(s string) string { return colorAccent + s + colorReset }
+func Spell(s string) string  { return colorSpell + s + colorReset }
+func Dim(s string) string    { return colorDim + s + colorReset }

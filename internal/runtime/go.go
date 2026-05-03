@@ -1,20 +1,20 @@
-package runtimes
+package runtime
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"io/fs"
 	"os"
-	"os/exec"
-	"path/filepath"
+	"fmt"
+	"bufio"
+	"io/fs"
 	"strings"
-	"text/template"
+	"os/exec"
 	"unicode"
+	"path/filepath"
+	"text/template"
 	"unicode/utf8"
+	"encoding/json"
 
-	types "github.com/jlkendrick/grimoire/types"
-	utils "github.com/jlkendrick/grimoire/utils"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
 func uppercaseFirst(s string) string {
@@ -32,10 +32,10 @@ func uppercaseFirst(s string) string {
 type GoAdapter struct {}
 
 func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
-	function := execution_context.StateMap["function"].(types.Function)
-
+	spell := execution_context.StateMap["spell"].(scroll.Spell)
+	
 	// Get the go.mod file hash
-	absolute_start_dir := filepath.Dir(function.AbsTargetFile)
+	absolute_start_dir := filepath.Dir(spell.AbsPath)
 	matched_targets, found := utils.UpwardsTraversalForTargets(absolute_start_dir, []string{"go.mod"})
 	if !found {
 		return fmt.Errorf("go.mod not found")
@@ -121,10 +121,10 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 type WrapperData struct {
 	UserModule string
 	FuncName   string
-	Args       []ArgDef
+	Args       []ParamDef
 }
 
-type ArgDef struct {
+type ParamDef struct {
 	Name string // e.g., "A", "B", "Message" (Title-cased for JSON exporting)
 	Type string // e.g., "int", "string", "bool"
 	Key  string // e.g., "a", "b", "message" (The lowercase JSON key)
@@ -263,20 +263,20 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	}
 	execution_context.StateMap["cache_status"] = "compiled"
 	
-	function := execution_context.StateMap["function"].(types.Function)
+	spell := execution_context.StateMap["spell"].(scroll.Spell)
 	user_module_name := execution_context.StateMap["user_module_name"].(string)
 	user_go_mod_path := execution_context.StateMap["user_go_mod_path"].(string)
-	args_def := []ArgDef{}
-	for _, arg := range function.Args {
-		args_def = append(args_def, ArgDef{
-			Name: uppercaseFirst(arg.Name),
-			Type: arg.Type,
-			Key: strings.ToLower(arg.Name),
+	args_def := []ParamDef{}
+	for _, param := range spell.Params {
+		args_def = append(args_def, ParamDef{
+			Name: uppercaseFirst(param.Name),
+			Type: param.Type,
+			Key: strings.ToLower(param.Name),
 		})
 	}
 
 	// Calculate the import path for the user's module.
-	user_module_path, err := utils.MakeRelativePath(filepath.Dir(function.AbsTargetFile), filepath.Dir(user_go_mod_path))
+	user_module_path, err := utils.MakeRelativePath(filepath.Dir(spell.AbsPath), filepath.Dir(user_go_mod_path))
 	if err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	}
 	wrapper_data := WrapperData{
 		UserModule: user_import_path,
-		FuncName:   function.TargetFunction,
+		FuncName:   spell.Function,
 		Args:       args_def,
 	}
 
