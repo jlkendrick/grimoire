@@ -53,6 +53,19 @@ func EnsureGrimoireHome() error {
 	return nil
 }
 
+func HashFile(path string) (string, error) {
+	content_hash := sha256.New()
+	content, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer content.Close()
+	if _, err := io.Copy(content_hash, content); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(content_hash.Sum(nil)), nil
+}
+
 func HashFilePathAndContent(path string) (string,string, error) {
 	// Hash the file path (path of the dependency file used to build the venv)
 	path_hash := sha256.New()

@@ -9,6 +9,7 @@ import (
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	cache "github.com/jlkendrick/grimoire/internal/cache"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 
 	"github.com/spf13/cobra"
 )
@@ -61,7 +62,7 @@ func Execute() {
 	if static_command_called {
 		// Do nothing
 	} else {
-		// Build the commands
+		// Load the descriptors and the scroll and cache them for whatever command comes next
 		
 		descriptors, err := cache.LoadCache()
 		if err != nil {
@@ -69,8 +70,14 @@ func Execute() {
 			return
 		}
 
+		_, err = scroll.LoadScroll("local")
+		if err != nil {
+			fmt.Printf("Error loading scroll: %v\n", err)
+			return
+		}
+
 		if descriptors != nil {
-			commands, err := GenerateCommands(&descriptors)
+			commands, err := GenerateCommands(descriptors)
 			if err != nil {
 				fmt.Printf("Error generating commands: %v\n", err)
 				return

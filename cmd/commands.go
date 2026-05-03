@@ -19,6 +19,10 @@ func GenerateCommands(descriptors *[]descriptor.FunctionDescriptor) ([]*cobra.Co
 		command := &cobra.Command{
 			Use: descriptor.CommandName,
 			Run: func(cmd *cobra.Command, args []string) {
+
+				// Pre-run: check if the function descriptor is stale relative to the source code
+				
+
 				payload := buildPayload(&descriptor, cmd)
 
 				start := time.Now()

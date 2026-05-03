@@ -7,6 +7,7 @@ type FunctionDescriptor struct {
 	ScrollPath    string
 	Params        []ParamDescriptor
 	Interpreter   string
+	SourceHash    string
 	// Return type coming soon
 }
 

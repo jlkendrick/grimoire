@@ -9,6 +9,14 @@ import (
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
+var cached_descriptors *[]descriptor.FunctionDescriptor
+var cached_cache_path string
+
+func ResetCache() {
+	cached_descriptors = nil
+	cached_cache_path = ""
+}
+
 func cachePath() (string, error) {
 	grimoire_home, err := utils.GrimoireHome()
 	if err != nil {
@@ -31,7 +39,11 @@ func WriteCache(descriptors []descriptor.FunctionDescriptor) error {
 	return nil
 }
 
-func LoadCache() ([]descriptor.FunctionDescriptor, error) {
+func LoadCache() (*[]descriptor.FunctionDescriptor, error) {
+	if cached_descriptors != nil {
+		return cached_descriptors, nil
+	}
+
 	cache := []descriptor.FunctionDescriptor{}
 	cache_path, err := cachePath()
 	if err != nil {
@@ -43,5 +55,10 @@ func LoadCache() ([]descriptor.FunctionDescriptor, error) {
 	}
 	defer cache_file.Close()
 	json.NewDecoder(cache_file).Decode(&cache)
-	return cache, nil
+
+	// Cache the descriptors and path, then return
+	cached_descriptors = &cache
+	cached_cache_path = cache_path
+	
+	return cached_descriptors, nil
 }

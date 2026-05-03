@@ -1,15 +1,16 @@
 package extract
 
 import (
-	"os"
-	"fmt"
 	"context"
+	"fmt"
+	"os"
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
 
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	"github.com/jlkendrick/grimoire/internal/utils"
 )
 
 type FunctionDescriptorGenerator struct {
@@ -95,6 +96,13 @@ func describeFunctionBase(cfg grammarConfig, path, funcName string) (descriptor.
 
 	// Fill in the params
 	function_descriptor.Params = params
+
+	// Hash the source code
+	source_hash, err := utils.HashFile(path)
+	if err != nil {
+		return descriptor.FunctionDescriptor{}, err
+	}
+	function_descriptor.SourceHash = source_hash
 
 	return function_descriptor, nil
 }
