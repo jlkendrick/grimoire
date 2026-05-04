@@ -18,6 +18,7 @@ type FunctionDescriptorGenerator struct {
 	FunctionName   	  string
 	SourceFile        string
 	ScrollPath        string
+	SpellHash         string
 	Interpreter       string
 }
 
@@ -50,6 +51,7 @@ func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor,
 	function_descriptor.FunctionName = g.FunctionName
 	function_descriptor.SourceFile = g.SourceFile
 	function_descriptor.ScrollPath = g.ScrollPath
+	function_descriptor.SpellHash = g.SpellHash
 	function_descriptor.Interpreter = g.Interpreter
 	// Hash the source code
 	source_hash, err := utils.HashFile(g.SourceFile)
@@ -57,7 +59,6 @@ func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor,
 		return descriptor.FunctionDescriptor{}, err
 	}
 	function_descriptor.SourceHash = source_hash
-	// Spell hash is set later when we actually have the spell
 
 	return function_descriptor, nil
 }

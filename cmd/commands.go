@@ -40,6 +40,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 						FunctionName: function_descriptor.FunctionName,
 						SourceFile: function_descriptor.SourceFile,
 						ScrollPath: descriptor_cache.ScrollPath,
+						SpellHash: function_descriptor.SpellHash, // Is fresh since root command checks for staleness
 						Interpreter: function_descriptor.Interpreter,
 					}
 					resolved_descriptor, err = function_descriptor_generator.Generate()
@@ -47,11 +48,6 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 						fmt.Fprintf(os.Stderr, "Error generating spell descriptor: %v\n", err)
 						os.Exit(1)
 					}
-					// Only thing left to set is the spell hash
-					// Here, descriptor has the fresh spell hash since GenerateCommands() is called
-					// from the root command, which ensures the scroll hash is up to date and
-					// recalculates it if needed
-					resolved_descriptor.SpellHash = function_descriptor.SpellHash
 
 					// Resolve the descriptor
 					err = resolve.ResolveFunctionDescriptor(&resolved_descriptor)

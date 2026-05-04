@@ -28,13 +28,13 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 				FunctionName: spell.Function,
 				SourceFile: spell.Path,
 				ScrollPath: scroll_obj.Path,
+				SpellHash: curr_hash,
+				Interpreter: spell.Interpreter,
 			}
 			resolved_descriptor, err := function_descriptor_generator.Generate()
 			if err != nil {
 				return fmt.Errorf("error generating spell descriptor: %v", err)
 			}
-			// Only thing left to set is the spell hash
-			resolved_descriptor.SpellHash = curr_hash
 
 			// Resolve the descriptor
 			err = ResolveFunctionDescriptor(&resolved_descriptor)
