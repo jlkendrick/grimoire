@@ -58,7 +58,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 
 	// Option 2: Search for virtual environment (and requirements.txt for next option)
-	start_dir := filepath.Dir(descriptor.SourceFile)
+	start_dir := filepath.Dir(descriptor.AbsPathToSourceFile)
 	matched_targets, found := utils.UpwardsTraversalForTargets(start_dir, []string{".venv", "pyproject.toml", "requirements.txt"})
 	// Option 5: No project root found, use the system interpreter
 	if !found {
@@ -91,7 +91,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 
 	// Option 4: Build new virtual environment from pyproject.toml or requirements.txt
 	if pyProjectPath != "" {
-		interpreter, cached, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", descriptor.SourceFile)
+		interpreter, cached, err := buildNewEnvironment(pyProjectPath, "pyproject.toml", descriptor.AbsPathToSourceFile)
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func (a *PythonAdapter) Provision(execution_context *ExecutionContext) error {
 		execution_context.StateMap["runtime_version"] = getPythonVersion(interpreter)
 		return nil
 	} else if requirementsPath != "" {
-		interpreter, cached, err := buildNewEnvironment(requirementsPath, "requirements.txt", descriptor.SourceFile)
+		interpreter, cached, err := buildNewEnvironment(requirementsPath, "requirements.txt", descriptor.AbsPathToSourceFile)
 		if err != nil {
 			return err
 		}
@@ -132,8 +132,8 @@ func (a *PythonAdapter) PrepareCommand(execution_context *ExecutionContext) erro
 
 	// Use the absolute path so we can run the script from any directory
 	// (e.g. invoking a global-grimoire-registered scroll from an unrelated cwd)
-	target_dir := filepath.Dir(descriptor.SourceFile)
-	module := strings.TrimSuffix(filepath.Base(descriptor.SourceFile), ".py")
+	target_dir := filepath.Dir(descriptor.AbsPathToSourceFile)
+	module := strings.TrimSuffix(filepath.Base(descriptor.AbsPathToSourceFile), ".py")
 
   inlineScript := fmt.Sprintf(`
 import sys, json, importlib, os

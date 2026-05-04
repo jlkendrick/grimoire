@@ -4,7 +4,6 @@ import (
 	"os"
 	"fmt"
 	"strconv"
-	"path/filepath"
 	"encoding/json"
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
@@ -23,13 +22,9 @@ type Spell struct {
 }
 
 func GenerateMinimalSpellFromFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) (Spell, error) {
-	rel_path, err := utils.MakeRelativePath(function_descriptor.SourceFile, filepath.Dir(function_descriptor.ScrollPath))
-	if err != nil {
-		return Spell{}, fmt.Errorf("error making relative path: %v", err)
-	}
 	return Spell{
 		Command: function_descriptor.CommandName,
-		Path: rel_path,
+		Path: function_descriptor.RelPathToSourceFile,
 		Function: function_descriptor.FunctionName,
 	}, nil
 }

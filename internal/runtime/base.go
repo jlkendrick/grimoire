@@ -40,7 +40,7 @@ func Run(descriptor *descriptor.FunctionDescriptor, args map[string]interface{})
 	execution_context.StateMap["args"] = args
 
 	// Dynamically assign the appropriate adapter based on the function's target file extension
-	adapter, err := assignAdapter(descriptor.SourceFile)
+	adapter, err := assignAdapter(descriptor.AbsPathToSourceFile)
 	if err != nil {
 		return nil, err
 	}

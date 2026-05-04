@@ -61,10 +61,16 @@ var add_cmd = &cobra.Command{
 
 		// 2. Extract -> function descriptor (partially complete)
 		fmt.Printf("%s Divining signature...\n", accent_style("+"))
+		rel_path_to_function, err := utils.MakeRelativePath(absolute_path_to_function, filepath.Dir(scroll_obj.Path))
+		if err != nil {
+			fmt.Printf("Error making relative path: %v\n", err)
+			return
+		}
 		function_descriptor_generator := extract.FunctionDescriptorGenerator{
 			CommandName: command_name,
 			FunctionName: function_name,
-			SourceFile: absolute_path_to_function,
+			AbsPathToSourceFile: absolute_path_to_function,
+			RelPathToSourceFile: rel_path_to_function,
 			ScrollPath: scroll_obj.Path,
 		}
 		// Generate() fills in the above fields, SOURCE HASH ONLY, and params
@@ -95,7 +101,7 @@ var add_cmd = &cobra.Command{
 			function_descriptor.CommandName = existing_spell.Command
 
 			if existing_spell.Path != "" {
-				function_descriptor.SourceFile, err = utils.MakeScrollRelPathAbs(existing_spell.Path, scroll_obj.Path)
+				function_descriptor.RelPathToSourceFile = existing_spell.Path
 				if err != nil {
 					fmt.Printf("Error making scroll rel path abs: %v\n", err)
 					return

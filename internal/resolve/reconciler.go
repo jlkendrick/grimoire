@@ -23,10 +23,15 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 		if curr_hash != function_descriptor.SpellHash {
 			fmt.Printf("%s Spell has changed since last run. Updating runtime config...\n", utils.AccentStyle("+"))
 			// Re-extract the function descriptor
+			abs_path_to_function, err := utils.MakeScrollRelPathAbs(spell.Path, scroll_obj.Path)
+			if err != nil {
+				return fmt.Errorf("error making scroll rel path abs: %v", err)
+			}
 			function_descriptor_generator := extract.FunctionDescriptorGenerator{
 				CommandName: spell.Command,
 				FunctionName: spell.Function,
-				SourceFile: spell.Path,
+				RelPathToSourceFile: spell.Path,
+				AbsPathToSourceFile: abs_path_to_function,
 				ScrollPath: scroll_obj.Path,
 				SpellHash: curr_hash,
 				Interpreter: spell.Interpreter,

@@ -26,7 +26,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 				var resolved_descriptor descriptor.FunctionDescriptor
 				// Pre-run: check if the function descriptor is stale relative to the source code
 				// Scroll hash is checked in the root command before generating commands
-				source_hash, err := utils.HashFile(function_descriptor.SourceFile)
+				source_hash, err := utils.HashFile(function_descriptor.AbsPathToSourceFile)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error hashing source file: %v\n", err)
 					os.Exit(1)
@@ -38,7 +38,8 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 					function_descriptor_generator := extract.FunctionDescriptorGenerator{
 						CommandName: function_descriptor.CommandName,
 						FunctionName: function_descriptor.FunctionName,
-						SourceFile: function_descriptor.SourceFile,
+						RelPathToSourceFile: function_descriptor.RelPathToSourceFile,
+						AbsPathToSourceFile: function_descriptor.AbsPathToSourceFile,
 						ScrollPath: descriptor_cache.ScrollPath,
 						SpellHash: function_descriptor.SpellHash, // Is fresh since root command checks for staleness
 						Interpreter: function_descriptor.Interpreter,

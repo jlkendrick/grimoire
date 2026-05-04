@@ -1,36 +1,37 @@
 package extract
 
 import (
-	"context"
-	"fmt"
 	"os"
+	"fmt"
+	"context"
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
 
-	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
 type FunctionDescriptorGenerator struct {
-	CommandName       string
-	FunctionName   	  string
-	SourceFile        string
-	ScrollPath        string
-	SpellHash         string
-	Interpreter       string
+	CommandName         string
+	FunctionName   	    string
+	AbsPathToSourceFile string
+	RelPathToSourceFile string
+	ScrollPath          string
+	SpellHash           string
+	Interpreter         string
 }
 
 func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor, error) {
 	var extractor LanguageExtractor
 
-	if !strings.Contains(g.SourceFile, ".") {
-		return descriptor.FunctionDescriptor{}, fmt.Errorf("no file extension found: %s", g.SourceFile)
+	if !strings.Contains(g.RelPathToSourceFile, ".") {
+		return descriptor.FunctionDescriptor{}, fmt.Errorf("no file extension found: %s", g.RelPathToSourceFile)
 	}
 
 	// Determine the file extension and use the appropriate analyzer
-	file_extensions := strings.Split(g.SourceFile, ".")
+	file_extensions := strings.Split(g.RelPathToSourceFile, ".")
 	file_extension := file_extensions[len(file_extensions)-1]
 	switch file_extension {
 	case "py":
@@ -41,7 +42,7 @@ func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor,
 		return descriptor.FunctionDescriptor{}, fmt.Errorf("unsupported file extension: %s", file_extension)
 	}
 
-	function_descriptor, err := extractor.GenerateDescriptor_ParamsOnly(g.SourceFile, g.FunctionName)
+	function_descriptor, err := extractor.GenerateDescriptor_ParamsOnly(g.AbsPathToSourceFile, g.FunctionName)
 	if err != nil {
 		return descriptor.FunctionDescriptor{}, err
 	}
@@ -49,12 +50,13 @@ func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor,
 	// Fill in the rest of the descriptor
 	function_descriptor.CommandName = g.CommandName
 	function_descriptor.FunctionName = g.FunctionName
-	function_descriptor.SourceFile = g.SourceFile
+	function_descriptor.AbsPathToSourceFile = g.AbsPathToSourceFile
+	function_descriptor.RelPathToSourceFile = g.RelPathToSourceFile
 	function_descriptor.ScrollPath = g.ScrollPath
 	function_descriptor.SpellHash = g.SpellHash
 	function_descriptor.Interpreter = g.Interpreter
 	// Hash the source code
-	source_hash, err := utils.HashFile(g.SourceFile)
+	source_hash, err := utils.HashFile(g.AbsPathToSourceFile)
 	if err != nil {
 		return descriptor.FunctionDescriptor{}, err
 	}
@@ -66,7 +68,7 @@ func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor,
 func MinifyFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) scroll.Spell {
 	return scroll.Spell{
 		Command: function_descriptor.CommandName,
-		Path: function_descriptor.SourceFile,
+		Path: function_descriptor.RelPathToSourceFile,
 		Function: function_descriptor.FunctionName,
 	}
 }

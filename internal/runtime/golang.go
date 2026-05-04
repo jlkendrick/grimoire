@@ -36,7 +36,7 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 	descriptor := execution_context.StateMap["descriptor"].(*descriptor.FunctionDescriptor)
 	
 	// Get the go.mod file hash
-	absolute_start_dir := filepath.Dir(descriptor.SourceFile)
+	absolute_start_dir := filepath.Dir(descriptor.AbsPathToSourceFile)
 	matched_targets, found := utils.UpwardsTraversalForTargets(absolute_start_dir, []string{"go.mod"})
 	if !found {
 		return fmt.Errorf("go.mod not found")
