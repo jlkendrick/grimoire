@@ -15,6 +15,7 @@ import (
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
 func uppercaseFirst(s string) string {
@@ -32,10 +33,10 @@ func uppercaseFirst(s string) string {
 type GoAdapter struct {}
 
 func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
-	spell := execution_context.StateMap["spell"].(scroll.Spell)
+	descriptor := execution_context.StateMap["descriptor"].(*descriptor.FunctionDescriptor)
 	
 	// Get the go.mod file hash
-	absolute_start_dir := filepath.Dir(spell.AbsPath)
+	absolute_start_dir := filepath.Dir(descriptor.SourceFile)
 	matched_targets, found := utils.UpwardsTraversalForTargets(absolute_start_dir, []string{"go.mod"})
 	if !found {
 		return fmt.Errorf("go.mod not found")

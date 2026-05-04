@@ -1,4 +1,4 @@
-package types
+package cli
 
 type CLISpec struct {
 	Command string
