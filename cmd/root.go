@@ -7,12 +7,12 @@ import (
 	"os"
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
-	extract "github.com/jlkendrick/grimoire/internal/extract"
-
-	"github.com/spf13/cobra"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -65,60 +65,27 @@ func Execute() {
 		static_command_called = false
 	}
 
-	if static_command_called {
-		// Do nothing
-	} else {
+	if !static_command_called {
 		// Load the descriptors and the scroll and cache them for whatever command comes next
 		scroll_obj, err := scroll.LoadScroll("local")
 		if err != nil {
 			fmt.Printf("Error loading scroll: %v\n", err)
 			return
 		}
-		
 		descriptor_cache, err := cache.ReadDescriptorCache(scroll_obj.Path)
 		if err != nil {
 			fmt.Printf("Error loading config: %v\n", err)
 			return
 		}
 
-		// Check if any of the cached descriptors are stale relative to the spell entries in the user's scroll.yaml file
-		for _, spell := range scroll_obj.Spells {
-			curr_hash, err := spell.Hash()
-			if err != nil {
-				fmt.Printf("Error hashing spell: %v\n", err)
-				return
-			}
-			function_descriptor, ok := descriptor_cache.Functions[spell.Function]
-			if !ok {
-				fmt.Printf("Function descriptor not found in cache: %s\n", spell.Function)
-				return
-			}
-			if curr_hash != function_descriptor.SpellHash {
-				fmt.Printf("Spell has changed since last run. Updating runtime config...\n")
-				// Re-extract the function descriptor
-				function_descriptor_generator := extract.FunctionDescriptorGenerator{
-					CommandName: spell.Command,
-					FunctionName: spell.Function,
-					SourceFile: spell.Path,
-					ScrollPath: scroll_obj.Path,
-				}
-				resolved_descriptor, err := function_descriptor_generator.Generate()
-				if err != nil {
-					fmt.Printf("Error generating spell descriptor: %v\n", err)
-					return
-				}
-				// Only thing left to set is the spell hash
-				resolved_descriptor.SpellHash = curr_hash
-
-				// Write the updated descriptor to the cache
-				err = cache.AddFunctionDescriptor(resolved_descriptor)
-				if err != nil {
-					fmt.Printf("Error writing descriptor cache: %v\n", err)
-					return
-				}
-				descriptor_cache.Functions[spell.Function] = resolved_descriptor
-			}
+		// Reconcile the scroll and the function descriptors in place if cache is stale
+		err = resolve.ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
 		}
+
+		// Generate the commands from the (now reconciled) descriptor cache
 		if descriptor_cache.Functions != nil {
 			commands, err := GenerateCommands(descriptor_cache)
 			if err != nil {
@@ -132,8 +99,8 @@ func Execute() {
 		}
 	}
 
-	err := rootCmd.Execute()
-	if err != nil {
+	// Execute the root command
+	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("Error executing root command: %v\n", err)
 		os.Exit(1)
 	}
