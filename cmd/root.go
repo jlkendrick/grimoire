@@ -120,9 +120,6 @@ func Execute() {
 			}
 		}
 		if descriptor_cache.Functions != nil {
-			for _, function := range descriptor_cache.Functions {
-				fmt.Printf("command: %s\n", function.CommandName)
-			}
 			commands, err := GenerateCommands(descriptor_cache)
 			if err != nil {
 				fmt.Printf("Error generating commands: %v\n", err)
