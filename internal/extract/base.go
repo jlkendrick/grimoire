@@ -143,7 +143,8 @@ func extractParamsBase(cfg grammarConfig, path, funcName string) ([]descriptor.P
 		if paramNode == nil {
 			continue
 		}
-		params = append(params, cfg.extractParam(paramNode, src)...)
+		param := cfg.extractParam(paramNode, src)
+		params = append(params, param...)
 	}
 
 	return params, nil
