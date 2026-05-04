@@ -58,29 +58,24 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		fmt.Println("step 1 done")
-
 		// 2. Extract -> function descriptor (partially complete)
 		fmt.Printf("%s Divining signature...\n", accent_style("+"))
 		function_descriptor_generator := extract.FunctionDescriptorGenerator{
-			AbsPathToFunction: absolute_path_to_function,
-			FunctionName:   	 function_name,
+			CommandName: command_name,
+			FunctionName: function_name,
+			SourceFile: absolute_path_to_function,
+			ScrollPath: scroll_obj.Path,
 		}
-		function_descriptor, err := function_descriptor_generator.GenerateDescriptor()
+		// Generate() fills in the above fields, SOURCE HASH ONLY, and params
+		// Spell hash is set later when we actually create the spell
+		function_descriptor, err := function_descriptor_generator.Generate()
 		if err != nil {
 			fmt.Printf("Error generating spell descriptor: %v\n", err)
 			return
 		}
-		// Manually set the command name and scroll path (not needed by the extractor above)
-		function_descriptor.CommandName = command_name
-		function_descriptor.ScrollPath = scroll_obj.Path
-
-		fmt.Println("step 2 done")
 
 		// 3. Resolve -> function descriptor (fully complete)
 		// TODO
-
-		fmt.Println("step 3 done")
 
 		// 4. Read existing scroll entry to perform overrides if spell is already defined
 		var existing_spell scroll.Spell
@@ -125,31 +120,35 @@ var add_cmd = &cobra.Command{
 				function_descriptor.Interpreter = existing_spell.Interpreter
 			}
 		}
+		
+		// 5. Write the minimal entry to scroll.yaml (unless overrides exist)
+		var spell scroll.Spell
+		if existing_spell.Command != "" {
+			spell = existing_spell
+		} else {
+			spell, err = scroll.GenerateMinimalSpellFromFunctionDescriptor(function_descriptor)
+			if err != nil {
+				fmt.Printf("Error generating minimal spell: %v\n", err)
+				return
+			}
+		}
+		scroll_obj.Spells = append(scroll_obj.Spells, spell)
 
-		fmt.Println("step 4 done")
+		spell_hash, err := spell.Hash()
+		if err != nil {
+			fmt.Printf("Error hashing spell: %v\n", err)
+			return
+		}
+		
+		// Set the spell hash
+		function_descriptor.SpellHash = spell_hash
 
-		// 5. Write the final descriptor to the cache
+		// 6. Write the final descriptor to the cache
 		err = cache.AddFunctionDescriptor(function_descriptor)
 		if err != nil {
 			fmt.Printf("Error writing cache: %v\n", err)
 			return
 		}
-
-		fmt.Println("step 5 done")
-
-		// 6. Write the minimal entry to scroll.yaml (unless overrides exist)
-		if existing_spell.Command != "" {
-			scroll_obj.Spells = append(scroll_obj.Spells, existing_spell)
-		} else {
-			spell, err := scroll.GenerateMinimalSpellFromFunctionDescriptor(function_descriptor)
-			if err != nil {
-				fmt.Printf("Error generating minimal spell: %v\n", err)
-				return
-			}
-			scroll_obj.Spells = append(scroll_obj.Spells, spell)
-		}
-
-		fmt.Println("step 6 done")
 
 		// Format the args tree line
 		argParts := make([]string, 0, len(function_descriptor.Params))

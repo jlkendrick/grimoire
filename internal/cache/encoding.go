@@ -24,7 +24,7 @@ const CACHE_VERSION = 1
 
 type DescriptorCache struct {
 	Version 	 int 							                        `json:"version"`
-	SourceHash string 							                    `json:"source_hash"`
+	ScrollHash string 							                    `json:"scroll_hash"`
 	ScrollPath string 							                    `json:"scroll_path"`
 	Functions  map[string]descriptor.FunctionDescriptor `json:"functions"` // function name -> function descriptor
 }
@@ -79,13 +79,13 @@ func ReadDescriptorCache(scroll_path string) (*DescriptorCache, error) {
 		}
 
 		// Create our ephemeral global descriptor cache
-		source_hash, err := utils.HashFile(scroll_path)
+		scroll_hash, err := utils.HashFile(scroll_path)
 		if err != nil {
 			return nil, err
 		}
 		cached_descriptor_cache = &DescriptorCache{
 			Version: CACHE_VERSION,
-			SourceHash: source_hash,
+			ScrollHash: scroll_hash,
 			ScrollPath: scroll_path,
 			Functions: function_descriptors,
 		}
@@ -108,13 +108,13 @@ func ReadDescriptorCache(scroll_path string) (*DescriptorCache, error) {
 		cache_file := filepath.Join(cache_path, filename_hash + ".json")
 		if _, err := os.Stat(cache_file); os.IsNotExist(err) {
 			// If the cache file doesn't exist, create it
-			source_hash, err := utils.HashFile(scroll_path)
+			scroll_hash, err := utils.HashFile(scroll_path)
 			if err != nil {
 				return nil, err
 			}
 			cached_descriptor_cache = &DescriptorCache{
 				Version: CACHE_VERSION,
-				SourceHash: source_hash,
+				ScrollHash: scroll_hash,
 				ScrollPath: scroll_path,
 				Functions: make(map[string]descriptor.FunctionDescriptor),
 			}
@@ -157,12 +157,12 @@ func AddFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) er
 	// Add the function descriptor to the cache
 	descriptor_cache.Functions[function_descriptor.FunctionName] = function_descriptor
 
-	// Update the source hash
-	source_hash, err := utils.HashFile(function_descriptor.ScrollPath)
+	// Update the scroll hash. Scroll here refers to the scroll.yaml file that this file caches for
+	scroll_hash, err := utils.HashFile(function_descriptor.ScrollPath)
 	if err != nil {
 		return err
 	}
-	descriptor_cache.SourceHash = source_hash
+	descriptor_cache.ScrollHash = scroll_hash
 
 	// Write the cache to disk
 	cache_path, err := cachePath()

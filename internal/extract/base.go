@@ -10,37 +10,54 @@ import (
 
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
-	"github.com/jlkendrick/grimoire/internal/utils"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 type FunctionDescriptorGenerator struct {
-	AbsPathToFunction string
+	CommandName       string
 	FunctionName   	  string
+	SourceFile        string
+	ScrollPath        string
+	Interpreter       string
 }
 
-func (g *FunctionDescriptorGenerator) GenerateDescriptor() (descriptor.FunctionDescriptor, error) {
+func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor, error) {
 	var extractor LanguageExtractor
 
-	if !strings.Contains(g.AbsPathToFunction, ".") {
-		return descriptor.FunctionDescriptor{}, fmt.Errorf("no file extension found: %s", g.AbsPathToFunction)
+	if !strings.Contains(g.SourceFile, ".") {
+		return descriptor.FunctionDescriptor{}, fmt.Errorf("no file extension found: %s", g.SourceFile)
 	}
 
 	// Determine the file extension and use the appropriate analyzer
-	file_extensions := strings.Split(g.AbsPathToFunction, ".")
+	file_extensions := strings.Split(g.SourceFile, ".")
 	file_extension := file_extensions[len(file_extensions)-1]
 	switch file_extension {
 	case "py":
 		extractor = &PythonExtractor{}
 	case "go":
-		extractor = &GoExtractor{} // TODO
+		extractor = &GoExtractor{}
 	default:
 		return descriptor.FunctionDescriptor{}, fmt.Errorf("unsupported file extension: %s", file_extension)
 	}
 
-	function_descriptor, err := extractor.DescribeFunction(g.AbsPathToFunction, g.FunctionName)
+	function_descriptor, err := extractor.GenerateDescriptor_ParamsOnly(g.SourceFile, g.FunctionName)
 	if err != nil {
 		return descriptor.FunctionDescriptor{}, err
 	}
+
+	// Fill in the rest of the descriptor
+	function_descriptor.CommandName = g.CommandName
+	function_descriptor.FunctionName = g.FunctionName
+	function_descriptor.SourceFile = g.SourceFile
+	function_descriptor.ScrollPath = g.ScrollPath
+	function_descriptor.Interpreter = g.Interpreter
+	// Hash the source code
+	source_hash, err := utils.HashFile(g.SourceFile)
+	if err != nil {
+		return descriptor.FunctionDescriptor{}, err
+	}
+	function_descriptor.SourceHash = source_hash
+	// Spell hash is set later when we actually have the spell
 
 	return function_descriptor, nil
 }
@@ -54,7 +71,7 @@ func MinifyFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor)
 }
 
 type LanguageExtractor interface {
-	DescribeFunction(abs_path_to_function string, function_name string) (descriptor.FunctionDescriptor, error)
+	GenerateDescriptor_ParamsOnly(abs_path_to_function string, function_name string) (descriptor.FunctionDescriptor, error)
 }
 
 // grammarConfig holds the language-specific knobs needed to extract a
@@ -81,12 +98,8 @@ type grammarConfig struct {
 	extractParam func(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
 }
 
-func describeFunctionBase(cfg grammarConfig, path, funcName string) (descriptor.FunctionDescriptor, error) {
+func generateDescriptorBase_ParamsOnly(cfg grammarConfig, path, funcName string) (descriptor.FunctionDescriptor, error) {
 	var function_descriptor descriptor.FunctionDescriptor
-
-	// Fill in the easy stuff
-	function_descriptor.FunctionName = funcName
-	function_descriptor.SourceFile = path
 
 	// Extract the function signature using our method of choice (determined in ExtractParams)
 	params, err := extractParamsBase(cfg, path, funcName)
@@ -96,13 +109,6 @@ func describeFunctionBase(cfg grammarConfig, path, funcName string) (descriptor.
 
 	// Fill in the params
 	function_descriptor.Params = params
-
-	// Hash the source code
-	source_hash, err := utils.HashFile(path)
-	if err != nil {
-		return descriptor.FunctionDescriptor{}, err
-	}
-	function_descriptor.SourceHash = source_hash
 
 	return function_descriptor, nil
 }

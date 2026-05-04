@@ -16,8 +16,8 @@ var pythonConfig = grammarConfig{
 
 type PythonExtractor struct{}
 
-func (a *PythonExtractor) DescribeFunction(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
-	return describeFunctionBase(pythonConfig, abs_path_to_function, funcName)
+func (a *PythonExtractor) GenerateDescriptor_ParamsOnly(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
+	return generateDescriptorBase_ParamsOnly(pythonConfig, abs_path_to_function, funcName)
 }
 
 func extractPythonParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor {

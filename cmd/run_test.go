@@ -17,18 +17,11 @@ import (
 )
 
 // writeCacheDirect writes a DescriptorCache JSON file to the on-disk location
-// that ReadDescriptorCache(scrollPath) would read. It bypasses
-// cache.AddFunctionDescriptor (whose top-level SourceHash field is set from
-// the scroll file's content rather than the source file's, which makes
-// commands.go's source-staleness comparison always fire). The cache it writes
-// has consistent hashes: cache.SourceHash == HashFile(srcPath), so the
-// staleness check evaluates correctly during the run.
-func writeCacheDirect(t *testing.T, scrollPath, srcPath string, descriptors map[string]desc.FunctionDescriptor) {
+// that ReadDescriptorCache(scrollPath) would read, bypassing
+// cache.AddFunctionDescriptor so the test can choose the descriptor state
+// directly.
+func writeCacheDirect(t *testing.T, scrollPath string, descriptors map[string]desc.FunctionDescriptor) {
 	t.Helper()
-	srcHash, err := utils.HashFile(srcPath)
-	if err != nil {
-		t.Fatalf("HashFile: %v", err)
-	}
 	home, err := utils.GrimoireHome()
 	if err != nil {
 		t.Fatalf("GrimoireHome: %v", err)
@@ -37,10 +30,14 @@ func writeCacheDirect(t *testing.T, scrollPath, srcPath string, descriptors map[
 	if err != nil {
 		t.Fatalf("HashFilePath: %v", err)
 	}
+	scrollHash, err := utils.HashFile(scrollPath)
+	if err != nil {
+		t.Fatalf("HashFile scroll: %v", err)
+	}
 	cacheFile := filepath.Join(home, "cache", pathHash+".json")
 	c := cache.DescriptorCache{
 		Version:    cache.CACHE_VERSION,
-		SourceHash: srcHash,
+		ScrollHash: scrollHash,
 		ScrollPath: scrollPath,
 		Functions:  descriptors,
 	}
@@ -161,7 +158,7 @@ func TestRun_OutputCorrect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashFile: %v", err)
 	}
-	writeCacheDirect(t, scrollPath, srcPath, map[string]desc.FunctionDescriptor{
+	writeCacheDirect(t, scrollPath, map[string]desc.FunctionDescriptor{
 		"greet": {
 			CommandName:  "greet",
 			FunctionName: "greet",
@@ -253,15 +250,15 @@ func TestStaleness_SourceFile(t *testing.T) {
 	}
 
 	gen := extract.FunctionDescriptorGenerator{
-		AbsPathToFunction: originalDesc.SourceFile,
-		FunctionName:      originalDesc.FunctionName,
+		CommandName:  originalDesc.CommandName,
+		FunctionName: originalDesc.FunctionName,
+		SourceFile:   originalDesc.SourceFile,
+		ScrollPath:   originalDesc.ScrollPath,
 	}
-	resolved, err := gen.GenerateDescriptor()
+	resolved, err := gen.Generate()
 	if err != nil {
-		t.Fatalf("GenerateDescriptor: %v", err)
+		t.Fatalf("Generate: %v", err)
 	}
-	resolved.CommandName = originalDesc.CommandName
-	resolved.ScrollPath = originalDesc.ScrollPath
 	resolved.SpellHash = originalDesc.SpellHash
 	if err := cache.AddFunctionDescriptor(resolved); err != nil {
 		t.Fatalf("AddFunctionDescriptor: %v", err)
@@ -305,7 +302,7 @@ func TestStaleness_Spell(t *testing.T) {
 		t.Fatalf("Hash: %v", err)
 	}
 
-	writeCacheDirect(t, scrollPath, srcPath, map[string]desc.FunctionDescriptor{
+	writeCacheDirect(t, scrollPath, map[string]desc.FunctionDescriptor{
 		"greet": {
 			CommandName:  "greet",
 			FunctionName: "greet",
@@ -350,16 +347,16 @@ func TestStaleness_Spell(t *testing.T) {
 			continue
 		}
 		gen := extract.FunctionDescriptorGenerator{
-			AbsPathToFunction: sp.AbsPath,
-			FunctionName:      sp.Function,
+			CommandName:  sp.Command,
+			FunctionName: sp.Function,
+			SourceFile:   sp.AbsPath,
+			ScrollPath:   editedScroll.Path,
 		}
-		resolved, err := gen.GenerateDescriptor()
+		resolved, err := gen.Generate()
 		if err != nil {
-			t.Fatalf("GenerateDescriptor: %v", err)
+			t.Fatalf("Generate: %v", err)
 		}
-		resolved.CommandName = sp.Command
 		resolved.SpellHash = currHash
-		resolved.ScrollPath = editedScroll.Path
 		if err := cache.AddFunctionDescriptor(resolved); err != nil {
 			t.Fatalf("AddFunctionDescriptor: %v", err)
 		}

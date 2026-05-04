@@ -118,10 +118,15 @@ func TestAdd_BasicFlow(t *testing.T) {
 		t.Errorf("descriptor.SourceHash = %q, want %q", desc.SourceHash, wantSrcHash)
 	}
 
-	// NOTE: descriptor.SpellHash is not set by `add` today (it gets populated
-	// later by the staleness loop in cmd/root.go). If/when that changes, the
-	// natural assertion is `desc.SpellHash == sp.Hash()`.
-	_ = sp
+	// SpellHash matches the on-disk spell's Hash() -- this is the baseline
+	// the runtime staleness check compares against.
+	wantSpellHash, err := sp.Hash()
+	if err != nil {
+		t.Fatalf("sp.Hash: %v", err)
+	}
+	if desc.SpellHash != wantSpellHash {
+		t.Errorf("descriptor.SpellHash = %q, want %q (matches spell.Hash())", desc.SpellHash, wantSpellHash)
+	}
 }
 
 func TestAdd_RejectsDuplicateCommand(t *testing.T) {

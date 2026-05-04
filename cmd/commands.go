@@ -23,27 +23,42 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 			Use: descriptor.CommandName,
 			Run: func(cmd *cobra.Command, args []string) {
 				var resolved_descriptor desc.FunctionDescriptor
-				// Pre-run: check if the function descriptor is stale relative to the source code or the user's scroll.yaml file
+				// Pre-run: check if the function descriptor is stale relative to the source code
+				// Scroll hash is checked in the root command before generating commands
 				source_hash, err := utils.HashFile(descriptor.SourceFile)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "Error hashing source file: %v\n", err)
 					os.Exit(1)
 				}
 
-				if source_hash != descriptor_cache.SourceHash {
-					fmt.Fprintf(os.Stderr, "Source file has changed since last run. Updating runtime config...\n")
+				if source_hash != descriptor.SourceHash {
+					fmt.Fprintf(os.Stderr, "Source code has changed since last run. Updating runtime config...\n")
 					// Re-extract the function descriptor
 					function_descriptor_generator := extract.FunctionDescriptorGenerator{
-						AbsPathToFunction: descriptor.SourceFile,
-						FunctionName:   	 descriptor.FunctionName,
+						CommandName: descriptor.CommandName,
+						FunctionName: descriptor.FunctionName,
+						SourceFile: descriptor.SourceFile,
+						ScrollPath: descriptor_cache.ScrollPath,
+						Interpreter: descriptor.Interpreter,
 					}
-					resolved_descriptor, err = function_descriptor_generator.GenerateDescriptor()
+					resolved_descriptor, err = function_descriptor_generator.Generate()
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "Error generating spell descriptor: %v\n", err)
 						os.Exit(1)
 					}
+					// Only thing left to set is the spell hash
+					// Here, descriptor has the fresh spell hash since GenerateCommands() is called
+					// from the root command, which ensures the scroll hash is up to date and
+					// recalculates it if needed
+					resolved_descriptor.SpellHash = descriptor.SpellHash
+
 					// Cache the resolved descriptor
-					cache.AddFunctionDescriptor(resolved_descriptor)
+					err = cache.AddFunctionDescriptor(resolved_descriptor)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error caching function descriptor: %v\n", err)
+						os.Exit(1)
+					}
+					
 				} else {
 					// Use the cached descriptor
 					resolved_descriptor = descriptor

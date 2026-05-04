@@ -97,17 +97,20 @@ func Execute() {
 				fmt.Printf("Spell has changed since last run. Updating runtime config...\n")
 				// Re-extract the function descriptor
 				function_descriptor_generator := extract.FunctionDescriptorGenerator{
-					AbsPathToFunction: spell.Path,
-					FunctionName:   	 spell.Function,
+					CommandName: spell.Command,
+					FunctionName: spell.Function,
+					SourceFile: spell.Path,
+					ScrollPath: scroll_obj.Path,
 				}
-				resolved_descriptor, err := function_descriptor_generator.GenerateDescriptor()
+				resolved_descriptor, err := function_descriptor_generator.Generate()
 				if err != nil {
 					fmt.Printf("Error generating spell descriptor: %v\n", err)
 					return
 				}
-				resolved_descriptor.CommandName = spell.Command
+				// Only thing left to set is the spell hash
 				resolved_descriptor.SpellHash = curr_hash
-				resolved_descriptor.ScrollPath = scroll_obj.Path
+
+				// Write the updated descriptor to the cache
 				err = cache.AddFunctionDescriptor(resolved_descriptor)
 				if err != nil {
 					fmt.Printf("Error writing descriptor cache: %v\n", err)

@@ -16,8 +16,8 @@ var goConfig = grammarConfig{
 
 type GoExtractor struct{}
 
-func (a *GoExtractor) DescribeFunction(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
-	return describeFunctionBase(goConfig, abs_path_to_function, funcName)
+func (a *GoExtractor) GenerateDescriptor_ParamsOnly(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
+	return generateDescriptorBase_ParamsOnly(goConfig, abs_path_to_function, funcName)
 }
 
 func extractGoParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor {
