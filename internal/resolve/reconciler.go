@@ -36,6 +36,12 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 			// Only thing left to set is the spell hash
 			resolved_descriptor.SpellHash = curr_hash
 
+			// Resolve the descriptor
+			err = ResolveFunctionDescriptor(&resolved_descriptor)
+			if err != nil {
+				return fmt.Errorf("error resolving function descriptor: %v", err)
+			}
+
 			// Write the updated descriptor to the cache
 			err = cache.AddFunctionDescriptor(resolved_descriptor)
 			if err != nil {

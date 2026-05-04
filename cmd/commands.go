@@ -10,6 +10,7 @@ import (
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	cache "github.com/jlkendrick/grimoire/internal/cache"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 	runtime "github.com/jlkendrick/grimoire/internal/runtime"
 	extract "github.com/jlkendrick/grimoire/internal/extract"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
@@ -51,6 +52,13 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 					// from the root command, which ensures the scroll hash is up to date and
 					// recalculates it if needed
 					resolved_descriptor.SpellHash = function_descriptor.SpellHash
+
+					// Resolve the descriptor
+					err = resolve.ResolveFunctionDescriptor(&resolved_descriptor)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error resolving function descriptor: %v\n", err)
+						os.Exit(1)
+					}
 
 					// Cache the resolved descriptor
 					err = cache.AddFunctionDescriptor(resolved_descriptor)
@@ -108,10 +116,11 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 					command.MarkFlagRequired(param.Name)
 					continue
 				}
-				if _, ok := param.Default.(int); !ok {
-					return nil, fmt.Errorf("default value for %s is not an int", param.Name)
+				def, err := coerceIntDefault(param.Name, param.Default)
+				if err != nil {
+					return nil, err
 				}
-				command.Flags().IntP(param.Name, "", param.Default.(int), "")
+				command.Flags().IntP(param.Name, "", def, "")
 
 			case "boolean", "bool":
 				if param.Default == nil {
@@ -130,10 +139,11 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 					command.MarkFlagRequired(param.Name)
 					continue
 				}
-				if _, ok := param.Default.(float64); !ok {
-					return nil, fmt.Errorf("default value for %s is not a float64", param.Name)
+				def, err := coerceFloat64Default(param.Name, param.Default)
+				if err != nil {
+					return nil, err
 				}
-				command.Flags().Float64P(param.Name, "", param.Default.(float64), "")
+				command.Flags().Float64P(param.Name, "", def, "")
 
 			default:
 				return nil, fmt.Errorf("unsupported type: %s", param.ResolvedType.Kind)
@@ -170,4 +180,40 @@ func buildPayload(function_descriptor descriptor.FunctionDescriptor, cmd *cobra.
 	}
 
 	return payload
+}
+
+// coerceIntDefault interprets param defaults for int flags.
+// encoding/json unmarshals JSON numbers into float64 when the target field is any.
+func coerceIntDefault(paramName string, v any) (int, error) {
+	switch x := v.(type) {
+	case int:
+		return x, nil
+	case int32:
+		return int(x), nil
+	case int64:
+		return int(x), nil
+	case float64:
+		i := int(x)
+		if float64(i) != x {
+			return 0, fmt.Errorf("default value for %s must be a whole number", paramName)
+		}
+		return i, nil
+	default:
+		return 0, fmt.Errorf("default value for %s is not an int", paramName)
+	}
+}
+
+func coerceFloat64Default(paramName string, v any) (float64, error) {
+	switch x := v.(type) {
+	case float64:
+		return x, nil
+	case int:
+		return float64(x), nil
+	case int32:
+		return float64(x), nil
+	case int64:
+		return float64(x), nil
+	default:
+		return 0, fmt.Errorf("default value for %s is not a float64", paramName)
+	}
 }

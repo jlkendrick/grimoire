@@ -9,10 +9,11 @@ import (
 	"github.com/spf13/cobra"
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
-	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
-	extract "github.com/jlkendrick/grimoire/internal/extract"
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	extract "github.com/jlkendrick/grimoire/internal/extract"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
 var add_cmd = &cobra.Command{
@@ -75,7 +76,11 @@ var add_cmd = &cobra.Command{
 		}
 
 		// 3. Resolve -> function descriptor (fully complete)
-		// TODO
+		err = resolve.ResolveFunctionDescriptor(&function_descriptor)
+		if err != nil {
+			fmt.Printf("Error resolving function descriptor: %v\n", err)
+			return
+		}
 
 		// 4. Read existing scroll entry to perform overrides if spell is already defined
 		var existing_spell scroll.Spell
