@@ -1,0 +1,183 @@
+package cmd
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	cache "github.com/jlkendrick/grimoire/internal/cache"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
+)
+
+const greetSource = `def greet(n: int = 1, who: str):
+    pass
+`
+
+func TestAdd_BasicFlow(t *testing.T) {
+	home := setupTestEnv(t)
+	dir := withScrollDir(t)
+	resetRootCmdState(t)
+
+	srcPath := filepath.Join(dir, "greet.py")
+	writeFile(t, srcPath, greetSource)
+
+	stdout, _ := captureOutput(t, func() {
+		rootCmd.SetArgs([]string{"add", "greet.py:greet"})
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("rootCmd.Execute: %v", err)
+		}
+	})
+
+	if !strings.Contains(stdout, "function") {
+		t.Errorf("expected stdout to mention 'function' summary line, got:\n%s", stdout)
+	}
+
+	// scroll.yaml exists and parses
+	scrollPath := filepath.Join(dir, "scroll.yaml")
+	if _, err := os.Stat(scrollPath); err != nil {
+		t.Fatalf("scroll.yaml not created: %v", err)
+	}
+	scroll.ResetScrollCache()
+	parsed, err := scroll.ParseScroll(scrollPath)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	if len(parsed.Spells) != 1 {
+		t.Fatalf("expected 1 spell, got %d: %+v", len(parsed.Spells), parsed.Spells)
+	}
+	sp := parsed.Spells[0]
+	if sp.Command != "greet" {
+		t.Errorf("Spell.Command = %q, want %q", sp.Command, "greet")
+	}
+	if sp.Function != "greet" {
+		t.Errorf("Spell.Function = %q, want %q", sp.Function, "greet")
+	}
+	if !strings.HasSuffix(sp.Path, "greet.py") {
+		t.Errorf("Spell.Path = %q, want suffix %q", sp.Path, "greet.py")
+	}
+
+	// Cache file exists under $GRIMOIRE_HOME/cache and decodes correctly
+	cacheDir := filepath.Join(home, "cache")
+	entries, err := os.ReadDir(cacheDir)
+	if err != nil {
+		t.Fatalf("ReadDir cache: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 cache file, got %d", len(entries))
+	}
+
+	cache.ResetCache()
+	descCache, err := cache.ReadDescriptorCache(scrollPath)
+	if err != nil {
+		t.Fatalf("ReadDescriptorCache: %v", err)
+	}
+	desc, ok := descCache.Functions["greet"]
+	if !ok {
+		t.Fatalf("descriptor for 'greet' not in cache; cache has: %v", descCache.Functions)
+	}
+
+	// Two params: n (int with default "1") and who (str, no default)
+	if len(desc.Params) != 2 {
+		t.Fatalf("expected 2 params, got %d: %+v", len(desc.Params), desc.Params)
+	}
+	byName := map[string]int{}
+	for i, p := range desc.Params {
+		byName[p.Name] = i
+	}
+	nIdx, ok := byName["n"]
+	if !ok {
+		t.Fatalf("param 'n' missing")
+	}
+	pn := desc.Params[nIdx]
+	if pn.ResolvedType == nil || pn.ResolvedType.Name != "int" {
+		t.Errorf("param n: ResolvedType = %+v, want Name=int", pn.ResolvedType)
+	}
+	if pn.Default != "1" {
+		t.Errorf("param n: Default = %v (%T), want \"1\"", pn.Default, pn.Default)
+	}
+	whoIdx, ok := byName["who"]
+	if !ok {
+		t.Fatalf("param 'who' missing")
+	}
+	pw := desc.Params[whoIdx]
+	if pw.ResolvedType == nil || pw.ResolvedType.Name != "str" {
+		t.Errorf("param who: ResolvedType = %+v, want Name=str", pw.ResolvedType)
+	}
+	if pw.Default != nil {
+		t.Errorf("param who: Default = %v, want nil", pw.Default)
+	}
+
+	// Per-descriptor SourceHash matches the source file content hash.
+	wantSrcHash, err := utils.HashFile(srcPath)
+	if err != nil {
+		t.Fatalf("HashFile: %v", err)
+	}
+	if desc.SourceHash != wantSrcHash {
+		t.Errorf("descriptor.SourceHash = %q, want %q", desc.SourceHash, wantSrcHash)
+	}
+
+	// NOTE: descriptor.SpellHash is not set by `add` today (it gets populated
+	// later by the staleness loop in cmd/root.go). If/when that changes, the
+	// natural assertion is `desc.SpellHash == sp.Hash()`.
+	_ = sp
+}
+
+func TestAdd_RejectsDuplicateCommand(t *testing.T) {
+	setupTestEnv(t)
+	dir := withScrollDir(t)
+	resetRootCmdState(t)
+
+	scrollPath := filepath.Join(dir, "scroll.yaml")
+	writeFile(t, scrollPath, "spells:\n  - command: greet\n    path: greet.py\n    function: greet\n")
+	srcPath := filepath.Join(dir, "greet.py")
+	writeFile(t, srcPath, greetSource)
+	originalScroll, err := os.ReadFile(scrollPath)
+	if err != nil {
+		t.Fatalf("read scroll.yaml: %v", err)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		rootCmd.SetArgs([]string{"add", "greet.py:greet"})
+		_ = rootCmd.Execute()
+	})
+
+	if !strings.Contains(stdout, "already exists in the scroll") {
+		t.Errorf("expected duplicate-rejection message, got stdout:\n%s", stdout)
+	}
+
+	after, err := os.ReadFile(scrollPath)
+	if err != nil {
+		t.Fatalf("read scroll.yaml after: %v", err)
+	}
+	if string(after) != string(originalScroll) {
+		t.Errorf("scroll.yaml was modified after rejected duplicate add\nbefore:\n%s\nafter:\n%s", originalScroll, after)
+	}
+}
+
+func TestAdd_RejectsInvalidFormat(t *testing.T) {
+	home := setupTestEnv(t)
+	dir := withScrollDir(t)
+	resetRootCmdState(t)
+
+	stdout, _ := captureOutput(t, func() {
+		rootCmd.SetArgs([]string{"add", "greet.py"}) // no colon
+		_ = rootCmd.Execute()
+	})
+
+	if !strings.Contains(stdout, "path_to_function:function_name format is required") {
+		t.Errorf("expected format-required error, got stdout:\n%s", stdout)
+	}
+
+	if _, err := os.Stat(filepath.Join(dir, "scroll.yaml")); !os.IsNotExist(err) {
+		t.Errorf("scroll.yaml should not exist after invalid input, stat err=%v", err)
+	}
+	entries, err := os.ReadDir(filepath.Join(home, "cache"))
+	if err != nil {
+		t.Fatalf("ReadDir cache: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("expected no cache files written, got %d", len(entries))
+	}
+}
