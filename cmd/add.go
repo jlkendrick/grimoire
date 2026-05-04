@@ -58,6 +58,8 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
+		fmt.Println("step 1 done")
+
 		// 2. Extract -> function descriptor (partially complete)
 		fmt.Printf("%s Divining signature...\n", accent_style("+"))
 		function_descriptor_generator := extract.FunctionDescriptorGenerator{
@@ -73,8 +75,12 @@ var add_cmd = &cobra.Command{
 		function_descriptor.CommandName = command_name
 		function_descriptor.ScrollPath = scroll_obj.Path
 
+		fmt.Println("step 2 done")
+
 		// 3. Resolve -> function descriptor (fully complete)
 		// TODO
+
+		fmt.Println("step 3 done")
 
 		// 4. Read existing scroll entry to perform overrides if spell is already defined
 		var existing_spell scroll.Spell
@@ -120,12 +126,16 @@ var add_cmd = &cobra.Command{
 			}
 		}
 
+		fmt.Println("step 4 done")
+
 		// 5. Write the final descriptor to the cache
-		err = cache.WriteCache([]descriptor.FunctionDescriptor{function_descriptor})
+		err = cache.AddFunctionDescriptor(function_descriptor)
 		if err != nil {
 			fmt.Printf("Error writing cache: %v\n", err)
 			return
 		}
+
+		fmt.Println("step 5 done")
 
 		// 6. Write the minimal entry to scroll.yaml (unless overrides exist)
 		if existing_spell.Command != "" {
@@ -138,6 +148,8 @@ var add_cmd = &cobra.Command{
 			}
 			scroll_obj.Spells = append(scroll_obj.Spells, spell)
 		}
+
+		fmt.Println("step 6 done")
 
 		// Format the args tree line
 		argParts := make([]string, 0, len(function_descriptor.Params))

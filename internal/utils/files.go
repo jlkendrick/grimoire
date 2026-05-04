@@ -20,6 +20,36 @@ func GrimoireHome() (string, error) {
 	return ExpandUserPath("~/.grimoire")
 }
 
+// GrimoireCache returns the grimoire cache directory.
+// If the GRIMOIRE_CACHE environment variable is set that value is used
+// (tilde expansion is applied); otherwise it defaults to ~/.grimoire/cache.
+func GrimoireCache() (string, error) {
+	grimoire_home, err := GrimoireHome()
+	if err != nil {
+		return "", err
+	}
+	grimoire_cache := filepath.Join(grimoire_home, "cache")
+	if _, err := os.Stat(grimoire_cache); os.IsNotExist(err) {
+		return "", err
+	}
+	return grimoire_cache, nil
+}
+
+// GrimoireEnvs returns the grimoire envs directory.
+// If the GRIMOIRE_ENVS environment variable is set that value is used
+// (tilde expansion is applied); otherwise it defaults to ~/.grimoire/envs.
+func GrimoireEnvs() (string, error) {
+	grimoire_home, err := GrimoireHome()
+	if err != nil {
+		return "", err
+	}
+	grimoire_envs := filepath.Join(grimoire_home, "envs")
+	if _, err := os.Stat(grimoire_envs); os.IsNotExist(err) {
+		return "", err
+	}
+	return grimoire_envs, nil
+}
+
 // ExpandUserPath replaces a leading "~" or "~/" with the current user's home
 // directory. Go does not expand shell tildes; paths like "~/foo" are literal.
 func ExpandUserPath(path string) (string, error) {
@@ -53,6 +83,35 @@ func EnsureGrimoireHome() error {
 	return nil
 }
 
+// EnsureGrimoireCache creates ~/.grimoire/cache if it doesn't already exist.
+func EnsureGrimoireCache() error {
+	cache_path, err := GrimoireCache()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(cache_path, 0755); err != nil {
+		return err
+	}
+	return nil
+}
+
+// EnsureGrimoireEnvs creates ~/.grimoire/envs if it doesn't already exist.
+func EnsureGrimoireEnvs() error {
+	envs_path, err := GrimoireEnvs()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(envs_path, 0755); err != nil {
+		return err
+	}
+	return nil
+}
+
+func HashStr(data []byte) (string, error) {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
 func HashFile(path string) (string, error) {
 	content_hash := sha256.New()
 	content, err := os.Open(path)
@@ -64,6 +123,14 @@ func HashFile(path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(content_hash.Sum(nil)), nil
+}
+
+func HashFilePath(path string) (string, error) {
+	path_hash := sha256.New()
+	if _, err := io.Copy(path_hash, bytes.NewReader([]byte(path))); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(path_hash.Sum(nil)), nil
 }
 
 func HashFilePathAndContent(path string) (string,string, error) {

@@ -7,7 +7,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// Parse the user's scroll.yaml file
+// Parse the user's scroll.yaml or grimoire.yaml file
 func ParseScroll(path string) (*Scroll, error) {
 	yamlStr, err := os.ReadFile(path)
 	if err != nil {

@@ -36,7 +36,7 @@ func Run(descriptor *descriptor.FunctionDescriptor, args map[string]interface{})
 	execution_context := ExecutionContext{
 		StateMap: make(map[string]any),
 	}
-	execution_context.StateMap["function"] = descriptor
+	execution_context.StateMap["descriptor"] = descriptor
 	execution_context.StateMap["args"] = args
 
 	// Dynamically assign the appropriate adapter based on the function's target file extension

@@ -5,9 +5,10 @@ type FunctionDescriptor struct {
 	FunctionName  string
 	SourceFile    string
 	ScrollPath    string
-	Params        []ParamDescriptor
 	Interpreter   string
 	SourceHash    string
+	SpellHash     string
+	Params        []ParamDescriptor
 	// Return type coming soon
 }
 
