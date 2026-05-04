@@ -23,7 +23,7 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 		if curr_hash != function_descriptor.SpellHash {
 			fmt.Printf("%s Spell has changed since last run. Updating runtime config...\n", utils.AccentStyle("+"))
 			// Re-extract the function descriptor
-			abs_path_to_function, err := utils.MakeScrollRelPathAbs(spell.Path, scroll_obj.Path)
+			abs_path_to_function, err := utils.MakeScrollRelPathAbs(spell.Path, spell.ScrollPath)
 			if err != nil {
 				return fmt.Errorf("error making scroll rel path abs: %v", err)
 			}
