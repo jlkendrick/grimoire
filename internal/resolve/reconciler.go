@@ -11,17 +11,30 @@ import (
 
 // Check if any of the cached descriptors are stale relative to the spell entries in the user's scroll.yaml file
 func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) error {
+
+	// Check if the scroll has changed since last run
+	scroll_hash, err := utils.HashFile(scroll_obj.Path)
+	if err != nil {
+		return fmt.Errorf("error hashing scroll: %v", err)
+	}
+	if scroll_hash == descriptor_cache.ScrollHash {
+		return nil
+	}
+
 	for _, spell := range scroll_obj.Spells {
 		curr_hash, err := spell.Hash()
 		if err != nil {
 			return err
 		}
 		function_descriptor, ok := descriptor_cache.Functions[spell.Function]
-		if !ok {
-			return fmt.Errorf("function descriptor not found in cache: %s", spell.Function)
-		}
-		if curr_hash != function_descriptor.SpellHash {
-			fmt.Printf("%s Spell has changed since last run. Updating runtime config...\n", utils.AccentStyle("+"))
+		
+		// If no cached descriptor or the scroll has changed, re-extract the function descriptor
+		if !ok ||curr_hash != function_descriptor.SpellHash {
+			if !ok {
+				fmt.Printf("%s Unearthed a new spell: %s. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Function))
+			} else {
+				fmt.Printf("%s Spell %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Function))
+			}
 			// Re-extract the function descriptor
 			abs_path_to_function, err := utils.MakeScrollRelPathAbs(spell.Path, spell.ScrollPath)
 			if err != nil {

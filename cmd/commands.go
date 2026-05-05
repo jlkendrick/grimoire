@@ -33,7 +33,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 				}
 
 				if source_hash != function_descriptor.SourceHash {
-					fmt.Fprintf(os.Stderr, "Source code has changed since last run. Updating runtime config...\n")
+					fmt.Printf("%s Source code change detected. Updating casting recipe...\n", utils.SpellStyle("+"))
 					// Re-extract the function descriptor
 					function_descriptor_generator := extract.FunctionDescriptorGenerator{
 						CommandName: function_descriptor.CommandName,
