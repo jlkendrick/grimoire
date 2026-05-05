@@ -20,36 +20,6 @@ func GrimoireHome() (string, error) {
 	return ExpandUserPath("~/.grimoire")
 }
 
-// GrimoireCache returns the grimoire cache directory.
-// If the GRIMOIRE_CACHE environment variable is set that value is used
-// (tilde expansion is applied); otherwise it defaults to ~/.grimoire/cache.
-func GrimoireCache() (string, error) {
-	grimoire_home, err := GrimoireHome()
-	if err != nil {
-		return "", err
-	}
-	grimoire_cache := filepath.Join(grimoire_home, "cache")
-	if _, err := os.Stat(grimoire_cache); os.IsNotExist(err) {
-		return "", err
-	}
-	return grimoire_cache, nil
-}
-
-// GrimoireEnvs returns the grimoire envs directory.
-// If the GRIMOIRE_ENVS environment variable is set that value is used
-// (tilde expansion is applied); otherwise it defaults to ~/.grimoire/envs.
-func GrimoireEnvs() (string, error) {
-	grimoire_home, err := GrimoireHome()
-	if err != nil {
-		return "", err
-	}
-	grimoire_envs := filepath.Join(grimoire_home, "envs")
-	if _, err := os.Stat(grimoire_envs); os.IsNotExist(err) {
-		return "", err
-	}
-	return grimoire_envs, nil
-}
-
 // ExpandUserPath replaces a leading "~" or "~/" with the current user's home
 // directory. Go does not expand shell tildes; paths like "~/foo" are literal.
 func ExpandUserPath(path string) (string, error) {
@@ -66,9 +36,9 @@ func ExpandUserPath(path string) (string, error) {
 	return path, nil
 }
 
-// EnsureGrimoireHome creates ~/.grimoire and ~/.grimoire/grimoire.yaml if they
-// don't already exist.
-func EnsureGrimoireHome() error {
+// EnsureGrimoireSetup creates the necessary directories and files for grimoire setup.
+func EnsureGrimoireSetup() error {
+	// Create the home directory
 	home, err := GrimoireHome()
 	if err != nil {
 		return err
@@ -76,33 +46,23 @@ func EnsureGrimoireHome() error {
 	if err := os.MkdirAll(home, 0755); err != nil {
 		return err
 	}
-	configPath := filepath.Join(home, "grimoire.yaml")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return os.WriteFile(configPath, []byte("registered_projects: []\n"), 0644)
-	}
-	return nil
-}
 
-// EnsureGrimoireCache creates ~/.grimoire/cache if it doesn't already exist.
-func EnsureGrimoireCache() error {
-	cache_path, err := GrimoireCache()
-	if err != nil {
-		return err
-	}
+	// Create the cache directory
+	cache_path := filepath.Join(home, "cache")
 	if err := os.MkdirAll(cache_path, 0755); err != nil {
 		return err
 	}
-	return nil
-}
 
-// EnsureGrimoireEnvs creates ~/.grimoire/envs if it doesn't already exist.
-func EnsureGrimoireEnvs() error {
-	envs_path, err := GrimoireEnvs()
-	if err != nil {
-		return err
-	}
+	// Create the envs directory
+	envs_path := filepath.Join(home, "envs")
 	if err := os.MkdirAll(envs_path, 0755); err != nil {
 		return err
+	}
+
+	// Create the grimoire.yaml file
+	grimoire_yaml_path := filepath.Join(home, "grimoire.yaml")
+	if _, err := os.Stat(grimoire_yaml_path); os.IsNotExist(err) {
+		return os.WriteFile(grimoire_yaml_path, []byte("registered_projects: []\n"), 0644)
 	}
 	return nil
 }

@@ -11,7 +11,8 @@ func ResolveFunctionDescriptor(fd *descriptor.FunctionDescriptor) error {
 	// For now, we can just simply cast the default values to the correct type
 	// Can do more sophisticated type resolution later
 	for i, param := range fd.Params {
-		if param.Default == nil {
+		// Later we can try to resolve the type from the default value
+		if param.Default == nil || param.ResolvedType == nil {
 			continue
 		}
 		switch param.ResolvedType.Name {

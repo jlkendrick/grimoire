@@ -2,15 +2,16 @@ package runtime
 
 import (
 	"io"
+	"os"
 	"fmt"
 	"bufio"
 	"bytes"
-	"os"
 	"os/exec"
 	"strings"
+	"path/filepath"
 
-	utils "github.com/jlkendrick/grimoire/internal/utils"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 type ExecutionContext struct {
@@ -125,13 +126,12 @@ func assignAdapter(function_path string) (RuntimeAdapter, error) {
 			return nil, fmt.Errorf("no file extension found: %s", function_path)
 		}
 	
-		file_extensions := strings.Split(function_path, ".")
-		file_extension := file_extensions[len(file_extensions)-1]
+		file_extension := filepath.Ext(function_path)
 		
 		switch file_extension {
-		case "py":
+		case ".py":
 			return &PythonAdapter{}, nil
-		case "go":
+		case ".go":
 			return &GoAdapter{}, nil
 		default:
 			return nil, fmt.Errorf("unsupported file extension: %s", file_extension)

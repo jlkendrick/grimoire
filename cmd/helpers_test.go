@@ -20,17 +20,8 @@ func setupTestEnv(t *testing.T) string {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("GRIMOIRE_HOME", home)
-	if err := utils.EnsureGrimoireHome(); err != nil {
-		t.Fatalf("EnsureGrimoireHome: %v", err)
-	}
-	// EnsureGrimoireCache/Envs both go through GrimoireCache/Envs, which
-	// error out when the dir doesn't exist (catch-22 on a fresh home), so
-	// just create the subdirs directly here.
-	if err := os.MkdirAll(filepath.Join(home, "cache"), 0755); err != nil {
-		t.Fatalf("mkdir cache: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(home, "envs"), 0755); err != nil {
-		t.Fatalf("mkdir envs: %v", err)
+	if err := utils.EnsureGrimoireSetup(); err != nil {
+		t.Fatalf("EnsureGrimoireSetup: %v", err)
 	}
 	scroll.ResetScrollCache()
 	cache.ResetCache()

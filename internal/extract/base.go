@@ -4,7 +4,7 @@ import (
 	"os"
 	"fmt"
 	"context"
-	"strings"
+	"path/filepath"
 
 	sitter "github.com/smacker/go-tree-sitter"
 
@@ -26,17 +26,16 @@ type FunctionDescriptorGenerator struct {
 func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor, error) {
 	var extractor LanguageExtractor
 
-	if !strings.Contains(g.RelPathToSourceFile, ".") {
+	if filepath.Ext(g.RelPathToSourceFile) == "" {
 		return descriptor.FunctionDescriptor{}, fmt.Errorf("no file extension found: %s", g.RelPathToSourceFile)
 	}
 
 	// Determine the file extension and use the appropriate analyzer
-	file_extensions := strings.Split(g.RelPathToSourceFile, ".")
-	file_extension := file_extensions[len(file_extensions)-1]
+	file_extension := filepath.Ext(g.RelPathToSourceFile)
 	switch file_extension {
-	case "py":
+	case ".py":
 		extractor = &PythonExtractor{}
-	case "go":
+	case ".go":
 		extractor = &GoExtractor{}
 	default:
 		return descriptor.FunctionDescriptor{}, fmt.Errorf("unsupported file extension: %s", file_extension)

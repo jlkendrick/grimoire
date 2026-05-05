@@ -38,21 +38,15 @@ no boilerplate required.
 var staticCommands = map[string]bool{
 	"init": true,
 	"add": true,
-	"sync": true,
+	// "sync": true, TODO
 	"register": true,
-	"clean": true,
+	// "clean": true, TODO
 	"help": true,
 }
 
 func Execute() {
-	if err := utils.EnsureGrimoireHome(); err != nil {
-		fmt.Printf("Warning: could not initialize grimoire home: %v\n", err)
-	}
-	if err := utils.EnsureGrimoireCache(); err != nil {
-		fmt.Printf("Warning: could not initialize grimoire cache: %v\n", err)
-	}
-	if err := utils.EnsureGrimoireEnvs(); err != nil {
-		fmt.Printf("Warning: could not initialize grimoire envs: %v\n", err)
+	if err := utils.EnsureGrimoireSetup(); err != nil {
+		fmt.Printf("Warning: could not setup grimoire directories and files: %v\n", err)
 	}
 
 	// Only build the commands if the user has not requested a static command

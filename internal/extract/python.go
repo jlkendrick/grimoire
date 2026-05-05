@@ -1,11 +1,33 @@
 package extract
 
 import (
+	"strings"
+
 	"github.com/smacker/go-tree-sitter/python"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
+
+// unquotePythonString strips surrounding matching quotes from a Python string
+// literal's source text (e.g. `"world"` -> `world`, `'''hi'''` -> `hi`). It
+// only acts on the outer pair; escape sequences inside are left untouched.
+// Strings with prefixes (r/b/f/u, possibly combined) keep the prefix.
+func unquotePythonString(raw string) string {
+	if len(raw) >= 6 {
+		if (strings.HasPrefix(raw, `"""`) && strings.HasSuffix(raw, `"""`)) ||
+			(strings.HasPrefix(raw, `'''`) && strings.HasSuffix(raw, `'''`)) {
+			return raw[3 : len(raw)-3]
+		}
+	}
+	if len(raw) >= 2 {
+		first, last := raw[0], raw[len(raw)-1]
+		if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
+			return raw[1 : len(raw)-1]
+		}
+	}
+	return raw
+}
 
 var pythonConfig = grammarConfig{
 	language:         python.GetLanguage,
@@ -44,7 +66,11 @@ func extractPythonParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
 			if child.Type() == "identifier" {
 				name = string(child.Content(src))
 			} else {
-				defaultText = string(child.Content(src))
+				content := string(child.Content(src))
+				if child.Type() == "string" {
+					content = unquotePythonString(content)
+				}
+				defaultText = content
 			}
 		}
 		if name == "" {
@@ -104,6 +130,9 @@ func extractPythonParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
 		}
 		if valueNode != nil {
 			defaultText = string(valueNode.Content(src))
+			if valueNode.Type() == "string" {
+				defaultText = unquotePythonString(defaultText)
+			}
 		}
 
 		return []descriptor.ParamDescriptor{{
