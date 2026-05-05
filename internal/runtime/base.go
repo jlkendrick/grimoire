@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"fmt"
+	"sync"
 	"bufio"
 	"bytes"
 	"os/exec"
@@ -93,27 +94,40 @@ func Execute(execution_context *ExecutionContext) ([]byte, error) {
 
 	cmd := exec.Command(binary, flags...)
 
-	stderr, _ := cmd.StderrPipe()
-	stdout, _ := cmd.StdoutPipe()
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, err
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
 
 	// Start the command but don't wait for it to finish
 	cmd.Stdin = bytes.NewReader(json_args)
-	cmd.Start()
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
 
 	// Read the stderr of the command and print it to the console
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
 		}
+		wg.Done()
 	}()
+	wg.Wait()
 
 	// Read the stdout of the command and store it in a buffer
 	var output bytes.Buffer
 	io.Copy(&output, stdout)
 
 	// Wait for the command to finish
-	if err := cmd.Wait(); err != nil {
+	if err = cmd.Wait(); err != nil {
 		return nil, err
 	}
 
