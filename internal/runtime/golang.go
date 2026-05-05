@@ -14,7 +14,6 @@ import (
 	"encoding/json"
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
@@ -264,20 +263,20 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	}
 	execution_context.StateMap["cache_status"] = "compiled"
 	
-	spell := execution_context.StateMap["spell"].(scroll.Spell)
+	descriptor := execution_context.StateMap["descriptor"].(*descriptor.FunctionDescriptor)
 	user_module_name := execution_context.StateMap["user_module_name"].(string)
 	user_go_mod_path := execution_context.StateMap["user_go_mod_path"].(string)
 	args_def := []ParamDef{}
-	for _, param := range spell.Params {
+	for _, param := range descriptor.Params {
 		args_def = append(args_def, ParamDef{
 			Name: uppercaseFirst(param.Name),
-			Type: param.Type,
+			Type: param.ResolvedType.Name,
 			Key: strings.ToLower(param.Name),
 		})
 	}
 
 	// Calculate the import path for the user's module.
-	user_module_path, err := utils.MakeRelativePath(filepath.Dir(spell.AbsPath), filepath.Dir(user_go_mod_path))
+	user_module_path, err := utils.MakeRelativePath(filepath.Dir(descriptor.AbsPathToSourceFile), filepath.Dir(user_go_mod_path))
 	if err != nil {
 		return err
 	}
@@ -291,7 +290,7 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	}
 	wrapper_data := WrapperData{
 		UserModule: user_import_path,
-		FuncName:   spell.Function,
+		FuncName:   descriptor.FunctionName,
 		Args:       args_def,
 	}
 
