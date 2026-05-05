@@ -13,8 +13,7 @@ import (
 type Scroll struct {
 	RegisteredScrolls []ScrollPath `yaml:"registered_scrolls,omitempty"` // Global grimoire only
 	Spells            []Spell  `yaml:"spells,omitempty"` // Repo-level spells
-	
-	Context ContextType `yaml:"-"`
+
 	Path string `yaml:"-"`
 }
 
@@ -36,12 +35,6 @@ func (s *Scroll) Write() error {
 type ScrollPath struct {
 	Path string `yaml:"path"`
 }
-
-type ContextType string
-const (
-	ContextTypeLocal  ContextType = "local"
-	ContextTypeGlobal ContextType = "global"
-)
 
 // InitScroll writes a fresh scroll.yaml in dir and returns the corresponding
 // in-memory Config. Returns ErrScrollExists if one already exists at that path.
@@ -84,14 +77,13 @@ func InitScroll(dir string, include_boilerplate bool) (*Scroll, error) {
 	}
 
 	cfg.Path = path
-	cfg.Context = ContextTypeLocal
 	return &cfg, nil
 }
 
 // RegisterScroll appends scroll_path to the global grimoire's
-// registered_projects list and writes the updated config back to disk.
+// registered_scrolls list and writes the updated config back to disk.
 func RegisterScroll(scroll_path string) error {
-	cfg, err := LoadScroll("global")
+	cfg, err := LoadRegistry()
 	if err != nil {
 		return err
 	}

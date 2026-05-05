@@ -86,10 +86,11 @@ func TestGenerateCommands_FlagsMatchParams(t *testing.T) {
 		ScrollPath: "/tmp/fake/scroll.yaml",
 		Functions: map[string]desc.FunctionDescriptor{
 			"greet": {
-				CommandName:  "greet",
-				FunctionName: "greet",
-				SourceFile:   "/tmp/fake/greet.py",
-				ScrollPath:   "/tmp/fake/scroll.yaml",
+				CommandName:         "greet",
+				FunctionName:        "greet",
+				AbsPathToSourceFile: "/tmp/fake/greet.py",
+				RelPathToSourceFile: "greet.py",
+				ScrollPath:          "/tmp/fake/scroll.yaml",
 				Params: []desc.ParamDescriptor{
 					{Name: "n", ResolvedType: &desc.TypeInfo{Kind: "int", Name: "int"}, Default: 1},
 					{Name: "who", ResolvedType: &desc.TypeInfo{Kind: "string", Name: "str"}, Default: nil},
@@ -160,12 +161,13 @@ func TestRun_OutputCorrect(t *testing.T) {
 	}
 	writeCacheDirect(t, scrollPath, map[string]desc.FunctionDescriptor{
 		"greet": {
-			CommandName:  "greet",
-			FunctionName: "greet",
-			SourceFile:   srcPath,
-			ScrollPath:   scrollPath,
-			Interpreter:  "python3",
-			SourceHash:   srcHash,
+			CommandName:         "greet",
+			FunctionName:        "greet",
+			AbsPathToSourceFile: srcPath,
+			RelPathToSourceFile: "greet.py",
+			ScrollPath:          scrollPath,
+			Interpreter:         "python3",
+			SourceHash:          srcHash,
 			Params: []desc.ParamDescriptor{
 				{Name: "name", ResolvedType: &desc.TypeInfo{Kind: "string", Name: "str"}, Default: "world"},
 			},
@@ -241,7 +243,7 @@ func TestStaleness_SourceFile(t *testing.T) {
 		t.Fatalf("test setup error: rewritten file produced same hash")
 	}
 
-	currentSourceHash, err := utils.HashFile(originalDesc.SourceFile)
+	currentSourceHash, err := utils.HashFile(originalDesc.AbsPathToSourceFile)
 	if err != nil {
 		t.Fatalf("HashFile current: %v", err)
 	}
@@ -250,10 +252,11 @@ func TestStaleness_SourceFile(t *testing.T) {
 	}
 
 	gen := extract.FunctionDescriptorGenerator{
-		CommandName:  originalDesc.CommandName,
-		FunctionName: originalDesc.FunctionName,
-		SourceFile:   originalDesc.SourceFile,
-		ScrollPath:   originalDesc.ScrollPath,
+		CommandName:         originalDesc.CommandName,
+		FunctionName:        originalDesc.FunctionName,
+		AbsPathToSourceFile: originalDesc.AbsPathToSourceFile,
+		RelPathToSourceFile: originalDesc.RelPathToSourceFile,
+		ScrollPath:          originalDesc.ScrollPath,
 	}
 	resolved, err := gen.Generate()
 	if err != nil {
@@ -304,11 +307,12 @@ func TestStaleness_Spell(t *testing.T) {
 
 	writeCacheDirect(t, scrollPath, map[string]desc.FunctionDescriptor{
 		"greet": {
-			CommandName:  "greet",
-			FunctionName: "greet",
-			SourceFile:   srcPath,
-			ScrollPath:   scrollPath,
-			SpellHash:    originalSpellHash,
+			CommandName:         "greet",
+			FunctionName:        "greet",
+			AbsPathToSourceFile: srcPath,
+			RelPathToSourceFile: "greet.py",
+			ScrollPath:          scrollPath,
+			SpellHash:           originalSpellHash,
 			Params: []desc.ParamDescriptor{
 				{Name: "name", ResolvedType: &desc.TypeInfo{Kind: "string", Name: "str"}, Default: nil},
 			},
@@ -347,10 +351,11 @@ func TestStaleness_Spell(t *testing.T) {
 			continue
 		}
 		gen := extract.FunctionDescriptorGenerator{
-			CommandName:  sp.Command,
-			FunctionName: sp.Function,
-			SourceFile:   sp.AbsPath,
-			ScrollPath:   editedScroll.Path,
+			CommandName:         sp.Command,
+			FunctionName:        sp.Function,
+			AbsPathToSourceFile: sp.AbsPath,
+			RelPathToSourceFile: sp.Path,
+			ScrollPath:          editedScroll.Path,
 		}
 		resolved, err := gen.Generate()
 		if err != nil {

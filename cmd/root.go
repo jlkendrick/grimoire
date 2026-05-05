@@ -4,15 +4,15 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"os"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
-	utils "github.com/jlkendrick/grimoire/internal/utils"
 	cache "github.com/jlkendrick/grimoire/internal/cache"
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	resolve "github.com/jlkendrick/grimoire/internal/resolve"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -58,43 +58,47 @@ func Execute() {
 	// Only build the commands if the user has not requested a static command
 	var static_command_called bool
 	if len(os.Args) > 1 {
-		requested_command := os.Args[1]
-		_, ok := staticCommands[requested_command]
+		_, ok := staticCommands[os.Args[1]]
 		static_command_called = ok
-	} else {
-		static_command_called = false
 	}
 
 	if !static_command_called {
-		// Load the descriptors and the scroll and cache them for whatever command comes next
-		scroll_obj, err := scroll.LoadScroll("local")
+		scrolls, err := scroll.LoadScrolls()
 		if err != nil {
-			fmt.Printf("Error loading scroll: %v\n", err)
-			return
-		}
-		descriptor_cache, err := cache.ReadDescriptorCache(scroll_obj.Path)
-		if err != nil {
-			fmt.Printf("Error loading config: %v\n", err)
+			fmt.Printf("Error loading scrolls: %v\n", err)
 			return
 		}
 
-		// Reconcile the scroll and the function descriptors in place if cache is stale
-		err = resolve.ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache)
-		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
-		}
+		// Track command names so we can warn on collisions across registered
+		// scrolls and let the first-registered definition win.
+		seen := map[string]string{}
+		for _, s := range scrolls {
+			descriptor_cache, err := cache.ReadDescriptorCache(s.Path)
+			if err != nil {
+				fmt.Printf("Error loading cache for %s: %v\n", s.Path, err)
+				return
+			}
 
-		// Generate the commands from the (now reconciled) descriptor cache
-		if descriptor_cache.Functions != nil {
-			commands, err := GenerateCommands(descriptor_cache)
+			if err := resolve.ReconcileScrollAndFunctionDescriptors(s, descriptor_cache); err != nil {
+				fmt.Printf("%v\n", err)
+				return
+			}
+
+			if descriptor_cache.Functions == nil {
+				continue
+			}
+			cmds, err := GenerateCommands(descriptor_cache)
 			if err != nil {
 				fmt.Printf("Error generating commands: %v\n", err)
 				return
 			}
-			
-			for _, command := range commands {
-				rootCmd.AddCommand(command)
+			for _, c := range cmds {
+				if prev, ok := seen[c.Use]; ok {
+					fmt.Fprintf(os.Stderr, "warning: command %q in %s shadowed by earlier definition in %s\n", c.Use, s.Path, prev)
+					continue
+				}
+				seen[c.Use] = s.Path
+				rootCmd.AddCommand(c)
 			}
 		}
 	}
@@ -117,5 +121,3 @@ func init() {
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
-
-

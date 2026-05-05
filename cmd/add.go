@@ -208,13 +208,15 @@ var add_cmd = &cobra.Command{
 // no scroll exists in cwd or any parent, initializes one in cwd and registers
 // it with the global grimoire.
 func resolveAddScroll() (*scroll.Scroll, error) {
+	if local, found, err := scroll.LoadLocalScroll(); err != nil {
+		return nil, fmt.Errorf("Error loading local scroll: %v", err)
+	} else if found {
+		return local, nil
+	}
+
 	current_dir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("Error getting current directory: %v", err)
-	}
-
-	if _, found := scroll.FindLocalScroll(current_dir); found {
-		return scroll.LoadScroll("local")
 	}
 
 	fmt.Printf("%s No scroll found, initializing new scroll\n", accent_style("+"))

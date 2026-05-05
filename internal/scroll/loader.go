@@ -1,76 +1,88 @@
 package scroll
 
 import (
-	"os"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
-var cached_scroll *Scroll
-var cached_scroll_path string
+// cached_scrolls memoizes parsed Scroll objects within a single CLI invocation,
+// keyed by absolute path. Cobra command execution is single-threaded, so a
+// plain map is safe.
+var cached_scrolls = map[string]*Scroll{}
 
-// ResetConfigCache clears all cached config state. Intended for use in tests.
+// ResetScrollCache clears all cached scroll state. Intended for use in tests.
 func ResetScrollCache() {
-	cached_scroll = nil
-	cached_scroll_path = ""
+	cached_scrolls = map[string]*Scroll{}
 }
 
-func LoadScroll(scroll_type string) (*Scroll, error) {
-	if cached_scroll != nil {
-		return cached_scroll, nil
+// LoadScrolls returns the active set of scrolls for this invocation:
+//   - If a scroll.yaml is found by walking upward from cwd, returns a single-
+//     element slice containing that local scroll.
+//   - Otherwise, parses ~/.grimoire/grimoire.yaml and returns one Scroll per
+//     RegisteredScrolls entry, in registry order.
+func LoadScrolls() ([]*Scroll, error) {
+	if local, found, err := LoadLocalScroll(); err != nil {
+		return nil, err
+	} else if found {
+		return []*Scroll{local}, nil
 	}
 
-	switch scroll_type {
-	case "local":
-		current_dir, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-
-		// Determine the path to the config file
-		var scroll_path string
-		matched_targets, found := utils.UpwardsTraversalForTargets(current_dir, []string{"scroll.yaml"})
-		if found {
-			scroll_path = matched_targets["scroll.yaml"]
-		} else {
-			// Fall back to the global grimoire config
-			grimoire_home, err := utils.GrimoireHome()
-			if err != nil {
-				return nil, err
-			}
-			scroll_path = grimoire_home + "/grimoire.yaml"
-		}
-
-		// Parse the config file
-		scroll, err := ParseScroll(scroll_path)
-		if err != nil {
-			return nil, err
-		}
-
-		// Cache the config and path, then return
-		cached_scroll = scroll
-		cached_scroll_path = scroll_path
-		return scroll, nil
-
-	case "global":
-		grimoire_home, err := utils.GrimoireHome()
-		if err != nil {
-			return nil, err
-		}
-		scroll_path := grimoire_home + "/grimoire.yaml"
-
-		scroll, err := ParseScroll(scroll_path)
-		if err != nil {
-			return nil, err
-		}
-
-		// Cache the config and path, then return
-		cached_scroll = scroll
-		cached_scroll_path = scroll_path
-		return scroll, nil
-
-	default:
-		return nil, fmt.Errorf("invalid scroll type: %s", scroll_type)
+	registry, err := LoadRegistry()
+	if err != nil {
+		return nil, err
 	}
+
+	scrolls := make([]*Scroll, 0, len(registry.RegisteredScrolls))
+	for _, sp := range registry.RegisteredScrolls {
+		s, err := loadScrollFile(sp.Path)
+		if err != nil {
+			return nil, fmt.Errorf("loading registered scroll %s: %w", sp.Path, err)
+		}
+		scrolls = append(scrolls, s)
+	}
+	return scrolls, nil
+}
+
+// LoadLocalScroll walks upward from cwd looking for a scroll.yaml. Returns
+// (scroll, true, nil) on hit, (nil, false, nil) on miss.
+func LoadLocalScroll() (*Scroll, bool, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, false, err
+	}
+	path, found := FindLocalScroll(cwd)
+	if !found {
+		return nil, false, nil
+	}
+	s, err := loadScrollFile(path)
+	if err != nil {
+		return nil, false, err
+	}
+	return s, true, nil
+}
+
+// LoadRegistry parses the global ~/.grimoire/grimoire.yaml file. The returned
+// Scroll's Path points at grimoire.yaml so callers can mutate
+// RegisteredScrolls and Write() the result back.
+func LoadRegistry() (*Scroll, error) {
+	home, err := utils.GrimoireHome()
+	if err != nil {
+		return nil, err
+	}
+	return loadScrollFile(filepath.Join(home, "grimoire.yaml"))
+}
+
+func loadScrollFile(path string) (*Scroll, error) {
+	if cached, ok := cached_scrolls[path]; ok {
+		return cached, nil
+	}
+	s, err := ParseScroll(path)
+	if err != nil {
+		return nil, err
+	}
+	cached_scrolls[path] = s
+	return s, nil
 }
