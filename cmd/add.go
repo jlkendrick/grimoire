@@ -45,13 +45,13 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		// Check if a spell with the same command name already exists in the config
-		for _, spell := range scroll_obj.Spells {
-			if spell.Command == command_name {
-				fmt.Printf("%s Spell named %s already exists in the scroll\n", accent_style("+"), spell_style(command_name))
-				return
-			}
-		}
+		// // Check if a spell with the same command name already exists in the config
+		// for _, spell := range scroll_obj.Spells {
+		// 	if spell.Command == command_name {
+		// 		fmt.Printf("%s Spell named %s already exists in the scroll\n", accent_style("+"), spell_style(command_name))
+		// 		return
+		// 	}
+		// }
 
 		absolute_path_to_function, err := filepath.Abs(path_to_function)
 		if err != nil {
@@ -134,26 +134,32 @@ var add_cmd = &cobra.Command{
 		
 		// 5. Write the minimal entry to scroll.yaml (unless overrides exist)
 		var spell scroll.Spell
+		// If there was an existing spell, write it as is
 		if existing_spell.Command != "" {
+			// Do nothing
 			spell = existing_spell
+		// If not, generate a minimal spell from the function descriptor
 		} else {
 			spell, err = scroll.GenerateMinimalSpellFromFunctionDescriptor(function_descriptor)
 			if err != nil {
 				fmt.Printf("Error generating minimal spell: %v\n", err)
 				return
 			}
+			scroll_obj.Spells = append(scroll_obj.Spells, spell)
 		}
-		scroll_obj.Spells = append(scroll_obj.Spells, spell)
+		if err := scroll_obj.Write(); err != nil {
+			fmt.Printf("Error writing config file: %v\n", err)
+			return
+		}
 
+		// Set the spell hash for the function descriptor
 		spell_hash, err := spell.Hash()
 		if err != nil {
 			fmt.Printf("Error hashing spell: %v\n", err)
 			return
 		}
-		
-		// Set the spell hash
 		function_descriptor.SpellHash = spell_hash
-
+		
 		// 6. Write the final descriptor to the cache
 		err = cache.AddFunctionDescriptor(function_descriptor)
 		if err != nil {
@@ -194,10 +200,6 @@ var add_cmd = &cobra.Command{
 		}
 		fmt.Printf("%s runtime %s\n", accent_style("└──"), runtimeLine)
 
-		if err := scroll_obj.Write(); err != nil {
-			fmt.Printf("Error writing config file: %v\n", err)
-			return
-		}
 
 		scroll_name := filepath.Base(filepath.Dir(scroll_obj.Path))
 		fmt.Printf("%s Bound to scroll %s\n", accent_style("+"), spell_style(scroll_name))

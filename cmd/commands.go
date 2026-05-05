@@ -143,7 +143,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 				command.Flags().Float64P(param.Name, "", def, "")
 
 			default:
-				return nil, fmt.Errorf("unsupported type: %s", param.ResolvedType.Kind)
+				return nil, fmt.Errorf("unsupported type: %s", param.ResolvedType.Name)
 			}
 		}
 
