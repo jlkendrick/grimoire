@@ -27,15 +27,14 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 			return err
 		}
 		function_descriptor, ok := descriptor_cache.Functions[spell.Function]
-		
+
 		// If no cached descriptor or the scroll has changed, re-extract the function descriptor
-		if !ok ||curr_hash != function_descriptor.SpellHash {
+		if !ok || curr_hash != function_descriptor.SpellHash {
 			if !ok {
 				fmt.Printf("%s Unearthed a new spell: %s. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Function))
 			} else {
 				fmt.Printf("%s Spell %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Function))
 			}
-			// Re-extract the function descriptor
 			abs_path_to_function, err := utils.MakeScrollRelPathAbs(spell.Path, spell.ScrollPath)
 			if err != nil {
 				return fmt.Errorf("error making scroll rel path abs: %v", err)
@@ -54,19 +53,31 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 				return fmt.Errorf("error generating spell descriptor: %v", err)
 			}
 
-			// Resolve the descriptor
 			err = ResolveFunctionDescriptor(&resolved_descriptor)
 			if err != nil {
 				return fmt.Errorf("error resolving function descriptor: %v", err)
 			}
 
-			// Write the updated descriptor to the cache
-			err = cache.AddFunctionDescriptor(resolved_descriptor)
-			if err != nil {
-				return fmt.Errorf("error writing descriptor cache: %v", err)
-			}
 			descriptor_cache.Functions[spell.Function] = resolved_descriptor
 		}
+	}
+
+	// Prune cached descriptors for spells that are no longer in the scroll.
+	in_scroll := make(map[string]struct{}, len(scroll_obj.Spells))
+	for _, spell := range scroll_obj.Spells {
+		in_scroll[spell.Function] = struct{}{}
+	}
+	for fn_name := range descriptor_cache.Functions {
+		if _, ok := in_scroll[fn_name]; !ok {
+			fmt.Printf("%s Banished spell %s from cache\n", utils.SpellStyle("-"), utils.SpellStyle(fn_name))
+			delete(descriptor_cache.Functions, fn_name)
+		}
+	}
+
+	// We got past the early return, so the scroll has diverged from the cached
+	// hash. Persist once: refreshes ScrollHash and writes any extractions/prunes.
+	if err := cache.WriteDescriptorCache(descriptor_cache); err != nil {
+		return fmt.Errorf("error writing descriptor cache: %v", err)
 	}
 	return nil
 }

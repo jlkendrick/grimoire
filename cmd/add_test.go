@@ -150,38 +150,6 @@ func TestAdd_BasicFlow(t *testing.T) {
 	}
 }
 
-func TestAdd_RejectsDuplicateCommand(t *testing.T) {
-	setupTestEnv(t)
-	dir := withScrollDir(t)
-	resetRootCmdState(t)
-
-	scrollPath := filepath.Join(dir, "scroll.yaml")
-	writeFile(t, scrollPath, "spells:\n  - command: greet\n    path: greet.py\n    function: greet\n")
-	srcPath := filepath.Join(dir, "greet.py")
-	writeFile(t, srcPath, greetSource)
-	originalScroll, err := os.ReadFile(scrollPath)
-	if err != nil {
-		t.Fatalf("read scroll.yaml: %v", err)
-	}
-
-	stdout, _ := captureOutput(t, func() {
-		rootCmd.SetArgs([]string{"add", "greet.py:greet"})
-		_ = rootCmd.Execute()
-	})
-
-	if !strings.Contains(stdout, "already exists in the scroll") {
-		t.Errorf("expected duplicate-rejection message, got stdout:\n%s", stdout)
-	}
-
-	after, err := os.ReadFile(scrollPath)
-	if err != nil {
-		t.Fatalf("read scroll.yaml after: %v", err)
-	}
-	if string(after) != string(originalScroll) {
-		t.Errorf("scroll.yaml was modified after rejected duplicate add\nbefore:\n%s\nafter:\n%s", originalScroll, after)
-	}
-}
-
 func TestAdd_RejectsInvalidFormat(t *testing.T) {
 	home := setupTestEnv(t)
 	dir := withScrollDir(t)

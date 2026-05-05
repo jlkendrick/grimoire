@@ -102,7 +102,15 @@ func AddFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) er
 
 	descriptor_cache.Functions[function_descriptor.FunctionName] = function_descriptor
 
-	scroll_hash, err := utils.HashFile(function_descriptor.ScrollPath)
+	return WriteDescriptorCache(descriptor_cache)
+}
+
+// WriteDescriptorCache persists descriptor_cache to disk, refreshing
+// ScrollHash from the current scroll file. Use this after mutating the
+// in-memory cache (e.g. pruning entries) when the per-descriptor write
+// path of AddFunctionDescriptor doesn't apply.
+func WriteDescriptorCache(descriptor_cache *DescriptorCache) error {
+	scroll_hash, err := utils.HashFile(descriptor_cache.ScrollPath)
 	if err != nil {
 		return err
 	}
@@ -112,7 +120,7 @@ func AddFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) er
 	if err != nil {
 		return err
 	}
-	scroll_path_hash, err := utils.HashFilePath(function_descriptor.ScrollPath)
+	scroll_path_hash, err := utils.HashFilePath(descriptor_cache.ScrollPath)
 	if err != nil {
 		return err
 	}
