@@ -13,7 +13,6 @@ import (
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	extract "github.com/jlkendrick/grimoire/internal/extract"
 	resolve "github.com/jlkendrick/grimoire/internal/resolve"
-	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
 var add_cmd = &cobra.Command{
@@ -81,14 +80,7 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
-		// 3. Resolve -> function descriptor (fully complete)
-		err = resolve.ResolveFunctionDescriptor(&function_descriptor)
-		if err != nil {
-			fmt.Printf("Error resolving function descriptor: %v\n", err)
-			return
-		}
-
-		// 4. Read existing scroll entry to perform overrides if spell is already defined
+		// 3. Read existing scroll entry to perform overrides if spell is already defined
 		var existing_spell scroll.Spell
 		for _, spell := range scroll_obj.Spells {
 			if spell.Command == command_name {
@@ -97,42 +89,14 @@ var add_cmd = &cobra.Command{
 			}
 		}
 		if existing_spell.Command != "" {
-			// Map spell fields to IR fields
-			function_descriptor.CommandName = existing_spell.Command
-
-			if existing_spell.Path != "" {
-				function_descriptor.RelPathToSourceFile = existing_spell.Path
-				if err != nil {
-					fmt.Printf("Error making scroll rel path abs: %v\n", err)
-					return
-				}
-			}
-
-			if existing_spell.Function != "" {
-				function_descriptor.FunctionName = existing_spell.Function
-			}
-
-			if len(existing_spell.Params) > 0 {
-				for _, existing_param := range existing_spell.Params {
-					// Look up param in function_descriptor.Params by name
-					for i, ir_param := range function_descriptor.Params {
-						if ir_param.Name == existing_param.Name {
-							function_descriptor.Params[i].ResolvedType = &descriptor.TypeInfo{
-								Name: existing_param.Type,
-							}
-							function_descriptor.Params[i].Default = existing_param.Default
-							break
-						}
-					}
-				}
-			}
-
-			if existing_spell.Interpreter != "" {
-				function_descriptor.Interpreter = existing_spell.Interpreter
+			err = resolve.MergeSpellIntoFunctionDescriptor(existing_spell, &function_descriptor)
+			if err != nil {
+				fmt.Printf("Error merging spell into function descriptor: %v\n", err)
+				return
 			}
 		}
 		
-		// 5. Write the minimal entry to scroll.yaml (unless overrides exist)
+		// 4. Write the minimal entry to scroll.yaml (unless overrides exist)
 		var spell scroll.Spell
 		// If there was an existing spell, write it as is
 		if existing_spell.Command != "" {
@@ -160,7 +124,7 @@ var add_cmd = &cobra.Command{
 		}
 		function_descriptor.SpellHash = spell_hash
 		
-		// 6. Write the final descriptor to the cache
+		// 5. Write the final descriptor to the cache
 		err = cache.AddFunctionDescriptor(function_descriptor)
 		if err != nil {
 			fmt.Printf("Error writing cache: %v\n", err)

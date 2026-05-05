@@ -11,7 +11,6 @@ import (
 
 // Check if any of the cached descriptors are stale relative to the spell entries in the user's scroll.yaml file
 func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) error {
-
 	// Check if the scroll has changed since last run
 	scroll_hash, err := utils.HashFile(scroll_obj.Path)
 	if err != nil {
@@ -53,9 +52,9 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 				return fmt.Errorf("error generating spell descriptor: %v", err)
 			}
 
-			err = ResolveFunctionDescriptor(&resolved_descriptor)
+			err = MergeSpellIntoFunctionDescriptor(spell, &resolved_descriptor)
 			if err != nil {
-				return fmt.Errorf("error resolving function descriptor: %v", err)
+				return fmt.Errorf("error merging spell into function descriptor: %v", err)
 			}
 
 			descriptor_cache.Functions[spell.Function] = resolved_descriptor

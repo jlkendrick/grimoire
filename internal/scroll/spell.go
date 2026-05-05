@@ -3,7 +3,6 @@ package scroll
 import (
 	"os"
 	"fmt"
-	"strconv"
 	"encoding/json"
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
@@ -67,10 +66,9 @@ type Param struct {
 	Default any 	 `yaml:"default,omitempty"`
 }
 
-// UnmarshalYAML normalizes the concrete type of Default when YAML has already
-// parsed it into a scalar (e.g. uint8(3) vs int(3)). We intentionally do not
-// coerce string defaults like "1" into numeric types here, because user config
-// may represent defaults as strings prior to typed casting/validation.
+// UnmarshalYAML stringifies Default so the descriptor IR carries a single
+// canonical form. Typed coercion happens at the use site (cobra flag
+// construction).
 func (p *Param) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type rawParam Param
 	var tmp rawParam
@@ -80,98 +78,15 @@ func (p *Param) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	*p = Param(tmp)
 
-	// Normalize only when YAML produced a non-string scalar.
-	switch p.Type {
-	case "int":
-		switch v := p.Default.(type) {
-		case int:
-			// ok
-		case int8:
-			p.Default = int(v)
-		case int16:
-			p.Default = int(v)
-		case int32:
-			p.Default = int(v)
-		case int64:
-			p.Default = int(v)
-		case uint:
-			p.Default = int(v)
-		case uint8:
-			p.Default = int(v)
-		case uint16:
-			p.Default = int(v)
-		case uint32:
-			p.Default = int(v)
-		case uint64:
-			p.Default = int(v)
-		}
-	case "float":
-		switch v := p.Default.(type) {
-		case float64:
-			// ok
-		case float32:
-			p.Default = float64(v)
-		case int:
-			p.Default = float64(v)
-		case int8:
-			p.Default = float64(v)
-		case int16:
-			p.Default = float64(v)
-		case int32:
-			p.Default = float64(v)
-		case int64:
-			p.Default = float64(v)
-		case uint:
-			p.Default = float64(v)
-		case uint8:
-			p.Default = float64(v)
-		case uint16:
-			p.Default = float64(v)
-		case uint32:
-			p.Default = float64(v)
-		case uint64:
-			p.Default = float64(v)
-		}
+	if p.Default == nil {
+		return nil
 	}
-
+	if _, ok := p.Default.(string); !ok {
+		p.Default = fmt.Sprint(p.Default)
+	}
 	return nil
 }
 
 func (p Param) String() string {
 	return fmt.Sprintf("Param{\n\t\tName: %s,\n\t\tType: %s,\n\t\tDefault: %v\n\t}", p.Name, p.Type, p.Default)
-}
-
-func (p *Param) CastAndSetDefault() error {
-	// Cast the default values to the appropriate type
-	switch p.Type {
-
-	case "string", "str":
-		p.Default = p.Default.(string)
-
-	case "int":
-		int_default, err := strconv.Atoi(p.Default.(string))
-		if err != nil {
-			return fmt.Errorf("error converting default value to int: %v", err)
-		}
-		p.Default = int_default
-
-	case "bool":
-		bool_default, err := strconv.ParseBool(p.Default.(string))
-		if err != nil {
-			return fmt.Errorf("error converting default value to bool: %v", err)
-		}
-		p.Default = bool_default
-
-	case "float":
-		float_default, err := strconv.ParseFloat(p.Default.(string), 64)
-		if err != nil {
-			return fmt.Errorf("error converting default value to float: %v", err)
-		}
-		p.Default = float_default
-
-	default:
-		return fmt.Errorf("unsupported type: %s", p.Type)
-	}
-	
-	return nil
 }

@@ -92,7 +92,7 @@ func TestGenerateCommands_FlagsMatchParams(t *testing.T) {
 				RelPathToSourceFile: "greet.py",
 				ScrollPath:          "/tmp/fake/scroll.yaml",
 				Params: []desc.ParamDescriptor{
-					{Name: "n", ResolvedType: &desc.TypeInfo{Kind: "int", Name: "int"}, Default: 1},
+					{Name: "n", ResolvedType: &desc.TypeInfo{Kind: "int", Name: "int"}, Default: "1"},
 					{Name: "who", ResolvedType: &desc.TypeInfo{Kind: "string", Name: "str"}, Default: nil},
 				},
 			},

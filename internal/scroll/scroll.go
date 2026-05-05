@@ -17,6 +17,10 @@ type Scroll struct {
 	Path string `yaml:"-"`
 }
 
+func (s *Scroll) String() string {
+	return fmt.Sprintf("Scroll(Path: %s, Spells: %v)", s.Path, s.Spells)
+}
+
 func (s *Scroll) Write() error {
 	yaml_content, err := yaml.MarshalWithOptions(s,
 		yaml.Indent(2),
