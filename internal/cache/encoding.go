@@ -25,7 +25,7 @@ type DescriptorCache struct {
 	Version 	 int 							                        `json:"version"`
 	ScrollHash string 							                    `json:"scroll_hash"`
 	ScrollPath string 							                    `json:"scroll_path"`
-	Functions  map[string]descriptor.FunctionDescriptor `json:"functions"` // function name -> function descriptor
+	Functions  map[string]descriptor.FunctionDescriptor `json:"functions"` // spell command -> function descriptor
 }
 
 // cached_descriptor_caches memoizes per-scroll DescriptorCache objects within
@@ -100,7 +100,7 @@ func AddFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor) er
 		return err
 	}
 
-	descriptor_cache.Functions[function_descriptor.FunctionName] = function_descriptor
+	descriptor_cache.Functions[function_descriptor.CommandName] = function_descriptor
 
 	return WriteDescriptorCache(descriptor_cache)
 }

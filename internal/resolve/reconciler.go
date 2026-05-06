@@ -32,7 +32,7 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 			if !ok {
 				fmt.Printf("%s Unearthed a new spell: %s. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Function))
 			} else {
-				fmt.Printf("%s Spell %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Function))
+				fmt.Printf("%s Spell %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Command))
 			}
 			abs_path_to_function, err := utils.MakeScrollRelPathAbs(spell.Path, spell.ScrollPath)
 			if err != nil {

@@ -63,9 +63,9 @@ func InitScroll(dir string, include_boilerplate bool) (*Scroll, error) {
 			},
 		}
 		opts = append(opts, yaml.WithComment(yaml.CommentMap{
-			"$.spells[0].command":            []*yaml.Comment{yaml.LineComment("CLI command associated with running the function")},
-			"$.spells[0].path":            []*yaml.Comment{yaml.LineComment("Path to the file containing the function")},
-			"$.spells[0].function":        []*yaml.Comment{yaml.LineComment("Name of the function to run")},
+			"$.spells[0].command":           []*yaml.Comment{yaml.LineComment("CLI command associated with running the function")},
+			"$.spells[0].path":              []*yaml.Comment{yaml.LineComment("Path to the file containing the function")},
+			"$.spells[0].function":          []*yaml.Comment{yaml.LineComment("Name of the function to run")},
 			"$.spells[0].params[0].name":    []*yaml.Comment{yaml.LineComment("Name of the argument")},
 			"$.spells[0].params[0].type":    []*yaml.Comment{yaml.LineComment("Type of the argument")},
 			"$.spells[0].params[0].default": []*yaml.Comment{yaml.LineComment("Default value of the argument (optional)")},
