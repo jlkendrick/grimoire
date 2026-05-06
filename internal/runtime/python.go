@@ -3,6 +3,7 @@ package runtime
 import (
 	"os"
 	"fmt"
+	"strconv"
 	"strings"
 	"os/exec"
 	"path/filepath"
@@ -135,25 +136,29 @@ func (a *PythonAdapter) PrepareCommand(execution_context *ExecutionContext) erro
 	target_dir := filepath.Dir(descriptor.AbsPathToSourceFile)
 	module := strings.TrimSuffix(filepath.Base(descriptor.AbsPathToSourceFile), ".py")
 
+  // strconv.Quote emits a Go double-quoted string with all special chars
+  // (quotes, backslashes, newlines, non-ASCII) properly escaped. Python's
+  // string-literal syntax is a superset of this, so the result parses cleanly
+  // regardless of what's in the path or function name.
   inlineScript := fmt.Sprintf(`
 import sys, json, importlib, os
 from contextlib import redirect_stdout
 
-target_dir = os.path.expanduser('%s')
-sys.path.append(target_dir)
+target_dir = os.path.expanduser(%s)
+sys.path.insert(0, target_dir)
 
-mod = importlib.import_module('%s')
+mod = importlib.import_module(%s)
 
 kwargs = json.loads(sys.stdin.read())
 with redirect_stdout(sys.stderr):
-    result = getattr(mod, '%s')(**kwargs)
+    result = getattr(mod, %s)(**kwargs)
 
 if result is not None:
     if isinstance(result, (dict, list)):
         print(json.dumps(result))
     else:
         print(result)
-`, target_dir, module, descriptor.FunctionName)
+`, strconv.Quote(target_dir), strconv.Quote(module), strconv.Quote(descriptor.FunctionName))
 
   json_args, err := json.Marshal(args)
 	if err != nil {

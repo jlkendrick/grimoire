@@ -110,8 +110,10 @@ func Execute(execution_context *ExecutionContext) ([]byte, error) {
 		return nil, err
 	}
 
-	// Read the stderr of the command and print it to the console
+	// Read the stdout and stderr of the command in parallel
 	var wg sync.WaitGroup
+	
+	// Read the stderr of the command and print it to the console
 	wg.Add(1)
 	go func() {
 		scanner := bufio.NewScanner(stderr)
@@ -120,11 +122,16 @@ func Execute(execution_context *ExecutionContext) ([]byte, error) {
 		}
 		wg.Done()
 	}()
-	wg.Wait()
-
+	
 	// Read the stdout of the command and store it in a buffer
 	var output bytes.Buffer
-	io.Copy(&output, stdout)
+	wg.Add(1)
+	go func() {
+		io.Copy(&output, stdout)
+		wg.Done()
+	}()
+
+	wg.Wait()
 
 	// Wait for the command to finish
 	if err = cmd.Wait(); err != nil {

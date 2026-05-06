@@ -3,9 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
+	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -19,7 +20,15 @@ import (
 func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command, error) {
 	commands := []*cobra.Command{}
 
+	sorted_function_descriptors := []*descriptor.FunctionDescriptor{}
 	for _, function_descriptor := range descriptor_cache.Functions {
+		sorted_function_descriptors = append(sorted_function_descriptors, &function_descriptor)
+	}
+	sort.Slice(sorted_function_descriptors, func(i, j int) bool {
+		return sorted_function_descriptors[i].CommandName < sorted_function_descriptors[j].CommandName
+	})
+
+	for _, function_descriptor := range sorted_function_descriptors {
 		command := &cobra.Command{
 			Use: function_descriptor.CommandName,
 			Run: func(cmd *cobra.Command, args []string) {
@@ -59,7 +68,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 					
 				} else {
 					// Use the cached descriptor
-					resolved_descriptor = function_descriptor
+					resolved_descriptor = *function_descriptor
 				}
 
 				payload := buildPayload(resolved_descriptor, cmd)

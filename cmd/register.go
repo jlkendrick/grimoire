@@ -1,22 +1,33 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
+	"fmt"
+	"path/filepath"
 
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 
 	"github.com/spf13/cobra"
 )
 
 var register_cmd = &cobra.Command{
-	Use:   "register [path_to_project]",
+	Use:   "register [path_to_scroll]",
 	Short: "Register a project with the global grimoire",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		var path_to_project string
+		var relative_path_to_scroll string
+		var absolute_path_to_scroll string
+		var err error
+
 		if len(args) > 0 {
-			path_to_project = args[0]
+			relative_path_to_scroll = args[0]
+			absolute_path_to_scroll, err = filepath.Abs(relative_path_to_scroll)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+
 		} else {
 			current_dir, err := os.Getwd()
 			if err != nil {
@@ -28,15 +39,21 @@ var register_cmd = &cobra.Command{
 				fmt.Printf("Error: no scroll.yaml file found in the current directory or any parent directories\n")
 				return
 			}
-			path_to_project = scroll_path
+			// Scroll path is already absolute
+			relative_path_to_scroll, err = utils.MakeRelativePath(scroll_path, current_dir)
+			if err != nil {
+				fmt.Printf("Error making relative path: %v\n", err)
+				return
+			}
+			absolute_path_to_scroll = scroll_path
 		}
 
-		if err := scroll.RegisterScroll(path_to_project); err != nil {
+		if err := scroll.RegisterScroll(absolute_path_to_scroll); err != nil {
 			fmt.Printf("Error registering scroll: %v\n", err)
 			return
 		}
 
-		fmt.Printf("%s Bound %s to the global grimoire\n", accent_style("+"), path_to_project)
+		fmt.Printf("%s Bound %s to the global grimoire\n", accent_style("+"), relative_path_to_scroll)
 	},
 }
 

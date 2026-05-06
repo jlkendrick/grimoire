@@ -63,12 +63,12 @@ func InitScroll(dir string, include_boilerplate bool) (*Scroll, error) {
 			},
 		}
 		opts = append(opts, yaml.WithComment(yaml.CommentMap{
-			"$.functions[0].name":            []*yaml.Comment{yaml.LineComment("CLI command associated with running the function")},
-			"$.functions[0].path":            []*yaml.Comment{yaml.LineComment("Path to the file containing the function")},
-			"$.functions[0].function":        []*yaml.Comment{yaml.LineComment("Name of the function to run")},
-			"$.functions[0].args[0].name":    []*yaml.Comment{yaml.LineComment("Name of the argument")},
-			"$.functions[0].args[0].type":    []*yaml.Comment{yaml.LineComment("Type of the argument")},
-			"$.functions[0].args[0].default": []*yaml.Comment{yaml.LineComment("Default value of the argument (optional)")},
+			"$.spells[0].command":            []*yaml.Comment{yaml.LineComment("CLI command associated with running the function")},
+			"$.spells[0].path":            []*yaml.Comment{yaml.LineComment("Path to the file containing the function")},
+			"$.spells[0].function":        []*yaml.Comment{yaml.LineComment("Name of the function to run")},
+			"$.spells[0].params[0].name":    []*yaml.Comment{yaml.LineComment("Name of the argument")},
+			"$.spells[0].params[0].type":    []*yaml.Comment{yaml.LineComment("Type of the argument")},
+			"$.spells[0].params[0].default": []*yaml.Comment{yaml.LineComment("Default value of the argument (optional)")},
 		}))
 	}
 
@@ -84,13 +84,23 @@ func InitScroll(dir string, include_boilerplate bool) (*Scroll, error) {
 	return &cfg, nil
 }
 
-// RegisterScroll appends scroll_path to the global grimoire's
+// RegisterScroll appends absolute_scroll_path to the global grimoire's
 // registered_scrolls list and writes the updated config back to disk.
-func RegisterScroll(scroll_path string) error {
+func RegisterScroll(absolute_scroll_path string) error {
 	cfg, err := LoadRegistry()
 	if err != nil {
 		return err
 	}
-	cfg.RegisteredScrolls = append(cfg.RegisteredScrolls, ScrollPath{Path: scroll_path})
+
+	// Ensure that the scroll exists and doesn't already exist in the registered_scrolls list
+	if _, err := os.Stat(absolute_scroll_path); err != nil {
+		return fmt.Errorf("scroll %s does not exist", absolute_scroll_path)
+	}
+	for _, registered_scroll := range cfg.RegisteredScrolls {
+		if registered_scroll.Path == absolute_scroll_path {
+			return fmt.Errorf("scroll %s already registered", absolute_scroll_path)
+		}
+	}
+	cfg.RegisteredScrolls = append(cfg.RegisteredScrolls, ScrollPath{Path: absolute_scroll_path})
 	return cfg.Write()
 }

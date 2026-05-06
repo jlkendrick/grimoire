@@ -62,7 +62,7 @@ func EnsureGrimoireSetup() error {
 	// Create the grimoire.yaml file
 	grimoire_yaml_path := filepath.Join(home, "grimoire.yaml")
 	if _, err := os.Stat(grimoire_yaml_path); os.IsNotExist(err) {
-		return os.WriteFile(grimoire_yaml_path, []byte("registered_projects: []\n"), 0644)
+		return os.WriteFile(grimoire_yaml_path, []byte("registered_scrolls: []\n"), 0644)
 	}
 	return nil
 }
