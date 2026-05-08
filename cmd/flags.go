@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"bytes"
 	"strconv"
+	"encoding/json"
 
 	"github.com/spf13/cobra"
 
@@ -93,6 +95,39 @@ func buildPayload(function_descriptor descriptor.FunctionDescriptor, cmd *cobra.
 	}
 
 	return payload
+}
+
+// buildPayloadFromResult turns the previous step's stdout (a single JSON
+// value) into a payload for the next step. If the previous output is a JSON
+// list whose length matches the next step's param count and there is more
+// than one param, it unpacks positionally — mirroring Python's
+// `return val1, val2`. Otherwise the whole decoded value is bound to the
+// first param. Single-param steps never destructure, so a function that
+// returns a list-as-data reaches the next step intact.
+func buildPayloadFromResult(prev_output []byte, function_descriptor descriptor.FunctionDescriptor) (map[string]interface{}, error) {
+	var decoded interface{}
+	if len(bytes.TrimSpace(prev_output)) > 0 {
+		if err := json.Unmarshal(prev_output, &decoded); err != nil {
+			return nil, fmt.Errorf("step %s: previous output is not valid JSON: %v", function_descriptor.CommandName, err)
+		}
+	}
+
+	payload := make(map[string]interface{})
+
+	if list, ok := decoded.([]interface{}); ok && len(function_descriptor.Params) > 1 {
+		if len(list) != len(function_descriptor.Params) {
+			return nil, fmt.Errorf("step %s: previous output has %d values but step expects %d params", function_descriptor.CommandName, len(list), len(function_descriptor.Params))
+		}
+		for i, param := range function_descriptor.Params {
+			payload[param.Name] = list[i]
+		}
+		return payload, nil
+	}
+
+	if len(function_descriptor.Params) >= 1 {
+		payload[function_descriptor.Params[0].Name] = decoded
+	}
+	return payload, nil
 }
 
 // stringDefault extracts a string Default from a ParamDescriptor. The

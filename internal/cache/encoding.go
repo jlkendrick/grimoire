@@ -84,6 +84,15 @@ func ReadDescriptorCache(scroll_path string) (*DescriptorCache, error) {
 	if err := json.Unmarshal(cache_data, &dc); err != nil {
 		return nil, err
 	}
+
+	// If there are no functions or pipelines, intitialize them to empty maps to
+	// avoid nil map dereferences.
+	if dc.Functions == nil {
+		dc.Functions = make(map[string]descriptor.FunctionDescriptor)
+	}
+	if dc.Pipelines == nil {
+		dc.Pipelines = make(map[string]descriptor.PipelineDescriptor)
+	}
 	cached_descriptor_caches[scroll_path] = &dc
 	return &dc, nil
 }

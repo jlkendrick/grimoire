@@ -27,8 +27,15 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 		commands = append(commands, command)
 	}
 
+	pipeline_descriptors := make([]descriptor.PipelineDescriptor, 0, len(descriptor_cache.Pipelines))
 	for _, pd := range descriptor_cache.Pipelines {
-		command, err := buildPipelineCommand(pd)
+		pipeline_descriptors = append(pipeline_descriptors, pd)
+	}
+	sort.Slice(pipeline_descriptors, func(i, j int) bool {
+		return pipeline_descriptors[i].CommandName < pipeline_descriptors[j].CommandName
+	})
+	for _, pd := range pipeline_descriptors {
+		command, err := buildPipelineCommand(pd, descriptor_cache)
 		if err != nil {
 			return nil, err
 		}

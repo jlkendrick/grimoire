@@ -76,7 +76,7 @@ func Execute() {
 				return
 			}
 
-			if err := resolve.ReconcileScrollAndFunctionDescriptors(s, descriptor_cache); err != nil {
+			if err := resolve.ReconcileScrollAndDescriptors(s, descriptor_cache); err != nil {
 				fmt.Printf("%v\n", err)
 				return
 			}

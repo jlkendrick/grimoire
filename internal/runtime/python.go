@@ -154,10 +154,7 @@ with redirect_stdout(sys.stderr):
     result = getattr(mod, %s)(**kwargs)
 
 if result is not None:
-    if isinstance(result, (dict, list)):
-        print(json.dumps(result))
-    else:
-        print(result)
+    print(json.dumps(result))
 `, strconv.Quote(target_dir), strconv.Quote(module), strconv.Quote(descriptor.FunctionName))
 
   json_args, err := json.Marshal(args)

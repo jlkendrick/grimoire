@@ -7,11 +7,11 @@ import (
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	extract "github.com/jlkendrick/grimoire/internal/extract"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
-// Check if any of the cached descriptors are stale relative to the spell entries in the user's scroll.yaml file
-func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) error {
-	// Check if the scroll has changed since last run
+func ReconcileScrollAndDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) error {
+	// Check if the scroll has changed since last run (early return if not)
 	scroll_hash, err := utils.HashFile(scroll_obj.Path)
 	if err != nil {
 		return fmt.Errorf("error hashing scroll: %v", err)
@@ -20,10 +20,35 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 		return nil
 	}
 
+	// Reconcile the scroll and function descriptors
+	mutated, err := ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache); if err != nil {
+		return fmt.Errorf("error reconciling scroll and function descriptors: %v", err)
+	}
+
+	// Reconcile the scroll and pipeline descriptors
+	mutated, err = ReconcileScrollAndPipelineDescriptors(scroll_obj, descriptor_cache); if err != nil {
+		return fmt.Errorf("error reconciling scroll and pipeline descriptors: %v", err)
+	}
+
+	// If we made any changes, write the descriptor cache
+	if mutated {
+		descriptor_cache.ScrollHash = scroll_hash
+		if err := cache.WriteDescriptorCache(descriptor_cache); err != nil {
+			return fmt.Errorf("error writing descriptor cache: %v", err)
+		}
+	}
+	return nil
+}
+
+// Check if any of the cached descriptors are stale relative to the spell entries in the user's scroll.yaml file
+func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) (bool, error) {
+	mutated := false
+
+	// Spells -> Function descriptors
 	for _, spell := range scroll_obj.Spells {
 		curr_hash, err := spell.Hash()
 		if err != nil {
-			return err
+			return false, fmt.Errorf("error hashing spell: %v", err)
 		}
 		function_descriptor, ok := descriptor_cache.Functions[spell.Function]
 
@@ -36,7 +61,7 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 			}
 			abs_path_to_function, err := utils.MakeScrollRelPathAbs(spell.Path, spell.ScrollPath)
 			if err != nil {
-				return fmt.Errorf("error making scroll rel path abs: %v", err)
+				return false, fmt.Errorf("error making scroll rel path abs: %v", err)
 			}
 			function_descriptor_generator := extract.FunctionDescriptorGenerator{
 				CommandName: spell.Command,
@@ -49,15 +74,16 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 			}
 			resolved_descriptor, err := function_descriptor_generator.Generate()
 			if err != nil {
-				return fmt.Errorf("error generating spell descriptor: %v", err)
+				return false, fmt.Errorf("error generating spell descriptor: %v", err)
 			}
 
 			err = MergeSpellIntoFunctionDescriptor(spell, &resolved_descriptor)
 			if err != nil {
-				return fmt.Errorf("error merging spell into function descriptor: %v", err)
+				return false, fmt.Errorf("error merging spell into function descriptor: %v", err)
 			}
 
 			descriptor_cache.Functions[spell.Function] = resolved_descriptor
+			mutated = true
 		}
 	}
 
@@ -70,13 +96,62 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 		if _, ok := in_scroll[fn_name]; !ok {
 			fmt.Printf("%s Banished spell %s from cache\n", utils.SpellStyle("-"), utils.SpellStyle(fn_name))
 			delete(descriptor_cache.Functions, fn_name)
+			mutated = true
+		}
+	}
+	return mutated, nil
+}
+
+func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) (bool, error) {
+	mutated := false
+
+	// Rituals -> Pipeline descriptors
+	for _, ritual := range scroll_obj.Rituals {
+		// All we have to do here is check that all steps in the ritual are valid spells
+		// in our descriptor cache. They are already reconciled by the above function that
+		// runs before this one in the root.go file.
+		for _, step := range ritual.Steps {
+			_, ok := descriptor_cache.Functions[step.Spell]
+			if !ok {
+				return false, fmt.Errorf("spell %s not found in descriptor cache", step.Spell)
+			}
+		}
+
+		// If the ritual is not in the descriptor cache, add it
+		if _, ok := descriptor_cache.Pipelines[ritual.Command]; !ok {
+			fmt.Printf("Adding new pipeline descriptor for %s\n", ritual.Command)
+			steps := make([]descriptor.StepDescriptor, 0, len(ritual.Steps))
+			for _, step := range ritual.Steps {
+				steps = append(steps, descriptor.StepDescriptor{
+					SpellName: step.Spell,
+				})
+			}
+			ritual_hash, err := ritual.Hash()
+			if err != nil {
+				return false, fmt.Errorf("error hashing ritual: %v", err)
+			}
+			pipeline_descriptor := descriptor.PipelineDescriptor{
+				CommandName: ritual.Command,
+				Steps: steps,
+				RitualHash: ritual_hash,
+			}
+			descriptor_cache.Pipelines[ritual.Command] = pipeline_descriptor
+			mutated = true
 		}
 	}
 
-	// We got past the early return, so the scroll has diverged from the cached
-	// hash. Persist once: refreshes ScrollHash and writes any extractions/prunes.
-	if err := cache.WriteDescriptorCache(descriptor_cache); err != nil {
-		return fmt.Errorf("error writing descriptor cache: %v", err)
+	// Prune cached descriptors for functions that are no longer in the scroll.
+	in_scroll := make(map[string]struct{}, len(scroll_obj.Rituals))
+	for _, ritual := range scroll_obj.Rituals {
+		in_scroll[ritual.Command] = struct{}{}
 	}
-	return nil
+	for ritual_name := range descriptor_cache.Pipelines {
+		if _, ok := in_scroll[ritual_name]; !ok {
+			fmt.Printf("%s Banished ritual %s from cache\n", utils.SpellStyle("-"), utils.SpellStyle(ritual_name))
+			delete(descriptor_cache.Pipelines, ritual_name)
+			mutated = true
+		}
+	}
+
+	return mutated, nil
 }
