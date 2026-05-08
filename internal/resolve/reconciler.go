@@ -21,17 +21,17 @@ func ReconcileScrollAndDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *
 	}
 
 	// Reconcile the scroll and function descriptors
-	mutated, err := ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache); if err != nil {
+	mutated1, err := ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache); if err != nil {
 		return fmt.Errorf("error reconciling scroll and function descriptors: %v", err)
 	}
 
 	// Reconcile the scroll and pipeline descriptors
-	mutated, err = ReconcileScrollAndPipelineDescriptors(scroll_obj, descriptor_cache); if err != nil {
+	mutated2, err := ReconcileScrollAndPipelineDescriptors(scroll_obj, descriptor_cache); if err != nil {
 		return fmt.Errorf("error reconciling scroll and pipeline descriptors: %v", err)
 	}
 
 	// If we made any changes, write the descriptor cache
-	if mutated {
+	if mutated1 || mutated2 {
 		descriptor_cache.ScrollHash = scroll_hash
 		if err := cache.WriteDescriptorCache(descriptor_cache); err != nil {
 			return fmt.Errorf("error writing descriptor cache: %v", err)
@@ -50,12 +50,12 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 		if err != nil {
 			return false, fmt.Errorf("error hashing spell: %v", err)
 		}
-		function_descriptor, ok := descriptor_cache.Functions[spell.Function]
+		function_descriptor, ok := descriptor_cache.Functions[spell.Command]
 
 		// If no cached descriptor or the scroll has changed, re-extract the function descriptor
 		if !ok || curr_hash != function_descriptor.SpellHash {
 			if !ok {
-				fmt.Printf("%s Unearthed a new spell: %s. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Function))
+				fmt.Printf("%s Unearthed a new spell: %s. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Command))
 			} else {
 				fmt.Printf("%s Spell %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Command))
 			}

@@ -22,7 +22,7 @@ func ResetScrollCache() {
 //   - If a scroll.yaml is found by walking upward from cwd, returns a single-
 //     element slice containing that local scroll.
 //   - Otherwise, parses ~/.grimoire/grimoire.yaml and returns one Scroll per
-//     RegisteredScrolls entry, in registry order.
+//     RegisteredScrolls entry, in registry order (see LoadGlobalScrolls)
 func LoadScrolls() ([]*Scroll, error) {
 	if local, found, err := LoadLocalScroll(); err != nil {
 		return nil, err
@@ -30,11 +30,16 @@ func LoadScrolls() ([]*Scroll, error) {
 		return []*Scroll{local}, nil
 	}
 
+	return LoadGlobalScrolls()
+}
+
+// 
+func LoadGlobalScrolls() ([]*Scroll, error) {
 	registry, err := LoadRegistry()
 	if err != nil {
 		return nil, err
 	}
-
+	
 	scrolls := make([]*Scroll, 0, len(registry.RegisteredScrolls))
 	for _, sp := range registry.RegisteredScrolls {
 		s, err := loadScrollFile(sp.Path)
@@ -43,8 +48,10 @@ func LoadScrolls() ([]*Scroll, error) {
 		}
 		scrolls = append(scrolls, s)
 	}
+
 	return scrolls, nil
 }
+
 
 // LoadLocalScroll walks upward from cwd looking for a scroll.yaml. Returns
 // (scroll, true, nil) on hit, (nil, false, nil) on miss.

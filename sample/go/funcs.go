@@ -14,3 +14,7 @@ func HelloWorld(n int) string {
 
 	return "Hello, World!"
 }
+
+func TestPipe() (string, string) {
+	return "Output11", "Output12"
+}

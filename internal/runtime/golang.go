@@ -108,6 +108,12 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 		return fmt.Errorf("error writing generated go.mod: %w", err)
 	}
 
+	// Write the .grimoire_origin file
+	origin_path := filepath.Join(env_path, ".grimoire_origin")
+	if err := os.WriteFile(origin_path, []byte(descriptor.AbsPathToSourceFile), 0644); err != nil {
+		return fmt.Errorf("error writing .grimoire_origin file: %w", err)
+	}
+
 	execution_context.StateMap["user_go_mod_path"] = user_go_mod_path
 	execution_context.StateMap["user_module_name"] = user_module_name
 	execution_context.StateMap["env_path"] = env_path
