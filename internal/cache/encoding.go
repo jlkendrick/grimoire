@@ -65,13 +65,9 @@ func ReadDescriptorCache(scroll_path string) (*DescriptorCache, error) {
 	cache_file := filepath.Join(cache_dir, filename_hash+".json")
 
 	if _, err := os.Stat(cache_file); os.IsNotExist(err) {
-		scroll_hash, err := utils.HashFile(scroll_path)
-		if err != nil {
-			return nil, err
-		}
 		dc := &DescriptorCache{
 			Version:    CACHE_VERSION,
-			ScrollHash: scroll_hash,
+			ScrollHash: "", // empty so that we correctly trigger a re-run of the reconciler
 			ScrollPath: scroll_path,
 			Functions:  make(map[string]descriptor.FunctionDescriptor),
 		}
