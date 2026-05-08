@@ -26,6 +26,7 @@ type DescriptorCache struct {
 	ScrollHash string 							                    `json:"scroll_hash"`
 	ScrollPath string 							                    `json:"scroll_path"`
 	Functions  map[string]descriptor.FunctionDescriptor `json:"functions"` // spell command -> function descriptor
+	Pipelines  map[string]descriptor.PipelineDescriptor `json:"pipelines"` // ritual command -> pipeline descriptor
 }
 
 // cached_descriptor_caches memoizes per-scroll DescriptorCache objects within

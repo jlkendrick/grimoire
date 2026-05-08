@@ -1,5 +1,5 @@
 def hello_world(n: int = 1):
-	print(f"Hell{"o" * n}, World!")
+	# print(f"Hell{"o" * n}, World!")
 
 	return "This is a return value"
 

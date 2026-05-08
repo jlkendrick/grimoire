@@ -65,7 +65,10 @@ func Execute() {
 
 		// Track command names so we can warn on collisions across registered
 		// scrolls and let the first-registered definition win.
+		var cmds []*cobra.Command
 		seen := map[string]string{}
+
+		// Generate commands for all spells and rituals
 		for _, s := range scrolls {
 			descriptor_cache, err := cache.ReadDescriptorCache(s.Path)
 			if err != nil {
@@ -81,7 +84,7 @@ func Execute() {
 			if descriptor_cache.Functions == nil {
 				continue
 			}
-			cmds, err := GenerateCommands(descriptor_cache)
+			cmds, err = GenerateCommands(descriptor_cache)
 			if err != nil {
 				fmt.Printf("Error generating commands: %v\n", err)
 				return

@@ -12,9 +12,15 @@ import (
 // User-facing structs. Simplified version of internal-only FunctionDescriptor.
 type Scroll struct {
 	RegisteredScrolls []ScrollPath `yaml:"registered_scrolls,omitempty"` // Global grimoire only
-	Spells            []Spell  `yaml:"spells,omitempty"` // Repo-level spells
+	Spells            []Spell  		 `yaml:"spells,omitempty"` // Repo-level spells
+
+	Rituals           []Ritual  	 `yaml:"rituals,omitempty"` // Repo-level rituals
 
 	Path string `yaml:"-"`
+}
+
+type ScrollPath struct {
+	Path string `yaml:"path"`
 }
 
 func (s *Scroll) String() string {
@@ -36,9 +42,6 @@ func (s *Scroll) Write() error {
 	return nil
 }
 
-type ScrollPath struct {
-	Path string `yaml:"path"`
-}
 
 // InitScroll writes a fresh scroll.yaml in dir and returns the corresponding
 // in-memory Config. Returns ErrScrollExists if one already exists at that path.
