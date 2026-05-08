@@ -180,7 +180,11 @@ type PyProject struct {
 }
 
 func buildNewEnvironment(dependency_file string, dependency_type string, abs_spell_path string) (string, bool, error) {
+	spinner := utils.NewSpinner("provisioning venv")
+	defer spinner.Stop()
+
 	run_venv_cmd := func(venv_path string) error {
+		spinner.Start("creating virtual environment")
 		create_cmd := exec.Command("python", "-m", "venv", venv_path)
 		err := create_cmd.Run()
 		if err != nil {
@@ -268,6 +272,8 @@ func buildNewEnvironment(dependency_file string, dependency_type string, abs_spe
 
 	// Install the dependencies into the venv
 	if install_cmd != nil {
+		spinner.Start("installing dependencies")
+		spinner.UpdateHint("installing dependencies")
 		if err := install_cmd.Run(); err != nil {
 			os.RemoveAll(venv_path)
 			return "", false, fmt.Errorf("error installing dependencies: %v", err)

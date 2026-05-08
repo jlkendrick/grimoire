@@ -58,19 +58,21 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 	}
 	env_path := filepath.Join(grimoire_dir, "envs", file_hash)
 	if _, err := os.Stat(env_path); os.IsNotExist(err) {
-		// Create the env
-		err = os.MkdirAll(env_path, 0755)
-		if err != nil {
+		spinner := utils.NewSpinner("forging binary")
+		spinner.Start("initializing module")
+
+		if err := os.MkdirAll(env_path, 0755); err != nil {
+			spinner.Stop()
 			return err
 		}
 
-		// Run go mod init in the env
 		cmd := exec.Command("go", "mod", "init", "grimoire_wrapper")
 		cmd.Dir = env_path
-		err = cmd.Run()
-		if err != nil {
+		if err := cmd.Run(); err != nil {
+			spinner.Stop()
 			return fmt.Errorf("error running go mod init: %w", err)
 		}
+		spinner.Stop()
 	}
 
 	// Get the user's module name from the go.mod file
@@ -306,7 +308,11 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 		return err
 	}
 
+	spinner := utils.NewSpinner("forging binary")
+	defer spinner.Stop()
+
 	// Now run go mod tidy in the env
+	spinner.Start("resolving dependencies")
 	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Dir = execution_context.StateMap["env_path"].(string)
 	err = cmd.Run()
@@ -315,6 +321,7 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	}
 
 	// Now run go build in the env
+	spinner.UpdateHint("building binary")
 	cmd = exec.Command("go", "build", "-o", "grimoire_exec", ".")
 	cmd.Dir = execution_context.StateMap["env_path"].(string)
 	err = cmd.Run()
