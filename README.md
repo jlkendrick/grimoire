@@ -46,14 +46,14 @@ Grimoire has a hybrid local/global design.
 
 ## How It Works
 
-A `scroll.yaml` declares the functions you want to expose:
+A `scroll.yaml` declares the *spells* you want to expose:
 
 ```yaml
-functions:
-  - name: greet
+spells:
+  - command: greet
     path: scripts/greet.py
     function: say_hello
-    args:
+    params:
       - name: name
         type: str
       - name: times
@@ -69,6 +69,22 @@ grimoire greet --name "Alice" --times 3
 
 Grimoire handles interpreter resolution (virtual environments, `pyproject.toml`, `requirements.txt`, or system Python), argument parsing, type coercion, and execution. Your function stays completely uninstrumented — no imports, no decorators, no framework code.
 
+In practice, you rarely write `params` by hand: `grimoire add <file>:<function>` extracts the signature from source and writes a minimal entry. Param overrides only need to appear in `scroll.yaml` when you want to deviate from what's in the source.
+
+### Rituals (experimental)
+
+A *ritual* chains spells together, piping each step's output into the next:
+
+```yaml
+rituals:
+  - command: pipe_test
+    steps:
+      - spell: extract
+      - spell: transform
+```
+
+Rituals expose the entry step's flags on the ritual command itself, so `grimoire pipe_test --x 4` reaches the first spell exactly as a direct cast would. Support is intentionally minimal today — single linear pipelines, no branching or fan-out — and will grow over time.
+
 ## Key Commands
 
 
@@ -76,23 +92,26 @@ Grimoire handles interpreter resolution (virtual environments, `pyproject.toml`,
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `grimoire init`                  | Scaffold a `scroll.yaml` in the current directory                                                                          |
 | `grimoire add <file>:<function>` | Add a function to `scroll.yaml` and auto-extract its signature                                                             |
-| `grimoire sync`                  | Regenerate argument signatures for all registered functions                                                                |
 | `grimoire register [path]`       | Register a project's `scroll.yaml` with the global grimoire (defaults to nearest `scroll.yaml` found via upward traversal) |
-| `grimoire clean [--global]`      | Remove cached venvs for functions whose source files no longer exist                                                       |
-| `grimoire <name> [flags]`        | Run a function by its declared name                                                                                        |
+| `grimoire clean [--global]`      | Remove cached venvs for spells whose source files no longer exist (`--force` purges all cached envs)                       |
+| `grimoire <command> [flags]`     | Cast a spell or run a ritual by its declared command name                                                                  |
 
 
 ## Project Structure
 
 ```
-cmd/          CLI layer — command registration and flag generation
-core/         Execution engine — runtime dispatch and config loading
-  runtimes/   Language adapters (Python, Go)
-config/       YAML parsing and config generation
-parsers/      Source code analysis for signature extraction (tree-sitter)
-types/        Shared data structures
-utils/        File utilities
-sample/       Example project with scroll.yaml and Python scripts
+cmd/                  CLI layer — command registration and flag generation
+internal/
+  cli/                CLI spec types shared across the cmd layer
+  scroll/             scroll.yaml loading, parsing, and traversal
+  descriptor/         Function and pipeline descriptors (the resolved IR)
+  cache/              On-disk descriptor cache (per scroll)
+  extract/            Source-code signature extraction (tree-sitter)
+  resolve/            Reconciler/merger that keeps the cache in sync with scrolls
+  runtime/            Language adapters (Python, Go)
+  utils/              File utilities, styling, spinners
+sample/               Example project with a scroll.yaml and Python/Go scripts
+landing/              Marketing/landing site
 ```
 
 ## Current Language Support
