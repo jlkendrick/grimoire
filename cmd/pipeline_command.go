@@ -3,6 +3,8 @@ package cmd
 import (
 	"os"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -25,6 +27,10 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 		Use: pipeline_descriptor.CommandName,
 		Run: func(cmd *cobra.Command, args []string) {
 			var prev_result *runtime.RunResult
+
+			start := time.Now()
+			var runtimes []string
+			seen := map[string]bool{}
 
 			for _, step := range pipeline_descriptor.Steps {
 
@@ -53,8 +59,20 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 				}
 				fmt.Println(string(runResult.Output))
 
+				if runResult.Runtime != "" && !seen[runResult.Runtime] {
+					seen[runResult.Runtime] = true
+					runtimes = append(runtimes, runResult.Runtime)
+				}
+
 				prev_result = runResult
 			}
+
+			elapsed := time.Since(start)
+			footerParts := []string{fmt.Sprintf("%.2fs", elapsed.Seconds())}
+			if len(runtimes) > 0 {
+				footerParts = append(footerParts, strings.Join(runtimes, ", "))
+			}
+			fmt.Fprintf(os.Stderr, "\n%s %s\n", accent_style("◈"), dim_style(strings.Join(footerParts, " · ")))
 		},
 	}
 
