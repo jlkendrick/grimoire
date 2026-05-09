@@ -22,14 +22,28 @@ func MergeSpellIntoFunctionDescriptor(existing_spell scroll.Spell, function_desc
 			// Look up param in function_descriptor.Params by name
 			for i, ir_param := range function_descriptor.Params {
 				if ir_param.Name == existing_param.Name {
-					function_descriptor.Params[i].ResolvedType = &descriptor.TypeInfo{
-						Name: existing_param.Type,
+
+					// See what fields we need to override
+					if existing_param.Type != "" {
+						function_descriptor.Params[i].ResolvedType = &descriptor.TypeInfo{
+							Name: existing_param.Type,
+						}
 					}
-					function_descriptor.Params[i].Default = existing_param.Default
-					switch existing_param.Type {
-					case "str", "int", "float", "bool":
-						function_descriptor.Params[i].ResolvedType.Kind = descriptor.TypeKindPrimitive
+
+					if existing_param.Type != "" {
+						function_descriptor.Params[i].ResolvedType = &descriptor.TypeInfo{
+							Name: existing_param.Type,
+						}
+						switch existing_param.Type {
+						case "str", "int", "float", "bool":
+							function_descriptor.Params[i].ResolvedType.Kind = descriptor.TypeKindPrimitive
+						}
 					}
+
+					if existing_param.Default != nil {
+						function_descriptor.Params[i].Default = existing_param.Default
+					}
+					
 					break
 				}
 			}
