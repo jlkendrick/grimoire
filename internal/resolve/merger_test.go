@@ -72,7 +72,7 @@ func TestMerge_ParamTypeAndDefaultOverlay(t *testing.T) {
 	}
 	s := scroll.Spell{
 		Command: "c",
-		Params:  []scroll.Param{{Name: "n", Type: "int", Default: "5"}},
+		Params:  []scroll.Param{{Name: "n", Type: "int", Default: int64(5)}},
 	}
 	if err := resolve.MergeSpellIntoFunctionDescriptor(s, &d); err != nil {
 		t.Fatalf("Merge: %v", err)
@@ -80,8 +80,8 @@ func TestMerge_ParamTypeAndDefaultOverlay(t *testing.T) {
 	if d.Params[0].ResolvedType == nil || d.Params[0].ResolvedType.Name != "int" {
 		t.Errorf("ResolvedType.Name = %+v, want int", d.Params[0].ResolvedType)
 	}
-	if d.Params[0].Default != "5" {
-		t.Errorf("Default = %#v, want %q", d.Params[0].Default, "5")
+	if d.Params[0].Default != int64(5) {
+		t.Errorf("Default = %#v, want int64(5)", d.Params[0].Default)
 	}
 }
 

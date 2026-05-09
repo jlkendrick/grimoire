@@ -2,6 +2,7 @@ package extract
 
 import (
 	"strings"
+	"strconv"
 
 	"github.com/smacker/go-tree-sitter/python"
 
@@ -27,6 +28,38 @@ func unquotePythonString(raw string) string {
 		}
 	}
 	return raw
+}
+
+// parsePythonLiteral converts a literal AST node into a Go value plus a
+// TypeInfo. Recognized: string, integer, float, true/false, none. For
+// anything else (lists, dicts, calls, identifiers) returns the raw source
+// text and a nil TypeInfo, leaving type resolution to a later pass.
+func parsePythonLiteral(n *sitter.Node, src []byte) (any, *descriptor.TypeInfo) {
+	prim := func(name string) *descriptor.TypeInfo {
+		return &descriptor.TypeInfo{Kind: descriptor.TypeKindPrimitive, Name: name}
+	}
+	content := string(n.Content(src))
+	switch n.Type() {
+	case "string":
+		return unquotePythonString(content), prim("str")
+	case "integer":
+		v, err := strconv.ParseInt(content, 10, 64)
+		if err != nil {
+			return content, nil
+		}
+		return v, prim("int")
+	case "float":
+		v, err := strconv.ParseFloat(content, 64)
+		if err != nil {
+			return content, nil
+		}
+		return v, prim("float")
+	case "true", "false":
+		return n.Type() == "true", prim("bool")
+	case "none":
+		return nil, nil
+	}
+	return content, nil
 }
 
 var pythonConfig = grammarConfig{
@@ -59,31 +92,22 @@ func extractPythonParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
 
 	case "default_parameter":
 		// def f(x=1):
-		var name string
-		var defaultText string // This is a string because we don't know the type yet (will try to be resolved later)
-		for i := 0; i < int(n.NamedChildCount()); i++ {
-			child := n.NamedChild(i)
-			if child.Type() == "identifier" {
-				name = string(child.Content(src))
-			} else {
-				content := string(child.Content(src))
-				if child.Type() == "string" {
-					content = unquotePythonString(content)
-				}
-				defaultText = content
-			}
-		}
-		if name == "" {
+		nameNode := n.ChildByFieldName("name")
+		valueNode := n.ChildByFieldName("value")
+		if nameNode == nil {
 			return nil
 		}
-		return []descriptor.ParamDescriptor{{
-				Name: name,
-				RawTypeText: "",
-				ResolvedType: nil,
-				Default: defaultText,
-				ExtractorNotes: []string{"missing type hint"},
-			},
+		var default_value any
+		var resolved_type *descriptor.TypeInfo
+		if valueNode != nil {
+			default_value, resolved_type = parsePythonLiteral(valueNode, src)
 		}
+		return []descriptor.ParamDescriptor{{
+			Name: string(nameNode.Content(src)),
+			ResolvedType: resolved_type, // may be nil if not inferred
+			Default: default_value,
+			ExtractorNotes: []string{"missing type hint"},
+		}}
 
 	case "typed_parameter":
 		// def f(x: int):
@@ -118,30 +142,31 @@ func extractPythonParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
 		nameNode := n.ChildByFieldName("name")
 		typeNode := n.ChildByFieldName("type")
 		valueNode := n.ChildByFieldName("value")
-		
-		var name, typ, defaultText string // default is a string because we don't know the type yet (will try to be resolved later)
-		if nameNode != nil {
-			name = string(nameNode.Content(src))
-		} else {
+		if nameNode == nil {
 			return nil
 		}
+
+		var typ string
+		var resolved_type *descriptor.TypeInfo
 		if typeNode != nil {
 			typ = string(typeNode.Content(src))
-		}
-		if valueNode != nil {
-			defaultText = string(valueNode.Content(src))
-			if valueNode.Type() == "string" {
-				defaultText = unquotePythonString(defaultText)
+			resolved_type = &descriptor.TypeInfo{Name: typ}
+			switch typ {
+			case "str", "int", "float", "bool":
+				resolved_type.Kind = descriptor.TypeKindPrimitive
 			}
 		}
 
+		var default_value any
+		if valueNode != nil {
+			default_value, _ = parsePythonLiteral(valueNode, src)
+		}
+
 		return []descriptor.ParamDescriptor{{
-			Name: name,
+			Name: string(nameNode.Content(src)),
 			RawTypeText: typ,
-			ResolvedType: &descriptor.TypeInfo{
-				Name: typ,
-			},
-			Default: defaultText,
+			ResolvedType: resolved_type,
+			Default: default_value,
 			ExtractorNotes: []string{},
 		}}
 

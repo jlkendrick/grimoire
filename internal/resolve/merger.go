@@ -26,6 +26,10 @@ func MergeSpellIntoFunctionDescriptor(existing_spell scroll.Spell, function_desc
 						Name: existing_param.Type,
 					}
 					function_descriptor.Params[i].Default = existing_param.Default
+					switch existing_param.Type {
+					case "str", "int", "float", "bool":
+						function_descriptor.Params[i].ResolvedType.Kind = descriptor.TypeKindPrimitive
+					}
 					break
 				}
 			}

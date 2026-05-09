@@ -17,6 +17,8 @@ def print_logs():
 def test_pipe(input1: str, input2: str):
 	return f"Output21: {input1}", f"Output22: {input2}"
 
+def no_th_default(input1 = 1, input2 = 2):
+	return input1 + input2
 
-if __name__ == "__main__":
-	hello_world()
+def mixed_defaults(name: str = "Alice", age: int = 30, score: float = 1.5, active: bool = True):
+	return f"{name=} {age=} {score=} {active=}"

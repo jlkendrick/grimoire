@@ -73,9 +73,11 @@ func TestSpellHash_IgnoresRuntimeFields(t *testing.T) {
 	}
 }
 
-// TestParamUnmarshalYAML_StringifiesIntDefault verifies the canonicalization
-// that lets the descriptor IR carry a single string form for defaults.
-func TestParamUnmarshalYAML_StringifiesIntDefault(t *testing.T) {
+// TestParamUnmarshalYAML_PreservesIntDefault verifies that int defaults
+// arrive in the IR as a numeric Go type, not stringified — that's the
+// signal flag registration uses to construct typed cobra defaults without
+// re-parsing.
+func TestParamUnmarshalYAML_PreservesIntDefault(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "scroll.yaml")
 	ts.WriteFile(t, path, `spells:
@@ -95,8 +97,17 @@ func TestParamUnmarshalYAML_StringifiesIntDefault(t *testing.T) {
 		t.Fatalf("unexpected parse shape: %+v", s)
 	}
 	got := s.Spells[0].Params[0].Default
-	if got != "5" {
-		t.Errorf("Default = %#v, want %q (string-coerced)", got, "5")
+	switch v := got.(type) {
+	case int:
+		if v != 5 { t.Errorf("Default = %d, want 5", v) }
+	case int64:
+		if v != 5 { t.Errorf("Default = %d, want 5", v) }
+	case uint64:
+		if v != 5 { t.Errorf("Default = %d, want 5", v) }
+	case float64:
+		if v != 5 { t.Errorf("Default = %v, want 5", v) }
+	default:
+		t.Errorf("Default = %#v (%T), want a numeric Go type (not stringified)", got, got)
 	}
 }
 

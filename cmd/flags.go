@@ -12,14 +12,12 @@ import (
 )
 
 // registerParamFlag adds a single typed flag to command from a ParamDescriptor.
-// Defaults are stored as strings in the descriptor IR (set by extractors and
-// the YAML scroll loader); cast to the param's declared type here when
-// constructing the cobra flag.
+// param.Default is the typed Go value of the parsed default literal. The
+// asInt/asFloat/asBool/asString helpers absorb the type variance introduced
+// by the JSON cache round-trip (numbers decoded into float64) and goccy
+// go-yaml (which may produce uint64 for unsigned ints).
 func registerParamFlag(command *cobra.Command, param descriptor.ParamDescriptor) error {
-	defaultStr, hasDefault, err := stringDefault(param)
-	if err != nil {
-		return err
-	}
+	hasDefault := param.Default != nil
 
 	switch param.ResolvedType.Name {
 	case "string", "str":
@@ -28,7 +26,11 @@ func registerParamFlag(command *cobra.Command, param descriptor.ParamDescriptor)
 			command.MarkFlagRequired(param.Name)
 			return nil
 		}
-		command.Flags().StringP(param.Name, "", defaultStr, "")
+		def, err := asString(param.Default)
+		if err != nil {
+			return fmt.Errorf("default value for %s is not a string: %v", param.Name, err)
+		}
+		command.Flags().StringP(param.Name, "", def, "")
 
 	case "integer", "int":
 		if !hasDefault {
@@ -36,7 +38,7 @@ func registerParamFlag(command *cobra.Command, param descriptor.ParamDescriptor)
 			command.MarkFlagRequired(param.Name)
 			return nil
 		}
-		def, err := strconv.Atoi(defaultStr)
+		def, err := asInt(param.Default)
 		if err != nil {
 			return fmt.Errorf("default value for %s is not an int: %v", param.Name, err)
 		}
@@ -48,7 +50,7 @@ func registerParamFlag(command *cobra.Command, param descriptor.ParamDescriptor)
 			command.MarkFlagRequired(param.Name)
 			return nil
 		}
-		def, err := strconv.ParseBool(defaultStr)
+		def, err := asBool(param.Default)
 		if err != nil {
 			return fmt.Errorf("default value for %s is not a bool: %v", param.Name, err)
 		}
@@ -60,7 +62,7 @@ func registerParamFlag(command *cobra.Command, param descriptor.ParamDescriptor)
 			command.MarkFlagRequired(param.Name)
 			return nil
 		}
-		def, err := strconv.ParseFloat(defaultStr, 64)
+		def, err := asFloat(param.Default)
 		if err != nil {
 			return fmt.Errorf("default value for %s is not a float: %v", param.Name, err)
 		}
@@ -71,6 +73,73 @@ func registerParamFlag(command *cobra.Command, param descriptor.ParamDescriptor)
 	}
 
 	return nil
+}
+
+func asString(v any) (string, error) {
+	if s, ok := v.(string); ok {
+		return s, nil
+	}
+	return "", fmt.Errorf("expected string, got %T", v)
+}
+
+func asInt(v any) (int, error) {
+	switch x := v.(type) {
+	case int:
+		return x, nil
+	case int64:
+		return int(x), nil
+	case uint64:
+		return int(x), nil
+	case float64:
+		// JSON cache round-trip collapses int64 into float64. Accept whole
+		// numbers; reject anything fractional since that signals a real type
+		// mismatch upstream.
+		if x != float64(int(x)) {
+			return 0, fmt.Errorf("expected int, got non-integral float64 %v", x)
+		}
+		return int(x), nil
+	case string:
+		n, err := strconv.Atoi(x)
+		if err != nil {
+			return 0, fmt.Errorf("expected int, got string %q: %v", x, err)
+		}
+		return n, nil
+	}
+	return 0, fmt.Errorf("expected int, got %T", v)
+}
+
+func asFloat(v any) (float64, error) {
+	switch x := v.(type) {
+	case float64:
+		return x, nil
+	case int:
+		return float64(x), nil
+	case int64:
+		return float64(x), nil
+	case uint64:
+		return float64(x), nil
+	case string:
+		f, err := strconv.ParseFloat(x, 64)
+		if err != nil {
+			return 0, fmt.Errorf("expected float, got string %q: %v", x, err)
+		}
+		return f, nil
+	}
+	return 0, fmt.Errorf("expected float, got %T", v)
+}
+
+func asBool(v any) (bool, error) {
+	switch x := v.(type) {
+	case bool:
+		return x, nil
+	case string:
+		b, err := strconv.ParseBool(x)
+		if err != nil {
+			return false, fmt.Errorf("expected bool, got string %q: %v", x, err)
+		}
+		return b, nil
+	}
+	return false, fmt.Errorf("expected bool, got %T", v)
 }
 
 func buildPayload(function_descriptor descriptor.FunctionDescriptor, cmd *cobra.Command) map[string]interface{} {
@@ -128,19 +197,4 @@ func buildPayloadFromResult(prev_output []byte, function_descriptor descriptor.F
 		payload[function_descriptor.Params[0].Name] = decoded
 	}
 	return payload, nil
-}
-
-// stringDefault extracts a string Default from a ParamDescriptor. The
-// descriptor IR stores defaults as strings, but JSON cache round-trips can
-// preserve historic non-string values, so be defensive.
-func stringDefault(param descriptor.ParamDescriptor) (string, bool, error) {
-	if param.Default == nil {
-		return "", false, nil
-	}
-	switch v := param.Default.(type) {
-	case string:
-		return v, true, nil
-	default:
-		return "", false, fmt.Errorf("default value for %s must be a string in the descriptor IR, got %T", param.Name, param.Default)
-	}
 }

@@ -66,27 +66,6 @@ type Param struct {
 	Default any 	 `yaml:"default,omitempty"`
 }
 
-// UnmarshalYAML stringifies Default so the descriptor IR carries a single
-// canonical form. Typed coercion happens at the use site (cobra flag
-// construction).
-func (p *Param) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	type rawParam Param
-	var tmp rawParam
-	if err := unmarshal(&tmp); err != nil {
-		return err
-	}
-
-	*p = Param(tmp)
-
-	if p.Default == nil {
-		return nil
-	}
-	if _, ok := p.Default.(string); !ok {
-		p.Default = fmt.Sprint(p.Default)
-	}
-	return nil
-}
-
 func (p Param) String() string {
 	return fmt.Sprintf("Param{\n\t\tName: %s,\n\t\tType: %s,\n\t\tDefault: %v\n\t}", p.Name, p.Type, p.Default)
 }

@@ -80,6 +80,13 @@ var add_cmd = &cobra.Command{
 			return
 		}
 
+		// // Resolve -> function descriptor (fully resolved)
+		// err = resolve.ResolveFunctionDescriptor(&function_descriptor)
+		// if err != nil {
+		// 	fmt.Printf("Error resolving function descriptor: %v\n", err)
+		// 	return
+		// }
+
 		// 3. Read existing scroll entry to perform overrides if spell is already defined
 		var existing_spell scroll.Spell
 		for _, spell := range scroll_obj.Spells {

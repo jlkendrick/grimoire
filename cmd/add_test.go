@@ -3,7 +3,6 @@ package cmd
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -16,21 +15,18 @@ const greetSource = `def greet(n: int = 1, who: str):
     pass
 `
 
-// intDefaultEquals reports whether v represents want after resolver / JSON cache round-trip
-// (encoding/json decodes numbers into float64 for any-typed fields).
+// intDefaultEquals reports whether v represents want. Defaults are stored
+// as typed Go values; extraction produces int64, and the JSON cache
+// round-trip (encoding/json decoding into any-typed fields) collapses
+// numbers into float64.
 func intDefaultEquals(v any, want int) bool {
 	switch x := v.(type) {
 	case int:
 		return x == want
-	case int32:
-		return int(x) == want
 	case int64:
 		return int(x) == want
 	case float64:
 		return int(x) == want && float64(int(x)) == x
-	case string:
-		n, err := strconv.Atoi(x)
-		return err == nil && n == want
 	default:
 		return false
 	}
@@ -116,7 +112,7 @@ func TestAdd_BasicFlow(t *testing.T) {
 		t.Errorf("param n: ResolvedType = %+v, want Name=int", pn.ResolvedType)
 	}
 	if !intDefaultEquals(pn.Default, 1) {
-		t.Errorf("param n: Default = %v (%T), want 1 (string, int, or float64 after JSON round-trip)", pn.Default, pn.Default)
+		t.Errorf("param n: Default = %v (%T), want 1 (int, int64, or float64 after JSON round-trip)", pn.Default, pn.Default)
 	}
 	whoIdx, ok := byName["who"]
 	if !ok {
