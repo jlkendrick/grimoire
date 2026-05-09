@@ -82,7 +82,7 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 				return false, fmt.Errorf("error merging spell into function descriptor: %v", err)
 			}
 
-			descriptor_cache.Functions[spell.Function] = resolved_descriptor
+			descriptor_cache.Functions[spell.Command] = resolved_descriptor
 			mutated = true
 		}
 	}
@@ -90,7 +90,7 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 	// Prune cached descriptors for spells that are no longer in the scroll.
 	in_scroll := make(map[string]struct{}, len(scroll_obj.Spells))
 	for _, spell := range scroll_obj.Spells {
-		in_scroll[spell.Function] = struct{}{}
+		in_scroll[spell.Command] = struct{}{}
 	}
 	for fn_name := range descriptor_cache.Functions {
 		if _, ok := in_scroll[fn_name]; !ok {

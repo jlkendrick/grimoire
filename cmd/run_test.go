@@ -343,9 +343,9 @@ func TestStaleness_Spell(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Hash: %v", err)
 		}
-		fd, ok := descriptorCache.Functions[sp.Function]
+		fd, ok := descriptorCache.Functions[sp.Command]
 		if !ok {
-			t.Fatalf("descriptor missing for %s", sp.Function)
+			t.Fatalf("descriptor missing for %s", sp.Command)
 		}
 		if currHash == fd.SpellHash {
 			continue

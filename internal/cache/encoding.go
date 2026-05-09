@@ -71,6 +71,7 @@ func ReadDescriptorCache(scroll_path string) (*DescriptorCache, error) {
 			ScrollHash: "", // empty so that we correctly trigger a re-run of the reconciler
 			ScrollPath: scroll_path,
 			Functions:  make(map[string]descriptor.FunctionDescriptor),
+			Pipelines:  make(map[string]descriptor.PipelineDescriptor),
 		}
 		cached_descriptor_caches[scroll_path] = dc
 		return dc, nil
