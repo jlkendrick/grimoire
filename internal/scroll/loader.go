@@ -33,7 +33,7 @@ func LoadScrolls() ([]*Scroll, error) {
 	return LoadGlobalScrolls()
 }
 
-// 
+// LoadGlobalScrolls loads the global scroll registry from $GRIMOIRE_HOME/grimoire.yaml.
 func LoadGlobalScrolls() ([]*Scroll, error) {
 	registry, err := LoadRegistry()
 	if err != nil {
@@ -42,6 +42,10 @@ func LoadGlobalScrolls() ([]*Scroll, error) {
 	
 	scrolls := make([]*Scroll, 0, len(registry.RegisteredScrolls))
 	for _, sp := range registry.RegisteredScrolls {
+		// If the scroll no longer exists, skip it
+		if _, err := os.Stat(sp.Path); os.IsNotExist(err) {
+			continue
+		}
 		s, err := loadScrollFile(sp.Path)
 		if err != nil {
 			return nil, fmt.Errorf("loading registered scroll %s: %w", sp.Path, err)
