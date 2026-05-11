@@ -13,7 +13,9 @@ type Ritual struct {
 }
 
 type Step struct {
-	Spell string `yaml:"spell"`
+	Id 		 string         `yaml:"id"`
+	Spell  string         `yaml:"spell"`
+	Params map[string]any `yaml:"params"`
 }
 
 func (r *Ritual) Hash() (string, error) {

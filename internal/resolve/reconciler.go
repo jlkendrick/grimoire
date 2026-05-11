@@ -117,13 +117,28 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 			}
 		}
 
-		// If the ritual is not in the descriptor cache, add it
-		if _, ok := descriptor_cache.Pipelines[ritual.Command]; !ok {
-			fmt.Printf("Adding new pipeline descriptor for %s\n", ritual.Command)
+		// If the ritual is not in the descriptor cache or has been updated since last run, add it
+		new_hash, err := ritual.Hash()
+		if err != nil {
+			return false, fmt.Errorf("error hashing ritual: %v", err)
+		}
+		old_hash := ""
+		old_pipeline, ok := descriptor_cache.Pipelines[ritual.Command]
+		if ok {
+			old_hash = old_pipeline.RitualHash
+		}
+		if _, ok := descriptor_cache.Pipelines[ritual.Command]; !ok || new_hash != old_hash {
+			if !ok {
+				fmt.Printf("%s Unearthed a new ritual: %s. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(ritual.Command))
+			} else {
+				fmt.Printf("%s Ritual %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(ritual.Command))
+			}
 			steps := make([]descriptor.StepDescriptor, 0, len(ritual.Steps))
 			for _, step := range ritual.Steps {
 				steps = append(steps, descriptor.StepDescriptor{
+					Id: step.Id,
 					SpellName: step.Spell,
+					Params: step.Params,
 				})
 			}
 			ritual_hash, err := ritual.Hash()

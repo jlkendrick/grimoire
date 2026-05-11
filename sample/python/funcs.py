@@ -15,7 +15,10 @@ def print_logs():
 	print("This is a third log")
 
 def test_pipe(input1: str, input2: str):
-	return f"Output21: {input1}", f"Output22: {input2}"
+	return input1, input2
+
+def test_pipey(input1: str, input2: str) -> str:
+	return input1 + input2
 
 def no_th_default(input1 = 1, input2 = 2):
 	return input1 + input2

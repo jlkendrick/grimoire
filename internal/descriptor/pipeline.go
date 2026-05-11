@@ -7,6 +7,7 @@ type PipelineDescriptor struct {
 }
 
 type StepDescriptor struct {
+	Id        string
 	SpellName string
-	Params    []ParamDescriptor
+	Params    map[string]any
 }

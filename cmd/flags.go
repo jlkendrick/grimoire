@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
@@ -196,5 +197,34 @@ func buildPayloadFromResult(prev_output []byte, function_descriptor descriptor.F
 	if len(function_descriptor.Params) >= 1 {
 		payload[function_descriptor.Params[0].Name] = decoded
 	}
+	return payload, nil
+}
+
+func buildPayloadFromBindings(params map[string]any, bindings map[string]any, function_descriptor descriptor.FunctionDescriptor) (map[string]interface{}, error) {
+	payload := make(map[string]interface{})
+	
+	for name, value := range params {
+		// Check if the value is a reference to a previous step output
+		ref_value, is_reference, err := resolve.ResolveReference(value, bindings)
+		if err != nil {
+			return nil, err
+		}
+		if is_reference {
+			payload[name] = ref_value
+		} else {
+			// It's a literal value
+			payload[name] = value
+		}
+	}
+
+	// Fill in any missing parameters with the function descriptor's default values
+	for _, param := range function_descriptor.Params {
+		if _, ok := payload[param.Name]; !ok {
+			if param.Default != nil {
+				payload[param.Name] = param.Default
+			}
+		}
+	}
+
 	return payload, nil
 }
