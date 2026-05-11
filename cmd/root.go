@@ -4,15 +4,15 @@ Copyright © 2026 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
 	"os"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
-	resolve "github.com/jlkendrick/grimoire/internal/resolve"
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 )
 
 // rootCmd represents the base command when called without any subcommands

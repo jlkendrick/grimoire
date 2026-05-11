@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+	
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
-
-	"github.com/spf13/cobra"
 )
 
 var register_cmd = &cobra.Command{
