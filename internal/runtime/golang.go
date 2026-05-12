@@ -110,8 +110,21 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 		return fmt.Errorf("error writing generated go.mod: %w", err)
 	}
 
-	// Write the .grimoire_origin file
-	origin_path := filepath.Join(env_path, ".grimoire_origin")
+	// Each spell gets its own subdirectory under the module env so that
+	// switching spells doesn't clobber the wrapper/binary of another. A
+	// shared root grimoire_exec/grimoire_wrapper.go from older versions is
+	// stripped here so `go mod tidy` doesn't trip on stale imports.
+	for _, stale := range []string{"grimoire_exec", "grimoire_wrapper.go", ".grimoire_origin"} {
+		_ = os.Remove(filepath.Join(env_path, stale))
+	}
+
+	spell_dir := filepath.Join(env_path, descriptor.CommandName)
+	if err := os.MkdirAll(spell_dir, 0755); err != nil {
+		return fmt.Errorf("error creating spell dir: %w", err)
+	}
+
+	// Per-spell .grimoire_origin so `clean` can detect orphans at the spell level.
+	origin_path := filepath.Join(spell_dir, ".grimoire_origin")
 	if err := os.WriteFile(origin_path, []byte(descriptor.AbsPathToSourceFile), 0644); err != nil {
 		return fmt.Errorf("error writing .grimoire_origin file: %w", err)
 	}
@@ -119,6 +132,7 @@ func (a *GoAdapter) Provision(execution_context *ExecutionContext) error {
 	execution_context.StateMap["user_go_mod_path"] = user_go_mod_path
 	execution_context.StateMap["user_module_name"] = user_module_name
 	execution_context.StateMap["env_path"] = env_path
+	execution_context.StateMap["spell_dir"] = spell_dir
 	execution_context.StateMap["provision_label"] = "forging binary"
 	// Extract "go X.Y" from the version line already parsed above
 	goVer := strings.TrimPrefix(go_version_line, "go ")
@@ -218,7 +232,7 @@ func generateWrapper(outputPath string, data WrapperData) error {
 
 func shouldCompile(execution_context *ExecutionContext) bool {
 	// Check 1: if we haven't compiled before (no binary file exists)
-	binary_path := filepath.Join(execution_context.StateMap["env_path"].(string), "grimoire_exec")
+	binary_path := filepath.Join(execution_context.StateMap["spell_dir"].(string), "grimoire_exec")
 	if _, err := os.Stat(binary_path); os.IsNotExist(err) {
 		return true
 	}
@@ -263,15 +277,19 @@ func shouldCompile(execution_context *ExecutionContext) bool {
 }
 
 func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
+	spell_dir := execution_context.StateMap["spell_dir"].(string)
+	binary_path := filepath.Join(spell_dir, "grimoire_exec")
+
 	// Check if we need to compile
 	if !shouldCompile(execution_context) {
-		execution_context.StateMap["binary"] = filepath.Join(execution_context.StateMap["env_path"].(string), "grimoire_exec")
+		execution_context.StateMap["binary"] = binary_path
 		execution_context.StateMap["cache_status"] = "cached"
 		return nil
 	}
 	execution_context.StateMap["cache_status"] = "compiled"
-	
+
 	descriptor := execution_context.StateMap["descriptor"].(*descriptor.FunctionDescriptor)
+	env_path := execution_context.StateMap["env_path"].(string)
 	user_module_name := execution_context.StateMap["user_module_name"].(string)
 	user_go_mod_path := execution_context.StateMap["user_go_mod_path"].(string)
 	args_def := []ParamDef{}
@@ -302,7 +320,7 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 		Args:       args_def,
 	}
 
-	output_path := filepath.Join(execution_context.StateMap["env_path"].(string), "grimoire_wrapper.go")
+	output_path := filepath.Join(spell_dir, "grimoire_wrapper.go")
 	err = generateWrapper(output_path, wrapper_data)
 	if err != nil {
 		return err
@@ -311,25 +329,26 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	spinner := utils.NewSpinner("forging binary")
 	defer spinner.Stop()
 
-	// Now run go mod tidy in the env
+	// `go mod tidy` runs at the module root and discovers all spell subdirs.
 	spinner.Start("resolving dependencies")
 	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = execution_context.StateMap["env_path"].(string)
+	cmd.Dir = env_path
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("error running go mod tidy: %w", err)
 	}
 
-	// Now run go build in the env
+	// Build only this spell's package.
 	spinner.UpdateHint("building binary")
-	cmd = exec.Command("go", "build", "-o", "grimoire_exec", ".")
-	cmd.Dir = execution_context.StateMap["env_path"].(string)
+	spell_pkg := "./" + filepath.Base(spell_dir)
+	cmd = exec.Command("go", "build", "-o", filepath.Join(filepath.Base(spell_dir), "grimoire_exec"), spell_pkg)
+	cmd.Dir = env_path
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("error running go build: %w", err)
 	}
 
-	execution_context.StateMap["binary"] = filepath.Join(execution_context.StateMap["env_path"].(string), "grimoire_exec")
+	execution_context.StateMap["binary"] = binary_path
 	return nil
 }
 

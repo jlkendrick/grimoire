@@ -97,25 +97,64 @@ var clean_cmd = &cobra.Command{
 		}
 		deleted_venvs := 0
 		for _, venv := range venv_paths {
-			if venv.IsDir() {
-				// Get the origin spell path from the .grimoire_origin file
-				origin_pointer_file := filepath.Join(venv_root, venv.Name(), ".grimoire_origin")
-				origin_pointer_file_content, err := os.ReadFile(origin_pointer_file)
+			if !venv.IsDir() {
+				continue
+			}
+			env_dir := filepath.Join(venv_root, venv.Name())
+
+			// Go envs carry a wrapper go.mod at root and per-spell subdirs,
+			// each with its own .grimoire_origin. Orphan detection runs per
+			// spell subdir, and the env itself is removed only when nothing
+			// alive remains.
+			if _, err := os.Stat(filepath.Join(env_dir, "go.mod")); err == nil {
+				spell_dirs, err := os.ReadDir(env_dir)
 				if err != nil {
-					fmt.Printf("Error reading origin pointer file: %v\n", err)
+					fmt.Printf("Error reading env dir: %v\n", err)
 					return
 				}
-				origin_scroll_path := string(origin_pointer_file_content)
-
-				// If the origin function path is in the unused_functions map, delete the venv
-				if _, ok := unused_functions[origin_scroll_path]; ok {
-					err = os.RemoveAll(filepath.Join(venv_root, venv.Name()))
+				remaining := 0
+				for _, sd := range spell_dirs {
+					if !sd.IsDir() {
+						continue
+					}
+					spell_path := filepath.Join(env_dir, sd.Name())
+					origin_content, err := os.ReadFile(filepath.Join(spell_path, ".grimoire_origin"))
 					if err != nil {
-						fmt.Printf("Error deleting venv: %v\n", err)
+						continue
+					}
+					if _, ok := unused_functions[string(origin_content)]; ok {
+						if err := os.RemoveAll(spell_path); err != nil {
+							fmt.Printf("Error deleting spell dir: %v\n", err)
+							return
+						}
+						deleted_venvs++
+					} else {
+						remaining++
+					}
+				}
+				if remaining == 0 {
+					if err := os.RemoveAll(env_dir); err != nil {
+						fmt.Printf("Error deleting env: %v\n", err)
 						return
 					}
-					deleted_venvs++
 				}
+				continue
+			}
+
+			// Python-style env: a single .grimoire_origin at the venv root.
+			origin_pointer_file := filepath.Join(env_dir, ".grimoire_origin")
+			origin_pointer_file_content, err := os.ReadFile(origin_pointer_file)
+			if err != nil {
+				fmt.Printf("Error reading origin pointer file: %v\n", err)
+				return
+			}
+			origin_scroll_path := string(origin_pointer_file_content)
+			if _, ok := unused_functions[origin_scroll_path]; ok {
+				if err := os.RemoveAll(env_dir); err != nil {
+					fmt.Printf("Error deleting venv: %v\n", err)
+					return
+				}
+				deleted_venvs++
 			}
 		}
 
