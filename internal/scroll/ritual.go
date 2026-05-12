@@ -13,11 +13,11 @@ type Ritual struct {
 }
 
 type Step struct {
-	Id 		 string         `yaml:"id"`
+	Id 		 string         `yaml:"id,omitempty"`
 	Spell  string         `yaml:"spell"`
-	Params map[string]any `yaml:"params"`
+	Params map[string]any `yaml:"params,omitempty"`
 }
-
+ 
 func (r *Ritual) Hash() (string, error) {
 	canonical, err := json.Marshal(r)
 	if err != nil {

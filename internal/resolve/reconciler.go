@@ -107,7 +107,6 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 
 	// Rituals -> Pipeline descriptors
 	for _, ritual := range scroll_obj.Rituals {
-		fmt.Printf("Reconciling ritual %s\n", ritual.Command)
 		// All we have to do here is check that all steps in the ritual are valid spells
 		// in our descriptor cache. They are already reconciled by the above function that
 		// runs before this one in the root.go file.
