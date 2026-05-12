@@ -14,3 +14,15 @@ def print_rich_panel(title: str):
 			border_style="bright_blue"
 		)
 	)
+
+
+def panel_print(content: str):
+	console = Console()
+	console.print(
+		Panel.fit(
+			content,
+			title="[bold magenta]Daily Joke[/]",
+			border_style="bright_blue",
+			padding=(1, 2),
+		)
+	)

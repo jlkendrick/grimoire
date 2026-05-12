@@ -179,12 +179,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Redirect user-function stdout to stderr during the call so debug prints
+	// don't interleave with the JSON-encoded return value on real stdout.
+	realStdout := os.Stdout
+	os.Stdout = os.Stderr
+
 	// Invoke user function and support both returning and non-returning functions.
 	fn := reflect.ValueOf(userpkg.{{ .FuncName }})
 	results := fn.Call([]reflect.Value{
 		{{- range $index, $arg := .Args }}
 			{{- if $index }}, {{ end }}reflect.ValueOf(args.{{ $arg.Name }})
 		{{- end }}})
+
+	os.Stdout = realStdout
 
 	var result interface{}
 	switch len(results) {

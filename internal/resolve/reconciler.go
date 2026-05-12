@@ -46,7 +46,6 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 
 	// Spells -> Function descriptors
 	for _, spell := range scroll_obj.Spells {
-		fmt.Printf("Reconciling spell %s\n", spell.Command)
 		curr_hash, err := spell.Hash()
 		if err != nil {
 			return false, fmt.Errorf("error hashing spell: %v", err)
