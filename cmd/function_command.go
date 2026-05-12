@@ -56,7 +56,7 @@ func buildFunctionCommand(function_descriptor descriptor.FunctionDescriptor, scr
 			payload := buildPayload(resolved_descriptor, cmd)
 
 			start := time.Now()
-			runResult, err := runtime.Run(&resolved_descriptor, payload)
+			runResult, err := runtime.Run(&resolved_descriptor, payload, nil)
 			elapsed := time.Since(start)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error executing function: %v\n", err)

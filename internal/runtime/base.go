@@ -33,13 +33,29 @@ type RunResult struct {
 	Runtime     string
 }
 
+type RunOptions struct {
+	// If set, each line of the spell's stderr is delivered here instead of
+	// being printed to os.Stderr by Execute.
+	OnStderrLine func(line string)
+	// If true, Run does not print its own provisioning / casting-spell lines.
+	// The caller is taking responsibility for per-step framing.
+	SuppressFraming bool
+}
+
 // Handles the entire execution flow of a function (provision, compile, execute)
-func Run(descriptor *descriptor.FunctionDescriptor, args map[string]interface{}) (*RunResult, error) {
+func Run(descriptor *descriptor.FunctionDescriptor, args map[string]interface{}, opts *RunOptions) (*RunResult, error) {
+	if opts == nil {
+		opts = &RunOptions{}
+	}
+
 	execution_context := ExecutionContext{
 		StateMap: make(map[string]any),
 	}
 	execution_context.StateMap["descriptor"] = descriptor
 	execution_context.StateMap["args"] = args
+	if opts.OnStderrLine != nil {
+		execution_context.StateMap["on_stderr_line"] = opts.OnStderrLine
+	}
 
 	// Dynamically assign the appropriate adapter based on the function's target file extension
 	adapter, err := assignAdapter(descriptor.AbsPathToSourceFile)
@@ -61,11 +77,13 @@ func Run(descriptor *descriptor.FunctionDescriptor, args map[string]interface{})
 
 	// Print provisioning and casting lines now that both Provision and Compile have run
 	// (cache_status for Go is set in Compile, so we wait until here)
-	if label, ok := execution_context.StateMap["provision_label"].(string); ok {
-		status, _ := execution_context.StateMap["cache_status"].(string)
-		fmt.Fprintf(os.Stderr, "%s %s %s %s\n", utils.AccentStyle("◈"), label, utils.AccentStyle("[····]"), utils.DimStyle(status))
+	if !opts.SuppressFraming {
+		if label, ok := execution_context.StateMap["provision_label"].(string); ok {
+			status, _ := execution_context.StateMap["cache_status"].(string)
+			fmt.Fprintf(os.Stderr, "%s %s %s %s\n", utils.AccentStyle("◈"), label, utils.AccentStyle("[····]"), utils.DimStyle(status))
+		}
+		fmt.Fprintf(os.Stderr, "%s casting spell %s\n\n", utils.AccentStyle("◈"), descriptor.CommandName)
 	}
-	fmt.Fprintf(os.Stderr, "%s casting spell %s\n\n", utils.AccentStyle("◈"), descriptor.CommandName)
 
 	err = adapter.PrepareCommand(&execution_context)
 	if err != nil {
@@ -113,12 +131,19 @@ func Execute(execution_context *ExecutionContext) ([]byte, error) {
 	// Read the stdout and stderr of the command in parallel
 	var wg sync.WaitGroup
 	
-	// Read the stderr of the command and print it to the console
+	// Read the stderr of the command. If an OnStderrLine handler is registered
+	// in the execution context, route each line there; otherwise print it.
+	onStderrLine, _ := execution_context.StateMap["on_stderr_line"].(func(string))
 	wg.Add(1)
 	go func() {
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
-			fmt.Println(scanner.Text())
+			line := scanner.Text()
+			if onStderrLine != nil {
+				onStderrLine(line)
+			} else {
+				fmt.Println(line)
+			}
 		}
 		wg.Done()
 	}()

@@ -29,7 +29,7 @@ type Spinner struct {
 func NewSpinner(label string) *Spinner {
 	s := &Spinner{
 		label: label,
-		isTTY: stderrIsTTY(),
+		isTTY: StderrIsTTY(),
 	}
 	s.hint.Store("")
 	return s
@@ -104,7 +104,7 @@ func (s *Spinner) render(frame string) {
 	)
 }
 
-func stderrIsTTY() bool {
+func StderrIsTTY() bool {
 	fi, err := os.Stderr.Stat()
 	if err != nil {
 		return false

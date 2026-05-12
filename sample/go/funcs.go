@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-func HelloWorld(n int) (string, string) {
-	for i := range n {
-		fmt.Printf("stdout tick %d/%d\n", i+1, n)
-		fmt.Fprintf(os.Stderr, "stderr tick %d/%d\n", i+1, n)
+func HelloWorld() (string, string) {
+	for i := range 10 {
+		fmt.Printf("stdout tick %d/%d\n", i+1, 10)
+		fmt.Fprintf(os.Stderr, "stderr tick %d/%d\n", i+1, 10)
 		time.Sleep(500 * time.Millisecond)
 	}
 
