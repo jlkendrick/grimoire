@@ -171,9 +171,10 @@ func buildPayload(function_descriptor descriptor.FunctionDescriptor, cmd *cobra.
 // value) into a payload for the next step. If the previous output is a JSON
 // list whose length matches the next step's param count and there is more
 // than one param, it unpacks positionally — mirroring Python's
-// `return val1, val2`. Otherwise the whole decoded value is bound to the
-// first param. Single-param steps never destructure, so a function that
-// returns a list-as-data reaches the next step intact.
+// `return val1, val2`. If the previous output is a JSON map, it assigns values 
+// based on matching keys and param names. If all params are mapped, use that payload.
+// Otherwise the whole decoded value is bound to the first param. Single-param steps
+// never destructure, so a function that returns a list-as-data reaches the next step intact.
 func buildPayloadFromResult(prev_output []byte, function_descriptor descriptor.FunctionDescriptor) (map[string]interface{}, error) {
 	var decoded interface{}
 	if len(bytes.TrimSpace(prev_output)) > 0 {
@@ -182,8 +183,9 @@ func buildPayloadFromResult(prev_output []byte, function_descriptor descriptor.F
 		}
 	}
 
-	payload := make(map[string]interface{})
+	fmt.Printf("decoded: %v\n", decoded)
 
+	payload := make(map[string]interface{})
 	if list, ok := decoded.([]interface{}); ok && len(function_descriptor.Params) > 1 {
 		if len(list) != len(function_descriptor.Params) {
 			return nil, fmt.Errorf("step %s: previous output has %d values but step expects %d params", function_descriptor.CommandName, len(list), len(function_descriptor.Params))
@@ -192,7 +194,21 @@ func buildPayloadFromResult(prev_output []byte, function_descriptor descriptor.F
 			payload[param.Name] = list[i]
 		}
 		return payload, nil
+	} else if _map, ok := decoded.(map[string]interface{}); ok {
+		fmt.Printf("map: %v\n", _map)
+		mapped_params := 0
+		for _, param := range function_descriptor.Params {
+			if value, ok := _map[param.Name]; ok {
+				payload[param.Name] = value
+				mapped_params++
+			}
+		}
+		if mapped_params == len(function_descriptor.Params) {
+			return payload, nil
+		}
 	}
+
+	payload = make(map[string]interface{})
 
 	if len(function_descriptor.Params) >= 1 {
 		payload[function_descriptor.Params[0].Name] = decoded
