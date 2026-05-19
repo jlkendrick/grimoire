@@ -58,11 +58,14 @@ def compose_opening(setting: str, hero: str, villain: str, mcguffin: str, style:
 	return f"{hero} walked into {setting}. {villain} had {mcguffin}, and only one of them was leaving with it."
 
 
-def map_output() -> dict:
+def map_list_output() -> dict:
 	return {
-		"a": "b",
-		"c": "d",
+		"a": {
+			"b": {
+				"c": 4,
+			},
+		},
 	}
 
-def auto_map_output(c: str, a: str) -> str:
-	return c + a
+def func(n: int) -> int:
+	return n

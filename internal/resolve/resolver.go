@@ -23,14 +23,33 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		value_str := value.(string)
 		for id := range bindings {
 			if strings.HasPrefix(value_str, id+"[") || // List indexing
-				strings.HasPrefix(value_str, id+".") { // Object key access
+				strings.HasPrefix(value_str, id+".") || // Object key access
+				strings.Contains(value_str, id+"$") || // Did list indexing
+				strings.Contains(value_str, id+"@") { // Did object key access
 				return true
 			}
 		}
 		return false	
 	}
+
+	getFirstAccessorIdx := func(value_str string, start_idx int) int {
+		for i := start_idx; i < len(value_str); i++ {
+			c := value_str[i]
+			if c == '.' || c == '[' {
+				return i
+			}
+		}
+		return len(value_str)
+	}
+
+
 	if !isReference(value) {
 		return value, false, nil
+	}
+
+	// Base case for recursion: if there is a binding for the value, return it
+	if binding, ok := bindings[value.(string)]; ok {
+		return binding, true, nil
 	}
 
 	// Try to extract the id or from the value
@@ -38,7 +57,12 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 	if !ok {
 		return value, false, nil
 	}
-	if strings.Contains(value_str, "[") {
+
+	// Get the first '.' or '[' in the value string
+	first_accessor_idx := getFirstAccessorIdx(value_str, 0)
+	accessor := value_str[first_accessor_idx]
+	switch accessor {
+	case '[':
 		// List indexing
 		id := strings.Split(value_str, "[")[0]
 		ref_output, ok := bindings[id]
@@ -46,7 +70,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 			return nil, false, fmt.Errorf("reference %s not found in bindings", id)
 		}
 		// Get the index from the value
-		left_bracket_idx := strings.Index(value_str, "[")
+		left_bracket_idx := first_accessor_idx
 		right_bracket_idx := strings.Index(value_str, "]")
 		index := value_str[left_bracket_idx+1:right_bracket_idx]
 		index_int, err := strconv.Atoi(index)
@@ -63,10 +87,18 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		}
 		ref_value := ref_output_list[index_int]
 		
-		// No recursion; ref_output is already resolved
-		return ref_value, true, nil
+		// Recurse to resolve multiple levels of accessors
 
-	} else if strings.Contains(value_str, ".") {
+		// step_id[N].field
+		// bindings[step_id$N] = bindings[step_id][N]
+		// then, run ResolveReference(step_id{N}.field, bindings) to resolve the next level
+
+		// Add a binding for what we just resolved
+		binding_id := id + "$" + index + "$"
+		bindings[binding_id] = ref_value
+		return ResolveReference(binding_id + value_str[right_bracket_idx+1:], bindings)
+
+	case '.':
 		// Object key access
 		id := strings.Split(value_str, ".")[0]
 		ref_output, ok := bindings[id]
@@ -77,12 +109,24 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		if !ok {
 			return nil, false, fmt.Errorf("reference %s is not a map", id)
 		}
-		key := strings.Split(value_str, ".")[1]
+		key_left := first_accessor_idx + 1 // Skip the '.'
+		key_right := getFirstAccessorIdx(value_str, key_left)
+		key := value_str[key_left:key_right]
 		ref_value, ok := ref_output_map[key]
 		if !ok {
 			return nil, false, fmt.Errorf("key %s not found in reference %s", key, id)
 		}
-		return ref_value, true, nil
+
+		// Recurse to resolve multiple levels of accessors
+
+		// step_id.field[N]
+		// bindings[step_id@field] = bindings[step_id]["field"]
+		// then, run ResolveReference(step_id,field, bindings) to resolve the next level
+
+		// Add a binding for what we just resolved
+		binding_id := id + "@" + key
+		bindings[binding_id] = ref_value
+		return ResolveReference(binding_id + value_str[key_right:], bindings)
 	}
 
 	// What the

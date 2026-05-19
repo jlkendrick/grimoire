@@ -40,7 +40,7 @@ var staticCommands = map[string]bool{
 	"add": true,
 	// "sync": true, TODO
 	"register": true,
-	// "clean": true, TODO
+	"clean": true,
 	"help": true,
 }
 
