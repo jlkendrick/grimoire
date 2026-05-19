@@ -2,6 +2,7 @@ package resolve
 
 import (
 	"fmt"
+	"slices"
 
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	cache "github.com/jlkendrick/grimoire/internal/cache"
@@ -133,20 +134,31 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 	return mutated, nil
 }
 
+func getStepReference(value any) string {
+	if _, ok := value.(string); !ok {
+		return ""
+	}
+	value_str := value.(string)
+	for i, c := range value_str {
+		if c == '[' || c == '.' {
+			return value_str[:i]
+		}
+	}
+	return ""
+}
+
 func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) (bool, error) {
 	mutated := false
 
 	// Rituals -> Pipeline descriptors
 	for _, ritual := range scroll_obj.Rituals {
-		// All we have to do here is check that all steps in the ritual are valid spells
-		// in our descriptor cache. They are already reconciled by the above function that
-		// runs before this one in the root.go file.
+		// Check that all steps in the ritual are valid spells in our descriptor cache
 		for _, step := range ritual.Steps {
 			_, ok := descriptor_cache.Functions[step.Spell]
-			if !ok {
+			if !ok {	
 				return false, fmt.Errorf("spell %s not found in descriptor cache", step.Spell)
 			}
-		}
+		}	
 
 		// If the ritual is not in the descriptor cache or has been updated since last run, add it
 		new_hash, err := ritual.Hash()
@@ -183,6 +195,21 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 			}
 			descriptor_cache.Pipelines[ritual.Command] = pipeline_descriptor
 			mutated = true
+		}
+
+		// Validate that the ritual is valid
+		step_ids := make([]string, 0, len(ritual.Steps))
+		for _, step := range ritual.Steps {
+			if step.Id != "" {
+				step_ids = append(step_ids, step.Id)
+			}
+			// Make sure that any references to other steps in the ritual are valid
+			for _, value := range step.Params {
+				if id_ref := getStepReference(value);
+					id_ref != "" && !slices.Contains(step_ids, id_ref) {
+					return false, fmt.Errorf("step %s references step %s which does not exist", step.Id, id_ref)
+				}
+			}
 		}
 	}
 
