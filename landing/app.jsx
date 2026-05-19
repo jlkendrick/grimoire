@@ -136,6 +136,7 @@ function Hero() {
           <a href="#demo" style={{color: "#cfc196", borderBottom: "none"}}>The Scrying Mirror</a>
           <a href="#commands" style={{color: "#cfc196", borderBottom: "none"}}>Commands</a>
           <a href="#anatomy" style={{color: "#cfc196", borderBottom: "none"}}>Anatomy of a Spell</a>
+          <a href="#ritual" style={{color: "#cfc196", borderBottom: "none"}}>Rituals</a>
         </div>
         <div style={{display: "flex", gap: 20, fontSize: 13}}>
           <a href="https://github.com/jlkendrick/grimoire" style={{color: "#cfc196", borderBottom: "none"}}>GitHub ⟶</a>
@@ -179,7 +180,7 @@ function Hero() {
             color: "#b8a876", marginTop: 22, maxWidth: 560,
           }}>
             Write pure business logic in whatever tongue you choose. Describe the
-            incantation in a <span className="mono" style={{color: "#d4a84a"}}>spell.yaml</span>, and
+            incantation in a <span className="mono" style={{color: "#d4a84a"}}>scroll.yaml</span>, and
             Grimoire forges it into a fully typed CLI — no boilerplate, no argument
             parsing, no plumbing.
           </p>
@@ -237,6 +238,7 @@ function Sidebar() {
         { label: "Installation",       icon: <Sigil.Potion/>,  href: "#install" },
         { label: "The Scrying Mirror", icon: <Sigil.Crystal/>, href: "#demo" },
         { label: "Anatomy of a Spell", icon: <Sigil.Book/>,    href: "#anatomy" },
+        { label: "Anatomy of a Ritual",icon: <Sigil.Compass/>, href: "#ritual" },
         { label: "Command Codex",      icon: <Sigil.Wand/>,    href: "#commands" },
         { label: "Runtimes",           icon: <Sigil.Flame/>,   href: "#runtimes" },
       ])}
@@ -342,7 +344,7 @@ function QuickStart() {
           </h3>
           <div style={{display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 22}}>
             {[
-              { n: "I",   verb: "Scaffold",  code: "grimoire init",       gloss: "Inscribe a fresh spell.yaml in the current directory." },
+              { n: "I",   verb: "Scaffold",  code: "grimoire init",       gloss: "Inscribe a fresh scroll.yaml in the current directory." },
               { n: "II",  verb: "Bind",      code: "grimoire add f.py:fn", gloss: "Divine the function’s signature and bind it by name." },
               { n: "III", verb: "Register",  code: "grimoire register",    gloss: "Commit the spellbook to your global grimoire." },
               { n: "IV",  verb: "Cast",      code: "grimoire <spell>",     gloss: "Invoke any bound spell from anywhere on the system." },
@@ -469,7 +471,7 @@ function DemoSection() {
           </div>
           <p style={{fontSize: 15, lineHeight: 1.75, color: "var(--ink)", margin: 0, flex: 1}}>
             Gaze upon the mirror and observe three rites in sequence — the binding of a
-            function, the inscription into <span className="mono" style={{fontSize: 13}}>spell.yaml</span>, and
+            function, the inscription into <span className="mono" style={{fontSize: 13}}>scroll.yaml</span>, and
             the casting of the spell itself. Grimoire handles interpreter resolution,
             argument parsing, type coercion, and execution. Your function stays wholly
             uninstrumented.
@@ -543,7 +545,7 @@ function Anatomy() {
               fontSize: 13.5, lineHeight: 1.6,
             }}>
               {[
-                ["Local spellbook",  "spell.yaml committed beside your code — push it and anyone can cast."],
+                ["Local spellbook",  "scroll.yaml committed beside your code — push it and anyone can cast."],
                 ["Global grimoire",  "~/.grimoire aggregates old shell scripts, utilities, and one-offs under one CLI."],
                 ["Signature divination", "tree-sitter reads your source and extracts types, defaults, and argnames."],
                 ["Hybrid execution",     "Python venvs, Go isolated wrapper modules — provisioned, cached, forgotten."],
@@ -571,12 +573,12 @@ function Anatomy() {
               A SPELL, TRANSCRIBED
             </div>
             <div className="codeblock" style={{fontSize: 12.5}}>
-<span className="cmt"># spell.yaml</span>
-{"\n"}<span className="key">functions</span>:
-{"\n"}  - <span className="key">name</span>:     <span className="val">greet</span>
+<span className="cmt"># scroll.yaml</span>
+{"\n"}<span className="key">spells</span>:
+{"\n"}  - <span className="key">command</span>:  <span className="val">greet</span>
 {"\n"}    <span className="key">path</span>:     <span className="val">scripts/greet.py</span>
 {"\n"}    <span className="key">function</span>: <span className="val">say_hello</span>
-{"\n"}    <span className="key">args</span>:
+{"\n"}    <span className="key">params</span>:
 {"\n"}      - <span className="key">name</span>: <span className="val">name</span>
 {"\n"}        <span className="key">type</span>: <span className="val">str</span>
 {"\n"}      - <span className="key">name</span>: <span className="val">times</span>
@@ -613,22 +615,138 @@ function Anatomy() {
   );
 }
 
+/* ---------------- Anatomy of a Ritual ---------------- */
+function Ritual() {
+  return (
+    <section id="ritual" style={{marginBottom: 64}}>
+      <ScrollCard>
+        <SectionHead eyebrow="Chapter IV" title="Anatomy of a Ritual" seal="IV"/>
+
+        <div style={{display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 48}}>
+          <div>
+            <p className="drop-cap" style={{fontSize: 15, lineHeight: 1.75, margin: "0 0 18px"}}>
+              A <em>ritual</em> is a chain of spells, threaded end to end. The stdout of
+              one becomes the stdin of the next — a pipeline of pure functions, each
+              passing its rendered payload onward. Where a spell speaks alone, a ritual
+              speaks a sequence: divine, transform, deliver.
+            </p>
+            <p style={{fontSize: 14, lineHeight: 1.75, margin: "0 0 24px", color: "var(--ink-soft)"}}>
+              Rituals share the same <span className="mono" style={{fontSize: 13, color: "var(--ember)"}}>scroll.yaml</span>,
+              the same caster, the same provisioning. Only the threading is new. The
+              entry step's parameters surface as flags on the ritual itself, so casting
+              one is no different from casting a single spell.
+            </p>
+
+            <div style={{
+              borderLeft: "2px solid var(--ember)",
+              padding: "4px 16px", margin: "28px 0",
+              fontFamily: "var(--display-2)", fontStyle: "italic",
+              fontSize: 16, lineHeight: 1.5, color: "var(--ink)",
+            }}>
+              “One spell speaks. Many spells, woven together, sing.”
+              <div style={{
+                marginTop: 8, fontFamily: "var(--serif-sc)",
+                fontStyle: "normal", fontSize: 10, color: "var(--ink-faded)",
+                letterSpacing: "0.14em",
+              }}>
+                SECOND LAW OF THE GRIMOIRE
+              </div>
+            </div>
+
+            <ul style={{
+              listStyle: "none", padding: 0, margin: 0,
+              fontSize: 13.5, lineHeight: 1.6,
+            }}>
+              {[
+                ["Linear chains",   "Each step receives the previous step's output as a typed payload."],
+                ["Step references", "Bind a step with an id, then reach its fields from any later step — chars[0], world.name."],
+                ["Param overrides", "Later steps may override any param by name, or pin it to a constant."],
+                ["Cast like a spell", "grimoire <ritual> — the entry step's params become the ritual's flags."],
+              ].map(([k, v]) => (
+                <li key={k} style={{
+                  display: "grid", gridTemplateColumns: "14px 1fr",
+                  gap: 10, padding: "10px 0",
+                  borderBottom: "1px dotted #9a8660",
+                }}>
+                  <span style={{color: "var(--ember)", fontSize: 13, lineHeight: 1.4}}>※</span>
+                  <div>
+                    <strong className="smallcaps" style={{color: "var(--ink)", fontSize: 12, letterSpacing: "0.08em"}}>{k.toUpperCase()}</strong>
+                    <div style={{color: "var(--ink-soft)", marginTop: 2}}>{v}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <div style={{
+              fontFamily: "var(--serif-sc)", fontSize: 11, letterSpacing: "0.16em",
+              color: "var(--ember)", marginBottom: 8,
+            }}>
+              A RITUAL, TRANSCRIBED
+            </div>
+            <div className="codeblock" style={{fontSize: 12.5}}>
+<span className="cmt"># scroll.yaml (continued)</span>
+{"\n"}<span className="key">rituals</span>:
+{"\n"}  - <span className="key">command</span>: <span className="val">story_seed</span>
+{"\n"}    <span className="key">steps</span>:
+{"\n"}      - <span className="key">id</span>:    <span className="val">world</span>
+{"\n"}        <span className="key">spell</span>: <span className="val">seed_world</span>
+{"\n"}      - <span className="key">id</span>:    <span className="val">chars</span>
+{"\n"}        <span className="key">spell</span>: <span className="val">forge_characters</span>
+{"\n"}      - <span className="key">spell</span>: <span className="val">compose_opening</span>
+{"\n"}        <span className="key">params</span>:
+{"\n"}          <span className="key">hero</span>:    <span className="val">chars[0]</span>
+{"\n"}          <span className="key">setting</span>: <span className="val">world[0]</span>
+{"\n"}          <span className="key">style</span>:   <span className="val">terse</span>
+            </div>
+
+            <div style={{
+              fontFamily: "var(--serif-sc)", fontSize: 11, letterSpacing: "0.16em",
+              color: "var(--ember)", margin: "24px 0 8px",
+            }}>
+              THE GENERATED CLI
+            </div>
+            <div className="codeblock" style={{fontSize: 12.5}}>
+<span className="prompt">$ </span><span className="cmd">grimoire story_seed</span> <span className="arg">--seed</span> <span className="str">42</span>
+{"\n"}<span style={{color: "#b6c28a"}}>  ┌─ seed_world       ✓</span>
+{"\n"}<span style={{color: "#b6c28a"}}>  ├─ forge_characters ✓</span>
+{"\n"}<span style={{color: "#b6c28a"}}>  └─ compose_opening  ✓</span>
+{"\n"}<span style={{color: "#d6c79c"}}>  “The hermit set the lantern down,</span>
+{"\n"}<span style={{color: "#d6c79c"}}>   and the wolves leaned closer...”</span>
+            </div>
+
+            <p style={{
+              marginTop: 20, fontFamily: "var(--serif)",
+              fontSize: 13, fontStyle: "italic",
+              color: "var(--ink-soft)", lineHeight: 1.6,
+            }}>
+              Your <span className="mono" style={{fontStyle: "normal", color: "var(--ember)", fontSize: 12}}>scroll.yaml</span> now
+              carries both the recipes and the songs that thread them — spells and
+              rituals, kept side by side in the same book.
+            </p>
+          </div>
+        </div>
+      </ScrollCard>
+    </section>
+  );
+}
+
 /* ---------------- Commands Grimoire ---------------- */
 function Commands() {
   const rows = [
-    ["grimoire init",                  "Scaffold a spell.yaml in the current directory.",           "I"],
+    ["grimoire init",                  "Scaffold a scroll.yaml in the current directory.",          "I"],
     ["grimoire add <file>:<function>", "Bind a function and auto-extract its signature.",           "II"],
-    ["grimoire sync",                  "Regenerate argument signatures for all registered functions.", "III"],
-    ["grimoire register [path]",       "Register a project’s spell.yaml with the global grimoire.", "IV"],
-    ["grimoire clean [--global]",      "Purge cached venvs for functions whose source has vanished.", "V"],
-    ["grimoire <name> [flags]",        "Cast any bound spell by its declared name.",                "VI"],
+    ["grimoire register [path]",       "Register a project’s scroll.yaml with the global grimoire.","III"],
+    ["grimoire clean [--global]",      "Purge cached venvs for functions whose source has vanished.","IV"],
+    ["grimoire <name> [flags]",        "Cast any bound spell — or any ritual — by its declared name.","V"],
   ];
   return (
     <section id="commands" style={{marginBottom: 64}}>
       <ScrollCard>
-        <SectionHead eyebrow="Chapter IV" title="The Command Codex" seal="IV"/>
+        <SectionHead eyebrow="Chapter V" title="The Command Codex" seal="V"/>
         <p style={{fontSize: 15, lineHeight: 1.75, color: "var(--ink)", margin: "0 0 32px", maxWidth: 720}}>
-          Six gestures govern the grimoire. Commit them to memory, or keep them
+          Five gestures govern the grimoire. Commit them to memory, or keep them
           pinned near your conjuring-desk.
         </p>
         <table className="grimoire">
@@ -686,7 +804,7 @@ function Runtimes() {
   return (
     <section id="runtimes" style={{marginBottom: 64}}>
       <ScrollCard>
-        <SectionHead eyebrow="Chapter V" title="Runtime Sigils" seal="V"/>
+        <SectionHead eyebrow="Chapter VI" title="Runtime Sigils" seal="VI"/>
         <p style={{fontSize: 15, lineHeight: 1.75, color: "var(--ink)", margin: "0 0 36px", maxWidth: 720}}>
           Each tongue the grimoire speaks is bound by its own sigil — a small family
           of incantations that know how to summon its interpreter.
@@ -765,7 +883,7 @@ function Footer() {
           </div>
         </div>
         {[
-          ["THE CODEX",   ["Quick Start", "Installation", "Commands", "Anatomy of a Spell"]],
+          ["THE CODEX",   ["Quick Start", "Installation", "Commands", "Anatomy of a Spell", "Anatomy of a Ritual"]],
           ["GUILD HALL",  ["GitHub", "Issues", "Discussions", "Contribute"]],
           ["ARCANE LORE", ["Changelog", "Roadmap", "FAQ", "License"]],
         ].map(([t, items]) => (
@@ -826,6 +944,7 @@ function App() {
           <QuickStart/>
           <DemoSection/>
           <Anatomy/>
+          <Ritual/>
           <Commands/>
           <Runtimes/>
         </main>
