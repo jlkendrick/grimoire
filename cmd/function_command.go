@@ -8,49 +8,21 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cache "github.com/jlkendrick/grimoire/internal/cache"
-	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
-	extract "github.com/jlkendrick/grimoire/internal/extract"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 	runtime "github.com/jlkendrick/grimoire/internal/runtime"
-	utils "github.com/jlkendrick/grimoire/internal/utils"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
-func buildFunctionCommand(function_descriptor descriptor.FunctionDescriptor, scroll_path string) (*cobra.Command, error) {
+func buildFunctionCommand(function_descriptor descriptor.FunctionDescriptor) (*cobra.Command, error) {
 	command := &cobra.Command{
 		Use: function_descriptor.CommandName,
 		Run: func(cmd *cobra.Command, args []string) {
-			var resolved_descriptor descriptor.FunctionDescriptor
 			// Pre-run: check if the function descriptor is stale relative to the source code.
 			// Scroll hash is checked in the root command before generating commands.
-			source_hash, err := utils.HashFile(function_descriptor.AbsPathToSourceFile)
+			resolved_descriptor, err := resolve.ReconcileFunctionDescriptor(&function_descriptor)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error hashing source file: %v\n", err)
+				fmt.Fprintf(os.Stderr, "Error reconciling function descriptor: %v\n", err)
 				os.Exit(1)
-			}
-
-			if source_hash != function_descriptor.SourceHash {
-				fmt.Printf("%s Source code change detected. Updating casting recipe...\n", utils.SpellStyle("+"))
-				function_descriptor_generator := extract.FunctionDescriptorGenerator{
-					CommandName:         function_descriptor.CommandName,
-					FunctionName:        function_descriptor.FunctionName,
-					RelPathToSourceFile: function_descriptor.RelPathToSourceFile,
-					AbsPathToSourceFile: function_descriptor.AbsPathToSourceFile,
-					ScrollPath:          scroll_path,
-					SpellHash:           function_descriptor.SpellHash, // Is fresh since root command checks for staleness
-					Interpreter:         function_descriptor.Interpreter,
-				}
-				resolved_descriptor, err = function_descriptor_generator.Generate()
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error generating spell descriptor: %v\n", err)
-					os.Exit(1)
-				}
-
-				if err := cache.AddFunctionDescriptor(resolved_descriptor); err != nil {
-					fmt.Fprintf(os.Stderr, "Error caching function descriptor: %v\n", err)
-					os.Exit(1)
-				}
-			} else {
-				resolved_descriptor = function_descriptor
 			}
 
 			payload := buildPayload(resolved_descriptor, cmd)

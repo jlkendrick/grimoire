@@ -1,20 +1,21 @@
 package cmd
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"os"
-	"strings"
+	"fmt"
 	"time"
+	"bytes"
+	"strings"
 	"unicode/utf8"
+	"encoding/json"
 
 	"github.com/spf13/cobra"
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
-	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
-	runtime "github.com/jlkendrick/grimoire/internal/runtime"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
+	runtime "github.com/jlkendrick/grimoire/internal/runtime"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
 const previewMaxRunes = 80
@@ -123,21 +124,24 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 			total := len(pipeline_descriptor.Steps)
 
 			for i, step := range pipeline_descriptor.Steps {
-
 				function_descriptor, ok := descriptor_cache.Functions[step.SpellName]
 				if !ok {
 					fmt.Fprintf(os.Stderr, "Spell %s not found in descriptor cache\n", step.SpellName)
 					os.Exit(1)
 				}
+				resolved_descriptor, err := resolve.ReconcileFunctionDescriptor(&function_descriptor)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error reconciling function descriptor: %v\n", err)
+					os.Exit(1)
+				}
 
 				var payload map[string]interface{}
-				var err error
 				if prev_result == nil {
-					payload = buildPayload(function_descriptor, cmd)
+					payload = buildPayload(resolved_descriptor, cmd)
 
 					// No user-provided input overrides; do automatic binding
 				} else if len(step.Params) == 0 {
-					payload, err = buildPayloadFromResult(prev_result.Output, function_descriptor)
+					payload, err = buildPayloadFromResult(prev_result.Output, resolved_descriptor)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "%v\n", err)
 						os.Exit(1)
@@ -145,7 +149,7 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 
 					// Use user-provided input overrides and references to previous step outputs
 				} else {
-					payload, err = buildPayloadFromBindings(step.Params, bindings, function_descriptor)
+					payload, err = buildPayloadFromBindings(step.Params, bindings, resolved_descriptor)
 					if err != nil {
 						fmt.Fprintf(os.Stderr, "%v\n", err)
 						os.Exit(1)
@@ -161,7 +165,7 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 					label := fmt.Sprintf("step %d/%d · %s", i+1, total, step.SpellName)
 					fmt.Fprintf(os.Stderr, "%s %s\n", accent_style("◈"), label)
 
-					runResult, err = runtime.Run(&function_descriptor, payload, &runtime.RunOptions{
+					runResult, err = runtime.Run(&resolved_descriptor, payload, &runtime.RunOptions{
 						SuppressFraming: true,
 					})
 					if err != nil {
@@ -173,7 +177,7 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 				} else {
 					view := newStepView(i+1, total, step.SpellName)
 					view.start()
-					runResult, err = runtime.Run(&function_descriptor, payload, &runtime.RunOptions{
+					runResult, err = runtime.Run(&resolved_descriptor, payload, &runtime.RunOptions{
 						SuppressFraming: true,
 						OnStderrLine:    view.updatePreview,
 					})

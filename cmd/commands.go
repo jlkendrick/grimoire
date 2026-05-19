@@ -20,7 +20,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 		return function_descriptors[i].CommandName < function_descriptors[j].CommandName
 	})
 	for _, fd := range function_descriptors {
-		command, err := buildFunctionCommand(fd, descriptor_cache.ScrollPath)
+		command, err := buildFunctionCommand(fd)
 		if err != nil {
 			return nil, err
 		}

@@ -10,6 +10,37 @@ import (
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
+// Reconcile the function descriptor with the source code
+func ReconcileFunctionDescriptor(function_descriptor *descriptor.FunctionDescriptor) (descriptor.FunctionDescriptor, error) {
+	source_hash, err := utils.HashFile(function_descriptor.AbsPathToSourceFile)
+	if err != nil {
+		return *function_descriptor, fmt.Errorf("error hashing source file: %v", err)
+	}
+	if source_hash != function_descriptor.SourceHash {
+		fmt.Printf("%s Source code change detected. Updating casting recipe...\n", utils.SpellStyle("+"))
+		function_descriptor_generator := extract.FunctionDescriptorGenerator{
+			CommandName:         function_descriptor.CommandName,
+			FunctionName:        function_descriptor.FunctionName,
+			RelPathToSourceFile: function_descriptor.RelPathToSourceFile,
+			AbsPathToSourceFile: function_descriptor.AbsPathToSourceFile,
+			ScrollPath:          function_descriptor.ScrollPath,
+			SpellHash:           function_descriptor.SpellHash, // Is fresh since root command checks for staleness
+			Interpreter:         function_descriptor.Interpreter,
+		}
+		resolved_descriptor, err := function_descriptor_generator.Generate()
+		if err != nil {
+			return *function_descriptor, fmt.Errorf("error generating spell descriptor: %v", err)
+		}
+
+		if err := cache.AddFunctionDescriptor(resolved_descriptor); err != nil {
+			return *function_descriptor, fmt.Errorf("error caching function descriptor: %v", err)
+		}
+		return resolved_descriptor, nil
+	}
+
+	return *function_descriptor, nil
+}
+
 func ReconcileScrollAndDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) error {
 	// Check if the scroll has changed since last run (early return if not)
 	scroll_hash, err := utils.HashFile(scroll_obj.Path)
