@@ -22,7 +22,8 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		}
 		value_str := value.(string)
 		for id := range bindings {
-			if strings.HasPrefix(value_str, id+"[") || // List indexing
+			if id == value_str || // Exact match
+				strings.HasPrefix(value_str, id+"[") || // List indexing
 				strings.HasPrefix(value_str, id+".") || // Object key access
 				strings.Contains(value_str, id+"$") || // Did list indexing
 				strings.Contains(value_str, id+"@") { // Did object key access
@@ -47,15 +48,15 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		return value, false, nil
 	}
 
-	// Base case for recursion: if there is a binding for the value, return it
-	if binding, ok := bindings[value.(string)]; ok {
-		return binding, true, nil
-	}
-
 	// Try to extract the id or from the value
 	value_str, ok := value.(string)
 	if !ok {
 		return value, false, nil
+	}
+	
+	// Base case for recursion: if there is a binding for the value, return it
+	if binding, ok := bindings[value_str]; ok {
+		return binding, true, nil
 	}
 
 	// Get the first '.' or '[' in the value string
@@ -90,8 +91,8 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		// Recurse to resolve multiple levels of accessors
 
 		// step_id[N].field
-		// bindings[step_id$N] = bindings[step_id][N]
-		// then, run ResolveReference(step_id{N}.field, bindings) to resolve the next level
+		// bindings[step_id$N$] = bindings[step_id][N]
+		// then, run ResolveReference(step_id$N$.field, bindings) to resolve the next level
 
 		// Add a binding for what we just resolved
 		binding_id := id + "$" + index + "$"
@@ -121,7 +122,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 
 		// step_id.field[N]
 		// bindings[step_id@field] = bindings[step_id]["field"]
-		// then, run ResolveReference(step_id,field, bindings) to resolve the next level
+		// then, run ResolveReference(step_id@field, bindings) to resolve the next level
 
 		// Add a binding for what we just resolved
 		binding_id := id + "@" + key
