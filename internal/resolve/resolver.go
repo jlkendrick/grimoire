@@ -23,7 +23,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		value_str := value.(string)
 		for id := range bindings {
 			if strings.HasPrefix(value_str, id+"[") || // List indexing
-				strings.HasPrefix(value_str, id+".") { // Object key access (not supported yet)
+				strings.HasPrefix(value_str, id+".") { // Object key access
 				return true
 			}
 		}
@@ -67,8 +67,22 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		return ref_value, true, nil
 
 	} else if strings.Contains(value_str, ".") {
-		// Object key access: TODO
-		return nil, true, fmt.Errorf("object key access is not supported yet")
+		// Object key access
+		id := strings.Split(value_str, ".")[0]
+		ref_output, ok := bindings[id]
+		if !ok {
+			return nil, false, fmt.Errorf("reference %s not found in bindings", id)
+		}
+		ref_output_map, ok := ref_output.(map[string]any)
+		if !ok {
+			return nil, false, fmt.Errorf("reference %s is not a map", id)
+		}
+		key := strings.Split(value_str, ".")[1]
+		ref_value, ok := ref_output_map[key]
+		if !ok {
+			return nil, false, fmt.Errorf("key %s not found in reference %s", key, id)
+		}
+		return ref_value, true, nil
 	}
 
 	// What the

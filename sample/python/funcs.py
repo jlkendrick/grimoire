@@ -56,3 +56,13 @@ def compose_opening(setting: str, hero: str, villain: str, mcguffin: str, style:
 		return f"{hero.upper()} STOP {setting.upper()} STOP {villain.upper()} HAS {mcguffin.upper()} STOP ADVISE"
 	# terse (default)
 	return f"{hero} walked into {setting}. {villain} had {mcguffin}, and only one of them was leaving with it."
+
+
+def map_output() -> dict:
+	return {
+		"a": "b",
+		"c": "d",
+	}
+
+def auto_map_output(c: str, a: str) -> str:
+	return c + a
