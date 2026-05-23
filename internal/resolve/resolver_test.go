@@ -36,19 +36,19 @@ func TestResolveReference_StringWithNoMatchingBindingPassesThrough(t *testing.T)
 	}
 }
 
-func TestResolveReference_BareBindingNameIsNotAReference(t *testing.T) {
-	// A bare binding name (no accessor) is not treated as a reference —
-	// isReference only matches strings containing [, ., $, or @.
+func TestResolveReference_BareBindingNameIsAReference(t *testing.T) {
+	// A bare binding name (no accessor) is treated as a reference
+	// to the full result of the previous step.
 	bindings := map[string]any{"step1": "hello"}
 	got, ok, err := resolve.ResolveReference("step1", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
-	if ok {
-		t.Errorf("ok = true, want false for bare binding name")
+	if !ok {
+		t.Errorf("ok = false, want true for bare binding name")
 	}
-	if got != "step1" {
-		t.Errorf("got %v, want bare string returned unchanged", got)
+	if got != "hello" {
+		t.Errorf("got %v, want hello", got)
 	}
 }
 
