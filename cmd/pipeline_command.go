@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -13,26 +12,11 @@ import (
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
-	resolve "github.com/jlkendrick/grimoire/internal/resolve"
-	runtime "github.com/jlkendrick/grimoire/internal/runtime"
+	engine "github.com/jlkendrick/grimoire/internal/engine"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 const previewMaxRunes = 80
-
-func decodeStepOutput(output []byte) (any, error) {
-	trimmed := bytes.TrimSpace(output)
-	if len(trimmed) == 0 {
-		return nil, nil
-	}
-
-	var decoded any
-	if err := json.Unmarshal(trimmed, &decoded); err != nil {
-		return nil, fmt.Errorf("step output is not valid JSON: %v", err)
-	}
-
-	return decoded, nil
-}
 
 // previewLine returns the first non-empty line of output, trimmed and
 // truncated to previewMaxRunes runes (with an ellipsis if it overflowed).
@@ -101,156 +85,6 @@ func (v *stepView) finish(output []byte) {
 	}
 }
 
-// pipelineExecState carries the shared state threaded through the recursive
-// step walker. bindings and prev_result mutate across branches; k/total
-// drive the step header counter. terminalPrinted catches the case where the
-// chosen branch ran no spell-step but we still need to surface a final
-// stdout to the user.
-type pipelineExecState struct {
-	bindings         map[string]any
-	prev_result      *runtime.RunResult
-	seen             map[string]bool
-	runtimes         []string
-	k                int
-	total            int
-	cmd              *cobra.Command
-	descriptor_cache *cache.DescriptorCache
-	terminalPrinted  bool
-}
-
-// countSpellSteps walks the descriptor tree and counts spell-steps across
-// all branches. The result is used as the "N" in "step k/N" headers. For
-// branched rituals where some branches are skipped, k will not always
-// reach N — that's acceptable; the alternative (recomputing N at runtime
-// without evaluating conditions) is impossible.
-func countSpellSteps(steps []descriptor.StepDescriptor) int {
-	n := 0
-	for _, s := range steps {
-		switch s.Kind() {
-		case "if":
-			n += countSpellSteps(s.Then)
-			n += countSpellSteps(s.Else)
-		case "let":
-			// let-steps don't surface in the header counter
-		default:
-			n++
-		}
-	}
-	return n
-}
-
-// executeSteps runs a step list, recursing into the chosen branch on an
-// if-step. terminalScope propagates "this scope ends the ritual" so the
-// final spell-step can stream stderr live and print stdout via fmt.Println
-// instead of going through the spinner-preview UI. State mutates in place.
-func executeSteps(steps []descriptor.StepDescriptor, state *pipelineExecState, terminalScope bool) error {
-	for i, step := range steps {
-		isLastInList := i == len(steps)-1
-		thisTerminalScope := terminalScope && isLastInList
-
-		if step.Kind() == "if" {
-			expr, err := resolve.ParseCondition(step.Condition)
-			if err != nil {
-				return fmt.Errorf("parse condition %q: %v", step.Condition, err)
-			}
-			cond, err := resolve.EvaluateCondition(expr, state.bindings)
-			if err != nil {
-				return fmt.Errorf("evaluate condition %q: %v", step.Condition, err)
-			}
-			if cond {
-				if err := executeSteps(step.Then, state, thisTerminalScope); err != nil {
-					return err
-				}
-			} else if len(step.Else) > 0 {
-				if err := executeSteps(step.Else, state, thisTerminalScope); err != nil {
-					return err
-				}
-			}
-			continue
-		}
-
-		if step.Kind() == "let" {
-			expr, err := resolve.ParseCondition(step.Value)
-			if err != nil {
-				return fmt.Errorf("parse let %q value %q: %v", step.Let, step.Value, err)
-			}
-			val, err := resolve.EvaluateExpression(expr, state.bindings)
-			if err != nil {
-				return fmt.Errorf("evaluate let %q: %v", step.Let, err)
-			}
-			state.bindings[step.Let] = val
-			continue
-		}
-
-		function_descriptor, ok := state.descriptor_cache.Functions[step.SpellName]
-		if !ok {
-			return fmt.Errorf("spell %s not found in descriptor cache", step.SpellName)
-		}
-		resolved_descriptor, err := resolve.ReconcileFunctionDescriptor(&function_descriptor)
-		if err != nil {
-			return fmt.Errorf("reconcile function descriptor: %v", err)
-		}
-
-		state.k++
-
-		var payload map[string]interface{}
-		if state.prev_result == nil {
-			payload = buildPayload(resolved_descriptor, state.cmd)
-		} else if len(step.Params) == 0 {
-			payload, err = buildPayloadFromResult(state.prev_result.Output, resolved_descriptor)
-			if err != nil {
-				return err
-			}
-		} else {
-			payload, err = buildPayloadFromBindings(step.Params, state.bindings, resolved_descriptor)
-			if err != nil {
-				return err
-			}
-		}
-
-		var runResult *runtime.RunResult
-		if thisTerminalScope {
-			label := fmt.Sprintf("step %d/%d · %s", state.k, state.total, step.SpellName)
-			fmt.Fprintf(os.Stderr, "%s %s\n", accent_style("◈"), label)
-			runResult, err = runtime.Run(&resolved_descriptor, payload, &runtime.RunOptions{
-				SuppressFraming: true,
-			})
-			if err != nil {
-				return fmt.Errorf("execute step: %v", err)
-			}
-			fmt.Println(string(runResult.Output))
-			state.terminalPrinted = true
-		} else {
-			view := newStepView(state.k, state.total, step.SpellName)
-			view.start()
-			runResult, err = runtime.Run(&resolved_descriptor, payload, &runtime.RunOptions{
-				SuppressFraming: true,
-				OnStderrLine:    view.updatePreview,
-			})
-			if err != nil {
-				return fmt.Errorf("execute step: %v", err)
-			}
-			view.finish(runResult.Output)
-		}
-
-		if runResult.Runtime != "" && !state.seen[runResult.Runtime] {
-			state.seen[runResult.Runtime] = true
-			state.runtimes = append(state.runtimes, runResult.Runtime)
-		}
-
-		state.prev_result = runResult
-
-		if step.Id != "" {
-			decoded, err := decodeStepOutput(runResult.Output)
-			if err != nil {
-				return err
-			}
-			state.bindings[step.Id] = decoded
-		}
-	}
-	return nil
-}
-
 func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, descriptor_cache *cache.DescriptorCache) (*cobra.Command, error) {
 	if len(pipeline_descriptor.Steps) == 0 {
 		return nil, fmt.Errorf("pipeline %s has no steps", pipeline_descriptor.CommandName)
@@ -267,32 +101,56 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 	command := &cobra.Command{
 		Use: pipeline_descriptor.CommandName,
 		Run: func(cmd *cobra.Command, args []string) {
-			state := &pipelineExecState{
-				bindings:         map[string]any{},
-				seen:             map[string]bool{},
-				total:            countSpellSteps(pipeline_descriptor.Steps),
-				cmd:              cmd,
-				descriptor_cache: descriptor_cache,
+			inputs := buildPayload(first_step_descriptor, cmd)
+
+			// stepView lifecycle is keyed by the engine's spell-step
+			// counter. The terminal step never enters this map — its
+			// header is printed directly in OnStepStart and its stderr
+			// streams via the fallback branch of OnStepStderr.
+			views := map[int]*stepView{}
+			hooks := engine.Hooks{
+				OnStepStart: func(idx, total int, spellName string, isTerminal bool) {
+					if isTerminal {
+						label := fmt.Sprintf("step %d/%d · %s", idx, total, spellName)
+						fmt.Fprintf(os.Stderr, "%s %s\n", accent_style("◈"), label)
+						return
+					}
+					v := newStepView(idx, total, spellName)
+					v.start()
+					views[idx] = v
+				},
+				OnStepStderr: func(idx int, line string) {
+					if v, ok := views[idx]; ok {
+						v.updatePreview(line)
+						return
+					}
+					// Terminal step: matches runtime.Execute's fallback
+					// fmt.Println so the spell's stderr surfaces live.
+					fmt.Println(line)
+				},
+				OnStepFinish: func(idx int, output []byte) {
+					if v, ok := views[idx]; ok {
+						v.finish(output)
+						delete(views, idx)
+					}
+				},
 			}
 
 			start := time.Now()
-			if err := executeSteps(pipeline_descriptor.Steps, state, true); err != nil {
+			result, err := engine.RunPipeline(pipeline_descriptor, descriptor_cache, inputs, hooks)
+			if err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
 
-			// Branched rituals where the chosen branch contained no
-			// spell-step at the terminal scope (cond false, no else) leave
-			// terminalPrinted=false. Surface the last captured stdout so
-			// the user still sees a final result.
-			if !state.terminalPrinted && state.prev_result != nil {
-				fmt.Println(string(state.prev_result.Output))
+			if result.FinalOutput != nil {
+				fmt.Println(string(result.FinalOutput))
 			}
 
 			elapsed := time.Since(start)
 			footerParts := []string{fmt.Sprintf("%.2fs", elapsed.Seconds())}
-			if len(state.runtimes) > 0 {
-				footerParts = append(footerParts, strings.Join(state.runtimes, ", "))
+			if len(result.Runtimes) > 0 {
+				footerParts = append(footerParts, strings.Join(result.Runtimes, ", "))
 			}
 			fmt.Fprintf(os.Stderr, "\n%s %s\n", accent_style("◈"), dim_style(strings.Join(footerParts, " · ")))
 		},
