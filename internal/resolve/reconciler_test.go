@@ -504,6 +504,154 @@ rituals:
 	}
 }
 
+func TestReconcile_RitualWithLetStep_Valid(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+  - command: shout
+    path: shout.py
+    function: shout
+rituals:
+  - command: pipe
+    steps:
+      - id: g
+        spell: greet
+      - let: is_hello
+        value: g == "hello world"
+      - if: is_hello
+        then:
+          - spell: shout
+`,
+		map[string]string{"greet.py": pyGreet, "shout.py": pyShout},
+	)
+	if err := silentReconcile(t, s, dc); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+	pd, ok := dc.Pipelines["pipe"]
+	if !ok {
+		t.Fatalf("pipeline 'pipe' not added")
+	}
+	if len(pd.Steps) != 3 {
+		t.Fatalf("expected 3 steps, got %d", len(pd.Steps))
+	}
+	if pd.Steps[1].Kind() != "let" {
+		t.Errorf("step 2 kind = %q, want let", pd.Steps[1].Kind())
+	}
+	if pd.Steps[1].Let != "is_hello" {
+		t.Errorf("Let = %q", pd.Steps[1].Let)
+	}
+	if pd.Steps[1].Value != `g == "hello world"` {
+		t.Errorf("Value = %q", pd.Steps[1].Value)
+	}
+}
+
+func TestReconcile_RitualLetStepMissingValueErrors(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - spell: greet
+      - let: x
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for let-step without value, got nil")
+	}
+}
+
+func TestReconcile_RitualLetStepBadValueErrors(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - spell: greet
+      - let: x
+        value: "1 + "
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for malformed let value, got nil")
+	}
+}
+
+func TestReconcile_RitualLetStepOutOfScopeRefErrors(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - spell: greet
+      - let: x
+        value: missing.field
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for let value referencing out-of-scope id, got nil")
+	}
+}
+
+func TestReconcile_RitualLetStepAsFirstErrors(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - let: x
+        value: "true"
+      - spell: greet
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for let-step as first step, got nil")
+	}
+}
+
+func TestReconcile_RitualLetStepReboundReplacesValue(t *testing.T) {
+	// Same name written twice — both pass static validation; runtime
+	// re-binds. Verifies that re-assignment isn't rejected at reconcile
+	// time (no const-ness contract today).
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - id: g
+        spell: greet
+      - let: x
+        value: g
+      - let: x
+        value: g
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err != nil {
+		t.Errorf("expected re-binding the same let name to be allowed: %v", err)
+	}
+}
+
 // TestReconcile_GoAndPythonMix exercises the language-dispatch path: one .py
 // spell and one .go spell in the same scroll both extract correctly.
 func TestReconcile_GoAndPythonMix(t *testing.T) {

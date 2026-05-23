@@ -6,9 +6,10 @@ type PipelineDescriptor struct {
 	RitualHash  string
 }
 
-// StepDescriptor is either a spell-step (SpellName set) or an if-step
-// (Condition set). The reconciler enforces the discriminator; nothing
-// downstream should see a malformed mix.
+// StepDescriptor is one of three kinds: spell-step (SpellName set),
+// if-step (Condition set), or let-step (Let set, with Value carrying
+// the expression source). The reconciler enforces the discriminator;
+// nothing downstream should see a malformed mix.
 type StepDescriptor struct {
 	Id        string         `json:",omitempty"`
 	SpellName string         `json:",omitempty"`
@@ -17,9 +18,15 @@ type StepDescriptor struct {
 	Condition string           `json:",omitempty"`
 	Then      []StepDescriptor `json:",omitempty"`
 	Else      []StepDescriptor `json:",omitempty"`
+
+	Let   string `json:",omitempty"`
+	Value string `json:",omitempty"`
 }
 
 func (s StepDescriptor) Kind() string {
+	if s.Let != "" {
+		return "let"
+	}
 	if s.Condition != "" {
 		return "if"
 	}

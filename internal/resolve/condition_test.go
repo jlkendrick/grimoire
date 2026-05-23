@@ -194,6 +194,48 @@ func TestEvaluateCondition_ShortCircuit(t *testing.T) {
 	}
 }
 
+func TestEvaluateExpression_ReturnsRawValues(t *testing.T) {
+	// EvaluateExpression is the let-step entry point — it should return
+	// the raw evaluated value without asserting bool. Mirrors the
+	// EvaluateCondition cases but exercises non-bool returns.
+	bindings := map[string]any{
+		"count":  3.0,
+		"status": "ready",
+		"nested": map[string]any{"flag": true, "name": "x"},
+	}
+	cases := []struct {
+		src  string
+		want any
+	}{
+		{"42", 42.0},
+		{`"hello"`, "hello"},
+		{"true", true},
+		{"null", nil},
+		{"count", 3.0},
+		{"status", "ready"},
+		{"nested.flag", true},
+		{"nested.name", "x"},
+		{"count > 0", true},
+		{`status == "ready"`, true},
+		{"!(count > 5)", true},
+	}
+	for _, c := range cases {
+		expr, err := resolve.ParseCondition(c.src)
+		if err != nil {
+			t.Errorf("%q: parse: %v", c.src, err)
+			continue
+		}
+		got, err := resolve.EvaluateExpression(expr, bindings)
+		if err != nil {
+			t.Errorf("%q: eval: %v", c.src, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("%q: got %v (%T), want %v (%T)", c.src, got, got, c.want, c.want)
+		}
+	}
+}
+
 func TestEvaluateCondition_Precedence(t *testing.T) {
 	// `&&` binds tighter than `||`: false || true && false  →  false || (true && false)  →  false
 	bindings := map[string]any{}

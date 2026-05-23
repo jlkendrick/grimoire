@@ -12,12 +12,15 @@ type Ritual struct {
 	Steps   []Step `yaml:"steps"`
 }
 
-// Step is either a spell-step (Spell set) or an if-step (If set). The
-// reconciler enforces mutual exclusivity and the other shape rules
-// (no id on if-step, non-empty then, if-step not in first position).
+// Step is one of three kinds: spell-step (Spell set), if-step (If set),
+// or let-step (Let set, binding a name to the result of an expression).
+// The reconciler enforces mutual exclusivity and the other shape rules
+// (no id on if-step, non-empty then, no spell+if mixing, first step is
+// a spell so CLI flags can be derived).
 //
-// New fields (If/Then/Else) carry json:",omitempty" so adding them
-// doesn't perturb the JSON hash of pre-existing spell-only rituals.
+// The newer fields (If/Then/Else/Let/Value) carry json:",omitempty" so
+// adding them doesn't perturb the JSON hash of pre-existing spell-only
+// rituals.
 type Step struct {
 	Id     string         `yaml:"id,omitempty"`
 	Spell  string         `yaml:"spell,omitempty"`
@@ -26,9 +29,15 @@ type Step struct {
 	If   string `yaml:"if,omitempty" json:",omitempty"`
 	Then []Step `yaml:"then,omitempty" json:",omitempty"`
 	Else []Step `yaml:"else,omitempty" json:",omitempty"`
+
+	Let   string `yaml:"let,omitempty" json:",omitempty"`
+	Value string `yaml:"value,omitempty" json:",omitempty"`
 }
 
 func (s Step) Kind() string {
+	if s.Let != "" {
+		return "let"
+	}
 	if s.If != "" {
 		return "if"
 	}

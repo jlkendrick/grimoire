@@ -126,12 +126,15 @@ type pipelineExecState struct {
 func countSpellSteps(steps []descriptor.StepDescriptor) int {
 	n := 0
 	for _, s := range steps {
-		if s.Kind() == "if" {
+		switch s.Kind() {
+		case "if":
 			n += countSpellSteps(s.Then)
 			n += countSpellSteps(s.Else)
-			continue
+		case "let":
+			// let-steps don't surface in the header counter
+		default:
+			n++
 		}
-		n++
 	}
 	return n
 }
@@ -163,6 +166,19 @@ func executeSteps(steps []descriptor.StepDescriptor, state *pipelineExecState, t
 					return err
 				}
 			}
+			continue
+		}
+
+		if step.Kind() == "let" {
+			expr, err := resolve.ParseCondition(step.Value)
+			if err != nil {
+				return fmt.Errorf("parse let %q value %q: %v", step.Let, step.Value, err)
+			}
+			val, err := resolve.EvaluateExpression(expr, state.bindings)
+			if err != nil {
+				return fmt.Errorf("evaluate let %q: %v", step.Let, err)
+			}
+			state.bindings[step.Let] = val
 			continue
 		}
 

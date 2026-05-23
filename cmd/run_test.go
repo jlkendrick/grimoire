@@ -503,6 +503,99 @@ func TestRun_RitualConditional_TakesElseBranch(t *testing.T) {
 	}
 }
 
+// TestRun_RitualLetStep_BindsExpressionResult verifies that a let-step
+// stores the evaluated expression into the bindings map so subsequent
+// steps (here, an if-step) can reference it.
+func TestRun_RitualLetStep_BindsExpressionResult(t *testing.T) {
+	if !pythonAvailable() {
+		t.Skip("python3 not on PATH")
+	}
+	setupTestEnv(t)
+	dir := withScrollDir(t)
+
+	scrollPath := filepath.Join(dir, "scroll.yaml")
+	writeFile(t, scrollPath, `spells:
+  - command: classify
+    path: cls.py
+    function: classify
+    interpreter: python3
+  - command: handle_extreme
+    path: cls.py
+    function: handle_extreme
+    interpreter: python3
+  - command: handle_normal
+    path: cls.py
+    function: handle_normal
+    interpreter: python3
+rituals:
+  - command: branchy
+    steps:
+      - id: t
+        spell: classify
+      - let: extreme
+        value: t.hot || t.cold
+      - if: extreme
+        then:
+          - spell: handle_extreme
+        else:
+          - spell: handle_normal
+`)
+	writeFile(t, filepath.Join(dir, "cls.py"), `def classify(celsius: int):
+    return {"hot": celsius >= 30, "cold": celsius <= 0}
+
+def handle_extreme():
+    return "EXTREME"
+
+def handle_normal():
+    return "NORMAL"
+`)
+
+	s, err := scroll.ParseScroll(scrollPath)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	dc, err := cache.ReadDescriptorCache(scrollPath)
+	if err != nil {
+		t.Fatalf("ReadDescriptorCache: %v", err)
+	}
+	captureOutput(t, func() {
+		if err := resolve.ReconcileScrollAndDescriptors(s, dc); err != nil {
+			t.Fatalf("Reconcile: %v", err)
+		}
+	})
+	commands, err := GenerateCommands(dc)
+	if err != nil {
+		t.Fatalf("GenerateCommands: %v", err)
+	}
+	parent := &cobra.Command{Use: "test"}
+	for _, cm := range commands {
+		parent.AddCommand(cm)
+	}
+
+	cases := []struct {
+		name    string
+		celsius string
+		want    string
+	}{
+		{"hot", "40", "EXTREME"},
+		{"cold", "-10", "EXTREME"},
+		{"mild", "20", "NORMAL"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			stdout, _ := captureOutput(t, func() {
+				parent.SetArgs([]string{"branchy", "--celsius", c.celsius})
+				if err := parent.Execute(); err != nil {
+					t.Fatalf("execute: %v", err)
+				}
+			})
+			if !strings.Contains(stdout, c.want) {
+				t.Errorf("celsius=%s: expected %q in stdout, got:\n%s", c.celsius, c.want, stdout)
+			}
+		})
+	}
+}
+
 // TestRun_RitualConditional_PrevResultThreadsThroughBranch verifies that a
 // step following an if-step auto-binds from prev_result set by the tail of
 // the chosen branch (not from before the if-step).

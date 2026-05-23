@@ -290,6 +290,13 @@ func EvaluateCondition(expr Expr, bindings map[string]any) (bool, error) {
 	return b, nil
 }
 
+// EvaluateExpression resolves expr against bindings and returns the raw
+// value without asserting bool. Use this for let-step value bindings
+// (where any type is fine); use EvaluateCondition for if-step conditions.
+func EvaluateExpression(expr Expr, bindings map[string]any) (any, error) {
+	return evalExpr(expr, bindings)
+}
+
 func evalExpr(expr Expr, bindings map[string]any) (any, error) {
 	switch e := expr.(type) {
 	case LiteralExpr:

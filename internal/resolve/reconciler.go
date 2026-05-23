@@ -159,8 +159,8 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 
 	// Rituals -> Pipeline descriptors
 	for _, ritual := range scroll_obj.Rituals {
-		if len(ritual.Steps) > 0 && ritual.Steps[0].Kind() == "if" {
-			return false, fmt.Errorf("ritual %s: first step cannot be conditional (no spell to derive CLI flags from)", ritual.Command)
+		if len(ritual.Steps) > 0 && ritual.Steps[0].Kind() != "spell" {
+			return false, fmt.Errorf("ritual %s: first step must be a spell (got %s; CLI flags are derived from the entry spell's params)", ritual.Command, ritual.Steps[0].Kind())
 		}
 
 		// Recursively validate steps and convert to descriptors. The walker
@@ -246,6 +246,31 @@ func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descrip
 			if step.Id != "" {
 				siblingIds = append(siblingIds, step.Id)
 			}
+
+		case "let":
+			if step.Spell != "" || step.If != "" || len(step.Then) > 0 || len(step.Else) > 0 {
+				return nil, fmt.Errorf("ritual %s: let-step %q cannot mix with spell/if fields", ritualName, step.Let)
+			}
+			if step.Id != "" {
+				return nil, fmt.Errorf("ritual %s: let-step uses 'let:' for the binding name; remove the redundant 'id:' field", ritualName)
+			}
+			if step.Value == "" {
+				return nil, fmt.Errorf("ritual %s: let %q requires a 'value:' expression", ritualName, step.Let)
+			}
+			letExpr, err := ParseCondition(step.Value)
+			if err != nil {
+				return nil, fmt.Errorf("ritual %s: invalid let %q value %q: %v", ritualName, step.Let, step.Value, err)
+			}
+			for _, root := range conditionRootRefs(letExpr) {
+				if !slices.Contains(visible(), root) {
+					return nil, fmt.Errorf("ritual %s: let %q references %s which is not in scope", ritualName, step.Let, root)
+				}
+			}
+			out = append(out, descriptor.StepDescriptor{
+				Let:   step.Let,
+				Value: step.Value,
+			})
+			siblingIds = append(siblingIds, step.Let)
 
 		case "if":
 			if step.Id != "" {
