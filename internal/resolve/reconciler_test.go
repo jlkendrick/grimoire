@@ -303,6 +303,207 @@ rituals:
 	}
 }
 
+func TestReconcile_RitualWithIfStep_Valid(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+  - command: shout
+    path: shout.py
+    function: shout
+rituals:
+  - command: pipe
+    steps:
+      - id: g
+        spell: greet
+      - if: g == "hello world"
+        then:
+          - spell: shout
+`,
+		map[string]string{"greet.py": pyGreet, "shout.py": pyShout},
+	)
+	if err := silentReconcile(t, s, dc); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+	pd, ok := dc.Pipelines["pipe"]
+	if !ok {
+		t.Fatalf("pipeline 'pipe' not added; map=%+v", dc.Pipelines)
+	}
+	if len(pd.Steps) != 2 {
+		t.Fatalf("expected 2 top-level steps, got %d", len(pd.Steps))
+	}
+	if pd.Steps[1].Kind() != "if" {
+		t.Errorf("expected step 2 to be an if-step, got %s", pd.Steps[1].Kind())
+	}
+	if pd.Steps[1].Condition != `g == "hello world"` {
+		t.Errorf("Condition = %q", pd.Steps[1].Condition)
+	}
+	if len(pd.Steps[1].Then) != 1 || pd.Steps[1].Then[0].SpellName != "shout" {
+		t.Errorf("Then branch wrong: %+v", pd.Steps[1].Then)
+	}
+}
+
+func TestReconcile_RitualUnknownSpellInBranch(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - id: g
+        spell: greet
+      - if: g == "x"
+        then:
+          - spell: nonexistent
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for unknown spell in branch, got nil")
+	}
+}
+
+func TestReconcile_RitualBadConditionSyntax(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - id: g
+        spell: greet
+      - if: g >
+        then:
+          - spell: greet
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for malformed condition, got nil")
+	}
+}
+
+func TestReconcile_RitualFirstStepIsIfErrors(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - if: "true"
+        then:
+          - spell: greet
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for if-step as first step, got nil")
+	}
+}
+
+func TestReconcile_RitualConditionRefOutOfScopeErrors(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - spell: greet
+      - if: missing.x
+        then:
+          - spell: greet
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for condition referencing out-of-scope id, got nil")
+	}
+}
+
+func TestReconcile_RitualParamRefToBranchInternalIdErrors(t *testing.T) {
+	// An id declared inside `then` must not be visible to siblings of the
+	// if-step. The reconciler rejects the second top-level step's
+	// `inner.field` accessor as out-of-scope. (A bare `inner` with no
+	// accessor would be treated as a literal string, not a reference —
+	// consistent with how getStepReference detects refs.)
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+  - command: shout
+    path: shout.py
+    function: shout
+rituals:
+  - command: pipe
+    steps:
+      - spell: greet
+      - if: "true"
+        then:
+          - id: inner
+            spell: greet
+      - spell: shout
+        params:
+          name: inner.field
+`,
+		map[string]string{"greet.py": pyGreet, "shout.py": pyShout},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for sibling reference to branch-internal id, got nil")
+	}
+}
+
+func TestReconcile_RitualIfStepWithIdErrors(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - spell: greet
+      - id: bogus
+        if: "true"
+        then:
+          - spell: greet
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for if-step with id, got nil")
+	}
+}
+
+func TestReconcile_RitualEmptyThenErrors(t *testing.T) {
+	s, dc, _ := fixture(t,
+		`spells:
+  - command: greet
+    path: greet.py
+    function: greet
+rituals:
+  - command: pipe
+    steps:
+      - spell: greet
+      - if: "true"
+        then: []
+`,
+		map[string]string{"greet.py": pyGreet},
+	)
+	if err := silentReconcile(t, s, dc); err == nil {
+		t.Fatal("expected error for empty then branch, got nil")
+	}
+}
+
 // TestReconcile_GoAndPythonMix exercises the language-dispatch path: one .py
 // spell and one .go spell in the same scroll both extract correctly.
 func TestReconcile_GoAndPythonMix(t *testing.T) {

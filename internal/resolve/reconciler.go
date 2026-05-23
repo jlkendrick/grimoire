@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"slices"
 
-	utils "github.com/jlkendrick/grimoire/internal/utils"
 	cache "github.com/jlkendrick/grimoire/internal/cache"
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
-	extract "github.com/jlkendrick/grimoire/internal/extract"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	extract "github.com/jlkendrick/grimoire/internal/extract"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 // Reconcile the function descriptor with the source code
@@ -53,12 +53,14 @@ func ReconcileScrollAndDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *
 	}
 
 	// Reconcile the scroll and function descriptors
-	mutated1, err := ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache); if err != nil {
+	mutated1, err := ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache)
+	if err != nil {
 		return fmt.Errorf("error reconciling scroll and function descriptors: %v", err)
 	}
 
 	// Reconcile the scroll and pipeline descriptors
-	mutated2, err := ReconcileScrollAndPipelineDescriptors(scroll_obj, descriptor_cache); if err != nil {
+	mutated2, err := ReconcileScrollAndPipelineDescriptors(scroll_obj, descriptor_cache)
+	if err != nil {
 		return fmt.Errorf("error reconciling scroll and pipeline descriptors: %v", err)
 	}
 
@@ -96,13 +98,13 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 				return false, fmt.Errorf("error making scroll rel path abs: %v", err)
 			}
 			function_descriptor_generator := extract.FunctionDescriptorGenerator{
-				CommandName: spell.Command,
-				FunctionName: spell.Function,
+				CommandName:         spell.Command,
+				FunctionName:        spell.Function,
 				RelPathToSourceFile: spell.Path,
 				AbsPathToSourceFile: abs_path_to_function,
-				ScrollPath: scroll_obj.Path,
-				SpellHash: curr_hash,
-				Interpreter: spell.Interpreter,
+				ScrollPath:          scroll_obj.Path,
+				SpellHash:           curr_hash,
+				Interpreter:         spell.Interpreter,
 			}
 			resolved_descriptor, err := function_descriptor_generator.Generate()
 			if err != nil {
@@ -134,14 +136,19 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 	return mutated, nil
 }
 
+// getStepReference returns the root binding id of a step-param reference
+// like "step.field" or "step[0]" — empty string if the value is not a
+// reference. Crucially, bare strings without an accessor are NOT
+// references (they're literal user-provided values); reference detection
+// only kicks in when a path accessor is present.
 func getStepReference(value any) string {
-	if _, ok := value.(string); !ok {
+	s, ok := value.(string)
+	if !ok {
 		return ""
 	}
-	value_str := value.(string)
-	for i, c := range value_str {
-		if c == '[' || c == '.' {
-			return value_str[:i]
+	for i := 0; i < len(s); i++ {
+		if s[i] == '.' || s[i] == '[' {
+			return s[:i]
 		}
 	}
 	return ""
@@ -152,15 +159,19 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 
 	// Rituals -> Pipeline descriptors
 	for _, ritual := range scroll_obj.Rituals {
-		// Check that all steps in the ritual are valid spells in our descriptor cache
-		for _, step := range ritual.Steps {
-			_, ok := descriptor_cache.Functions[step.Spell]
-			if !ok {	
-				return false, fmt.Errorf("spell %s not found in descriptor cache", step.Spell)
-			}
-		}	
+		if len(ritual.Steps) > 0 && ritual.Steps[0].Kind() == "if" {
+			return false, fmt.Errorf("ritual %s: first step cannot be conditional (no spell to derive CLI flags from)", ritual.Command)
+		}
 
-		// If the ritual is not in the descriptor cache or has been updated since last run, add it
+		// Recursively validate steps and convert to descriptors. The walker
+		// enforces lexical scope for step-id references: a step can see
+		// ancestor-scope ids and earlier-sibling ids, but not ids declared
+		// inside a sibling branch.
+		steps, err := validateAndConvertSteps(ritual.Steps, nil, descriptor_cache, ritual.Command)
+		if err != nil {
+			return false, err
+		}
+
 		new_hash, err := ritual.Hash()
 		if err != nil {
 			return false, fmt.Errorf("error hashing ritual: %v", err)
@@ -170,50 +181,22 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 		if ok {
 			old_hash = old_pipeline.RitualHash
 		}
-		if _, ok := descriptor_cache.Pipelines[ritual.Command]; !ok || new_hash != old_hash {
+		if !ok || new_hash != old_hash {
 			if !ok {
 				fmt.Printf("%s Unearthed a new ritual: %s. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(ritual.Command))
 			} else {
 				fmt.Printf("%s Ritual %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(ritual.Command))
 			}
-			steps := make([]descriptor.StepDescriptor, 0, len(ritual.Steps))
-			for _, step := range ritual.Steps {
-				steps = append(steps, descriptor.StepDescriptor{
-					Id: step.Id,
-					SpellName: step.Spell,
-					Params: step.Params,
-				})
-			}
-			ritual_hash, err := ritual.Hash()
-			if err != nil {
-				return false, fmt.Errorf("error hashing ritual: %v", err)
-			}
-			pipeline_descriptor := descriptor.PipelineDescriptor{
+			descriptor_cache.Pipelines[ritual.Command] = descriptor.PipelineDescriptor{
 				CommandName: ritual.Command,
-				Steps: steps,
-				RitualHash: ritual_hash,
+				Steps:       steps,
+				RitualHash:  new_hash,
 			}
-			descriptor_cache.Pipelines[ritual.Command] = pipeline_descriptor
 			mutated = true
-		}
-
-		// Validate that the ritual is valid
-		step_ids := make([]string, 0, len(ritual.Steps))
-		for _, step := range ritual.Steps {
-			if step.Id != "" {
-				step_ids = append(step_ids, step.Id)
-			}
-			// Make sure that any references to other steps in the ritual are valid
-			for _, value := range step.Params {
-				if id_ref := getStepReference(value);
-					id_ref != "" && !slices.Contains(step_ids, id_ref) {
-					return false, fmt.Errorf("step %s references step %s which does not exist", step.Id, id_ref)
-				}
-			}
 		}
 	}
 
-	// Prune cached descriptors for functions that are no longer in the scroll.
+	// Prune cached descriptors for rituals that are no longer in the scroll.
 	in_scroll := make(map[string]struct{}, len(scroll_obj.Rituals))
 	for _, ritual := range scroll_obj.Rituals {
 		in_scroll[ritual.Command] = struct{}{}
@@ -227,4 +210,83 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 	}
 
 	return mutated, nil
+}
+
+// validateAndConvertSteps walks a step list, enforces per-step rules, and
+// returns the corresponding descriptor steps. inheritedIds carries the
+// step ids visible from ancestor scopes (NOT sibling-branch scopes —
+// branch-internal ids stay branch-internal).
+func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descriptor_cache *cache.DescriptorCache, ritualName string) ([]descriptor.StepDescriptor, error) {
+	out := make([]descriptor.StepDescriptor, 0, len(steps))
+	siblingIds := []string{}
+
+	visible := func() []string {
+		v := make([]string, 0, len(inheritedIds)+len(siblingIds))
+		v = append(v, inheritedIds...)
+		v = append(v, siblingIds...)
+		return v
+	}
+
+	for _, step := range steps {
+		switch step.Kind() {
+		case "spell":
+			if _, ok := descriptor_cache.Functions[step.Spell]; !ok {
+				return nil, fmt.Errorf("ritual %s: spell %s not found in descriptor cache", ritualName, step.Spell)
+			}
+			for _, value := range step.Params {
+				if ref := getStepReference(value); ref != "" && !slices.Contains(visible(), ref) {
+					return nil, fmt.Errorf("ritual %s: step %s references %s which is not in scope", ritualName, step.Spell, ref)
+				}
+			}
+			out = append(out, descriptor.StepDescriptor{
+				Id:        step.Id,
+				SpellName: step.Spell,
+				Params:    step.Params,
+			})
+			if step.Id != "" {
+				siblingIds = append(siblingIds, step.Id)
+			}
+
+		case "if":
+			if step.Id != "" {
+				return nil, fmt.Errorf("ritual %s: if-step cannot have an id", ritualName)
+			}
+			if step.Spell != "" {
+				return nil, fmt.Errorf("ritual %s: step cannot set both 'if' and 'spell'", ritualName)
+			}
+			if len(step.Then) == 0 {
+				return nil, fmt.Errorf("ritual %s: if-step 'then' branch cannot be empty", ritualName)
+			}
+			expr, err := ParseCondition(step.If)
+			if err != nil {
+				return nil, fmt.Errorf("ritual %s: invalid condition %q: %v", ritualName, step.If, err)
+			}
+			for _, root := range conditionRootRefs(expr) {
+				if !slices.Contains(visible(), root) {
+					return nil, fmt.Errorf("ritual %s: condition references %s which is not in scope", ritualName, root)
+				}
+			}
+
+			branchScope := visible()
+			thenSteps, err := validateAndConvertSteps(step.Then, branchScope, descriptor_cache, ritualName)
+			if err != nil {
+				return nil, err
+			}
+			var elseSteps []descriptor.StepDescriptor
+			if len(step.Else) > 0 {
+				elseSteps, err = validateAndConvertSteps(step.Else, branchScope, descriptor_cache, ritualName)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			out = append(out, descriptor.StepDescriptor{
+				Condition: step.If,
+				Then:      thenSteps,
+				Else:      elseSteps,
+			})
+		}
+	}
+
+	return out, nil
 }

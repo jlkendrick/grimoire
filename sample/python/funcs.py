@@ -69,3 +69,17 @@ def map_list_output() -> dict:
 
 def func(n: int) -> int:
 	return n
+
+
+def classify_temperature(celsius: int):
+	if celsius >= 30:
+		return {"category": "hot", "freezing": False}
+	if celsius <= 0:
+		return {"category": "freezing", "freezing": True}
+	return {"category": "mild", "freezing": False}
+
+def warn_frostbite():
+	return "wear gloves, watch your fingers"
+
+def recommend_shorts():
+	return "leave the jacket at home"

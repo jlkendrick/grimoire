@@ -12,6 +12,7 @@ import (
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	desc "github.com/jlkendrick/grimoire/internal/descriptor"
 	extract "github.com/jlkendrick/grimoire/internal/extract"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
@@ -377,5 +378,214 @@ func TestStaleness_Spell(t *testing.T) {
 	}
 	if len(updated.Params) == 0 {
 		t.Errorf("Params empty after re-extraction")
+	}
+}
+
+// setupConditionalRitual writes a scroll with a binary-branching ritual and
+// the three Python spells it references, reconciles the descriptor cache,
+// and returns the parent cobra command the test will SetArgs against.
+//
+// Scroll shape:
+//
+//	rituals:
+//	  - command: maybe
+//	    steps:
+//	      - id: check
+//	        spell: get_status   # returns {"ok": <bool>}
+//	      - if: check.ok
+//	        then:
+//	          - spell: handle_ok    # prints "OK"
+//	        else:
+//	          - spell: handle_err   # prints "ERR"
+func setupConditionalRitual(t *testing.T) *cobra.Command {
+	t.Helper()
+	setupTestEnv(t)
+	dir := withScrollDir(t)
+
+	scrollPath := filepath.Join(dir, "scroll.yaml")
+	writeFile(t, scrollPath, `spells:
+  - command: get_status
+    path: status.py
+    function: get_status
+    interpreter: python3
+  - command: handle_ok
+    path: handlers.py
+    function: handle_ok
+    interpreter: python3
+  - command: handle_err
+    path: handlers.py
+    function: handle_err
+    interpreter: python3
+rituals:
+  - command: maybe
+    steps:
+      - id: check
+        spell: get_status
+      - if: check.ok
+        then:
+          - spell: handle_ok
+        else:
+          - spell: handle_err
+`)
+	writeFile(t, filepath.Join(dir, "status.py"), `def get_status(ok: bool):
+    return {"ok": ok}
+`)
+	writeFile(t, filepath.Join(dir, "handlers.py"), `def handle_ok():
+    return "OK"
+
+def handle_err():
+    return "ERR"
+`)
+
+	s, err := scroll.ParseScroll(scrollPath)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	dc, err := cache.ReadDescriptorCache(scrollPath)
+	if err != nil {
+		t.Fatalf("ReadDescriptorCache: %v", err)
+	}
+	// Reconciler prints "Unearthed..." progress lines — swallow.
+	captureOutput(t, func() {
+		if err := resolve.ReconcileScrollAndDescriptors(s, dc); err != nil {
+			t.Fatalf("Reconcile: %v", err)
+		}
+	})
+
+	commands, err := GenerateCommands(dc)
+	if err != nil {
+		t.Fatalf("GenerateCommands: %v", err)
+	}
+	parent := &cobra.Command{Use: "test"}
+	for _, cm := range commands {
+		parent.AddCommand(cm)
+	}
+	return parent
+}
+
+func TestRun_RitualConditional_TakesThenBranch(t *testing.T) {
+	if !pythonAvailable() {
+		t.Skip("python3 not on PATH")
+	}
+	parent := setupConditionalRitual(t)
+
+	stdout, _ := captureOutput(t, func() {
+		parent.SetArgs([]string{"maybe", "--ok"})
+		if err := parent.Execute(); err != nil {
+			t.Fatalf("execute: %v", err)
+		}
+	})
+	if !strings.Contains(stdout, "OK") {
+		t.Errorf("expected 'OK' in stdout (then branch), got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "ERR") {
+		t.Errorf("expected else branch to be skipped, got:\n%s", stdout)
+	}
+}
+
+func TestRun_RitualConditional_TakesElseBranch(t *testing.T) {
+	if !pythonAvailable() {
+		t.Skip("python3 not on PATH")
+	}
+	parent := setupConditionalRitual(t)
+
+	stdout, _ := captureOutput(t, func() {
+		parent.SetArgs([]string{"maybe", "--ok=false"})
+		if err := parent.Execute(); err != nil {
+			t.Fatalf("execute: %v", err)
+		}
+	})
+	if !strings.Contains(stdout, "ERR") {
+		t.Errorf("expected 'ERR' in stdout (else branch), got:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "OK") {
+		t.Errorf("expected then branch to be skipped, got:\n%s", stdout)
+	}
+}
+
+// TestRun_RitualConditional_PrevResultThreadsThroughBranch verifies that a
+// step following an if-step auto-binds from prev_result set by the tail of
+// the chosen branch (not from before the if-step).
+func TestRun_RitualConditional_PrevResultThreadsThroughBranch(t *testing.T) {
+	if !pythonAvailable() {
+		t.Skip("python3 not on PATH")
+	}
+	setupTestEnv(t)
+	dir := withScrollDir(t)
+
+	scrollPath := filepath.Join(dir, "scroll.yaml")
+	writeFile(t, scrollPath, `spells:
+  - command: gate
+    path: flow.py
+    function: gate
+    interpreter: python3
+  - command: emit_a
+    path: flow.py
+    function: emit_a
+    interpreter: python3
+  - command: emit_b
+    path: flow.py
+    function: emit_b
+    interpreter: python3
+  - command: echo_val
+    path: flow.py
+    function: echo_val
+    interpreter: python3
+rituals:
+  - command: chain
+    steps:
+      - id: g
+        spell: gate
+      - if: g.left
+        then:
+          - spell: emit_a
+        else:
+          - spell: emit_b
+      - spell: echo_val
+`)
+	writeFile(t, filepath.Join(dir, "flow.py"), `def gate(left: bool):
+    return {"left": left}
+
+def emit_a():
+    return "from-a"
+
+def emit_b():
+    return "from-b"
+
+def echo_val(val: str):
+    return f"got:{val}"
+`)
+
+	s, err := scroll.ParseScroll(scrollPath)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	dc, err := cache.ReadDescriptorCache(scrollPath)
+	if err != nil {
+		t.Fatalf("ReadDescriptorCache: %v", err)
+	}
+	captureOutput(t, func() {
+		if err := resolve.ReconcileScrollAndDescriptors(s, dc); err != nil {
+			t.Fatalf("Reconcile: %v", err)
+		}
+	})
+
+	commands, err := GenerateCommands(dc)
+	if err != nil {
+		t.Fatalf("GenerateCommands: %v", err)
+	}
+	parent := &cobra.Command{Use: "test"}
+	for _, cm := range commands {
+		parent.AddCommand(cm)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		parent.SetArgs([]string{"chain", "--left"})
+		if err := parent.Execute(); err != nil {
+			t.Fatalf("execute (left): %v", err)
+		}
+	})
+	if !strings.Contains(stdout, "got:from-a") {
+		t.Errorf("expected echo_val to receive emit_a output via prev_result, got:\n%s", stdout)
 	}
 }

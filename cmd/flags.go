@@ -183,8 +183,6 @@ func buildPayloadFromResult(prev_output []byte, function_descriptor descriptor.F
 		}
 	}
 
-	fmt.Printf("decoded: %v\n", decoded)
-
 	payload := make(map[string]interface{})
 	if list, ok := decoded.([]interface{}); ok && len(function_descriptor.Params) > 1 {
 		if len(list) != len(function_descriptor.Params) {
@@ -195,7 +193,6 @@ func buildPayloadFromResult(prev_output []byte, function_descriptor descriptor.F
 		}
 		return payload, nil
 	} else if _map, ok := decoded.(map[string]interface{}); ok {
-		fmt.Printf("map: %v\n", _map)
 		mapped_params := 0
 		for _, param := range function_descriptor.Params {
 			if value, ok := _map[param.Name]; ok {
