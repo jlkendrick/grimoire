@@ -1,20 +1,12 @@
-package parser
+package weave
 
 import (
-	"os"
 	"fmt"
+	"os"
 	"path/filepath"
 
-	"github.com/alecthomas/participle/v2"
+	parser "github.com/jlkendrick/grimoire/internal/weave/parser"
 )
-
-var GrimoireParser = participle.MustBuild[Ritual](
-	participle.UseLookahead(2),
-)
-
-func Parse(input string) (*Ritual, error) {
-	return GrimoireParser.ParseString("", input)
-}
 
 func TestParse() {
 	// Load the test file
@@ -25,7 +17,7 @@ func TestParse() {
 	}
 
 	// Parse the file
-	ritual, err := Parse(string(content))
+	ritual, err := parser.Parse(string(content))
 	if err != nil {
 		fmt.Printf("Failed to parse file: %v", err)
 	}

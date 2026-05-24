@@ -1,9 +1,10 @@
-package parser
+package weave
 
 import (
 	"fmt"
 	"strings"
 
+	ast "github.com/jlkendrick/grimoire/internal/weave/parser"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
@@ -16,7 +17,7 @@ func (t *Transpiler) nextTempId() string {
 	return fmt.Sprintf("__temp_%d", t.temp_counter)
 }
 
-func (t *Transpiler) transpileSteps(stmts []*Stmt) ([]scroll.Step, error) {
+func (t *Transpiler) transpileSteps(stmts []*ast.Stmt) ([]scroll.Step, error) {
 	var yaml_steps []scroll.Step
 
 	for _, stmt := range stmts {
@@ -76,7 +77,7 @@ func (t *Transpiler) transpileSteps(stmts []*Stmt) ([]scroll.Step, error) {
 	return yaml_steps, nil
 }
 
-func (t *Transpiler) FlattenExpr(expr *Expr) (string, []scroll.Step) {
+func (t *Transpiler) FlattenExpr(expr *ast.Expr) (string, []scroll.Step) {
 	if expr == nil {
 		return "", nil
 	}
@@ -101,7 +102,7 @@ func (t *Transpiler) FlattenExpr(expr *Expr) (string, []scroll.Step) {
 	return strings.Join(expr_parts, ""), hoisted
 }
 
-func (t *Transpiler) FlattenTerm(term *Term) (string, []scroll.Step) {
+func (t *Transpiler) FlattenTerm(term *ast.Term) (string, []scroll.Step) {
 	// If the term is not a call, just return the stringified term
 	if term.Ref != nil {
 		return StringifyRef(term.Ref), nil
@@ -129,7 +130,7 @@ func (t *Transpiler) FlattenTerm(term *Term) (string, []scroll.Step) {
 // bareCall returns the call if expr is exactly a single call term with no
 // binary operators, nil otherwise. Used to skip unnecessary hoisting when a
 // let's RHS or a top-level statement is just a direct call.
-func bareCall(expr *Expr) *CallExpr {
+func bareCall(expr *ast.Expr) *ast.CallExpr {
 	if expr == nil || len(expr.Right) != 0 || expr.Left == nil {
 		return nil
 	}
@@ -140,7 +141,7 @@ func bareCall(expr *Expr) *CallExpr {
 // with the hoisted steps (which include the call's own step plus any
 // argument-call hoisting). An empty id means the step's output is not
 // referenced — no Id field is set on the emitted step.
-func (t *Transpiler) FlattenCall(call *CallExpr, id string) (string, []scroll.Step) {
+func (t *Transpiler) FlattenCall(call *ast.CallExpr, id string) (string, []scroll.Step) {
 	this_step := scroll.Step{
 		Id: id,
 		Spell: call.Name,
@@ -159,7 +160,7 @@ func (t *Transpiler) FlattenCall(call *CallExpr, id string) (string, []scroll.St
 }
 
 
-func StringifyRef(ref *RefExpr) string {
+func StringifyRef(ref *ast.RefExpr) string {
 	if ref == nil {
 			return ""
 	}
