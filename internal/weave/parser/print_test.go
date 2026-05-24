@@ -8,7 +8,7 @@ import (
 )
 
 func TestRitualString(t *testing.T) {
-	srcPath := filepath.Join("..", "..", "sample", "test.grm")
+	srcPath := filepath.Join("..", "..", "..", "sample", "test.grm")
 	content, err := os.ReadFile(srcPath)
 	if err != nil {
 		t.Fatal(err)

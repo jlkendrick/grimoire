@@ -2,69 +2,69 @@ package parser
 
 // 1. The Root Node
 type Ritual struct {
-	Name string  `"ritual" @Ident "{"`
-	Body []*Stmt `@@* "}"`
+	Name string  `parser:"'ritual' @Ident '{'"`
+	Body []*Stmt `parser:"@@* '}'"`
 }
 
 // 2. Statements
 type Stmt struct {
-	Let  *LetStmt  `  @@`
-	If   *IfStmt   `| @@`
-	Call *CallExpr `| @@`
+	Let  *LetStmt  `parser:"@@"`
+	If   *IfStmt   `parser:"| @@"`
+	Call *CallExpr `parser:"| @@"`
 }
 
 // 3. Variable Assignment
 type LetStmt struct {
-	Ident string `"let" @Ident "="`
-	Expr  *Expr  `@@`
+	Ident string `parser:"'let' @Ident '='"`
+	Expr  *Expr  `parser:"@@"`
 }
 
 // 4. Control Flow
 type IfStmt struct {
-	Condition *Expr   `"if" @@ "{"`
-	TrueBlock []*Stmt `@@* "}"`
-	ElseBlock []*Stmt `( "else" "{" @@* "}" )?` // Optional else block
+	Condition *Expr   `parser:"'if' @@ '{'"`
+	TrueBlock []*Stmt `parser:"@@* '}'"`
+	ElseBlock []*Stmt `parser:"( 'else' '{' @@* '}' )?"` // Optional else block
 }
 
 // 5. Function Calls
 type CallExpr struct {
-	Name string      `@Ident "("`
-	Args []*Argument `( @@ ( "," @@ )* )? ")"` // Comma-separated arguments
+	Name string      `parser:"@Ident '('"`
+	Args []*Argument `parser:"( @@ ( ',' @@ )* )? ')'"` // Comma-separated arguments
 }
 
 type Argument struct {
-	Name  string `( @Ident "=" )?` // Optional named parameter (e.g., celsius =)
-	Value *Expr  `@@`
+	Name  string `parser:"( @Ident '=' )?"` // Optional named parameter (e.g., celsius =)
+	Value *Expr  `parser:"@@"`
 }
 
 // 6. Expressions (Logical and Equality operators)
 type Expr struct {
-	Left  *Term      `@@`
-	Right []*OpRight `@@*`
+	Left  *Term      `parser:"@@"`
+	Right []*OpRight `parser:"@@*"`
 }
 
 type OpRight struct {
-	Operator string `@( "|" "|" | "=" "=" )` // Captures || or ==
-	Right    *Term  `@@`
+	Operator string `parser:"@( '|' '|' | '=' '=' )"` // Captures || or ==
+	Right    *Term  `parser:"@@"`
 }
 
 // 7. Base Values
 type Term struct {
-	Call    *CallExpr `  @@`
-	Ref     *RefExpr  `| @@` // e.g., temp.freezing
-	String  *string   `| @String`
-	Int     *int      `| @Int`
-	Boolean *bool     `| ( @"true" | @"false" )`
+	Call    *CallExpr `parser:"@@"`
+	Ref     *RefExpr  `parser:"| @@"` // e.g., temp.freezing
+	String  *string   `parser:"| @String"`
+	Int     *int      `parser:"| @Int"`
+	Boolean *bool     `parser:"| ( @'true' | @'false' )"`
 }
 
 // Handles dot-notation and array indexing
 type RefExpr struct {
-	Root  string      `@Ident`
-	Chain []*AccessOp `@@*`
+	Root  string      `parser:"@Ident"`
+	Chain []*AccessOp `parser:"@@*"`
 }
 
 // AccessOp represents a single step down the data structure
 type AccessOp struct {
-	Property *string `  "." @Ident`    // e.g., .id
-	Index    *int    `| "[" @Int "]"`  // e.g., [0]
+	Property *string `parser:"'.' @Ident"`   // e.g., .id
+	Index    *int    `parser:"| '[' @Int ']'"` // e.g., [0]
 }

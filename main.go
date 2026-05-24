@@ -2,11 +2,11 @@ package main
 
 import (
 	// cmd "github.com/jlkendrick/grimoire/cmd"
-	parser "github.com/jlkendrick/grimoire/internal/parser"
+	weave "github.com/jlkendrick/grimoire/internal/weave"
 )
 
 func main() {
 	// cmd.Execute()
 
-	parser.TestParse()
+	weave.TestParse()
 }
