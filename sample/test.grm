@@ -1,0 +1,12 @@
+ritual weather_advice {
+	let temp = classify_temperature(celsius = classify_temperature(celsius = 35))	
+	let extreme = temp.freezing || temp.category == "hot"
+
+	if extreme {
+		if temp.freezing {
+			warn_frostbite()
+		} else {
+			recommend_shorts()
+		}
+	}
+}

@@ -1,20 +1,20 @@
 package runtime
 
 import (
-	"os"
-	"fmt"
 	"bufio"
-	"io/fs"
-	"strings"
-	"os/exec"
-	"unicode"
-	"path/filepath"
-	"text/template"
-	"unicode/utf8"
 	"encoding/json"
+	"fmt"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"text/template"
+	"unicode"
+	"unicode/utf8"
 
-	utils "github.com/jlkendrick/grimoire/internal/utils"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 func uppercaseFirst(s string) string {
