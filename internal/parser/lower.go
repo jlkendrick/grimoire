@@ -16,40 +16,72 @@ func (t *Transpiler) nextTempId() string {
 	return fmt.Sprintf("__temp_%d", t.temp_counter)
 }
 
-func (t *Transpiler) transpileSteps(stmts []*Stmt) ([]*scroll.Step, error) {
-	var yaml_steps []*scroll.Step
+func (t *Transpiler) transpileSteps(stmts []*Stmt) ([]scroll.Step, error) {
+	var yaml_steps []scroll.Step
 
 	for _, stmt := range stmts {
 
 		if stmt.Let != nil {
-			expr_str, hoisted := t.FlattenExpr(stmt.Let.Expr)
-			
-			for _, hoisted_step := range hoisted {
-				fmt.Println(hoisted_step)
+			// Bare call on the RHS — emit a single spell-step with the let's
+			// identifier as the step id, rather than hoisting an anonymous
+			// step and binding it via a let-step.
+			if call := bareCall(stmt.Let.Expr); call != nil {
+				_, hoisted := t.FlattenCall(call, stmt.Let.Ident)
+				yaml_steps = append(yaml_steps, hoisted...)
+				continue
 			}
+
+			expr_str, hoisted := t.FlattenExpr(stmt.Let.Expr)
 
 			yaml_steps = append(yaml_steps, hoisted...)
 
-			step := &scroll.Step{
+			step := scroll.Step{
 				Id: stmt.Let.Ident,
 				Value: expr_str,
 			}
 
-			fmt.Println(step)
+			yaml_steps = append(yaml_steps, step)
+		}
+
+		if stmt.If != nil {
+			condition_str, condition_hoisted := t.FlattenExpr(stmt.If.Condition)
+
+			yaml_steps = append(yaml_steps, condition_hoisted...)
+
+			true_steps, err := t.transpileSteps(stmt.If.TrueBlock)
+			if err != nil {
+				return nil, err
+			}
+			false_steps, err := t.transpileSteps(stmt.If.ElseBlock)
+			if err != nil {
+				return nil, err
+			}
+
+			step := scroll.Step{
+				If: condition_str,
+				Then: true_steps,
+				Else: false_steps,
+			}
 
 			yaml_steps = append(yaml_steps, step)
+		}
+
+		if stmt.Call != nil {
+			_, call_hoisted := t.FlattenCall(stmt.Call, "")
+
+			yaml_steps = append(yaml_steps, call_hoisted...)
 		}
 	}
 
 	return yaml_steps, nil
 }
 
-func (t *Transpiler) FlattenExpr(expr *Expr) (string, []*scroll.Step) {
+func (t *Transpiler) FlattenExpr(expr *Expr) (string, []scroll.Step) {
 	if expr == nil {
 		return "", nil
 	}
 
-	var hoisted []*scroll.Step
+	var hoisted []scroll.Step
 	var expr_parts []string
 	
 	// Flatten the left hand side of the expression
@@ -69,7 +101,7 @@ func (t *Transpiler) FlattenExpr(expr *Expr) (string, []*scroll.Step) {
 	return strings.Join(expr_parts, ""), hoisted
 }
 
-func (t *Transpiler) FlattenTerm(term *Term) (string, []*scroll.Step) {
+func (t *Transpiler) FlattenTerm(term *Term) (string, []scroll.Step) {
 	// If the term is not a call, just return the stringified term
 	if term.Ref != nil {
 		return StringifyRef(term.Ref), nil
@@ -84,29 +116,46 @@ func (t *Transpiler) FlattenTerm(term *Term) (string, []*scroll.Step) {
 		return fmt.Sprintf("%t", *term.Boolean), nil
 	}
 
-	// If the term is a call, flatten the arguments
+	// If the term is a call, flatten the arguments. The call appears nested
+	// inside an expression, so we need a temp id to substitute back into the
+	// flattened expression string.
 	if term.Call != nil {
-
-		var hoisted_steps []*scroll.Step
-		this_step := &scroll.Step{
-			Id: t.nextTempId(),
-			Spell: term.Call.Name,
-			Params: make(map[string]any),
-		}
-		hoisted_steps = append(hoisted_steps, this_step)
-		
-		for _, arg := range term.Call.Args {
-			arg_str, arg_hoisted := t.FlattenExpr(arg.Value)
-			// If the argument has a function call, we need to hoist it
-			// Prepend since we want to evaluate the arguments first
-			hoisted_steps = append(arg_hoisted, hoisted_steps...)
-			this_step.Params[arg.Name] = arg_str
-		}
-
-		return this_step.Id, hoisted_steps
+		return t.FlattenCall(term.Call, t.nextTempId())
 	}
 
-	return "", nil	
+	return "", nil
+}
+
+// bareCall returns the call if expr is exactly a single call term with no
+// binary operators, nil otherwise. Used to skip unnecessary hoisting when a
+// let's RHS or a top-level statement is just a direct call.
+func bareCall(expr *Expr) *CallExpr {
+	if expr == nil || len(expr.Right) != 0 || expr.Left == nil {
+		return nil
+	}
+	return expr.Left.Call
+}
+
+// FlattenCall emits a spell-step for the given call and returns its id along
+// with the hoisted steps (which include the call's own step plus any
+// argument-call hoisting). An empty id means the step's output is not
+// referenced — no Id field is set on the emitted step.
+func (t *Transpiler) FlattenCall(call *CallExpr, id string) (string, []scroll.Step) {
+	this_step := scroll.Step{
+		Id: id,
+		Spell: call.Name,
+		Params: make(map[string]any),
+	}
+
+	var arg_hoisted_all []scroll.Step
+	for _, arg := range call.Args {
+		arg_str, arg_hoisted := t.FlattenExpr(arg.Value)
+		// Evaluate argument-call hoisting before this step.
+		arg_hoisted_all = append(arg_hoisted_all, arg_hoisted...)
+		this_step.Params[arg.Name] = arg_str
+	}
+
+	return id, append(arg_hoisted_all, this_step)
 }
 
 

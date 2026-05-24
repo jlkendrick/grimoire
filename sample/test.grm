@@ -1,5 +1,6 @@
 ritual weather_advice {
-	let temp = classify_temperature(celsius = classify_temperature(celsius = 35))	
+	let hi = true == false
+	let temp = classify_temperature(celsius = 35)	
 	let extreme = temp.freezing || temp.category == "hot"
 
 	if extreme {

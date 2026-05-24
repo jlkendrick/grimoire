@@ -35,8 +35,12 @@ func TestParse() {
 
 	// Lower the ritual
 	transpiler := Transpiler{}
-	_, err = transpiler.transpileSteps(ritual.Body)
+	yaml_steps, err := transpiler.transpileSteps(ritual.Body)
 	if err != nil {
 		fmt.Printf("Failed to lower ritual: %v", err)
+	}
+
+	for i, step := range yaml_steps {
+		fmt.Println(i + 1, ":", step)
 	}
 }
