@@ -132,27 +132,39 @@
 
   <!-- ====== TITLE BLOCK ====== -->
   <g transform="translate(430, 118)">
-    <!-- Eyebrow -->
+    <!-- Eyebrow (split around a drawn 4-point star so we don't depend on
+         emoji/symbol font support for the ✦ glyph) -->
     <text x="0" y="0"
           font-family="'IM Fell English SC','IM Fell English', Georgia, serif"
-          font-size="13" letter-spacing="5" fill="#a87a2e">
-      A POLYGLOT META-RUNTIME  ✦  DECLARATIVE EXECUTION FRAMEWORK
-    </text>
+          font-size="13" letter-spacing="5" fill="#a87a2e">A POLYGLOT META-RUNTIME</text>
+    <path d="M 315,-4 L 317,-1.2 L 320,0 L 317,1.2 L 315,4 L 313,1.2 L 310,0 L 313,-1.2 Z"
+          fill="#a87a2e"/>
+    <text x="333" y="0"
+          font-family="'IM Fell English SC','IM Fell English', Georgia, serif"
+          font-size="13" letter-spacing="5" fill="#a87a2e">DECLARATIVE EXECUTION FRAMEWORK</text>
 
-    <!-- Main title -->
-    <text x="0" y="108"
-          font-family="'UnifrakturCook','IM Fell English', Georgia, serif"
-          font-weight="700" font-size="126" fill="#e9dcba"
-          filter="url(#titleGlow)" letter-spacing="2">
-      Grimoire
-    </text>
+    <!-- Main title: UnifrakturCook-Bold "Grimoire" as embedded vector paths.
+         Extracted from the OFL font so it renders identically wherever the
+         SVG is loaded, with no font dependency. font-size equivalent: 118. -->
+    <g transform="translate(0,108)" filter="url(#titleGlow)">
+      <g transform="scale(0.057617,-0.057617)" fill="#e9dcba">
+        <path transform="translate(0,0)" d="M1114 1081Q1328 910 1445 714Q1217 249 745 31Q75 301 75 848Q75 888 79 929Q391 1381 771 1535Q979 1390 1340 1297ZM751 1249Q742 1148 742.0 1070.0Q742 992 744 939Q799 990 857.0 1041.0Q915 1092 970 1145Q884 1212 751 1249ZM746 890Q751 769 765 649Q661 630 520 512Q602 437 707.5 375.0Q813 313 905 313Q931 313 957 317Q1122 344 1142 464Q1147 496 1147 526Q1147 610 1108.0 675.5Q1069 741 980.0 803.5Q891 866 746 890ZM446 585Q472 642 476 716L485 1064Q486 1109 455 1180Q439 1166 426 1147Q335 1025 335 873Q335 708 446 585Z"/>
+        <path transform="translate(1472,0)" d="M395 934 525 1066Q726 927 797 784L637 570Q610 649 563.5 709.0Q517 769 409 832L376 787L357 446Q354 394 423.0 338.0Q492 282 530 266L364 31L54 272Q110 339 112 410L110 794Q107 842 36 890L187 1080Z"/>
+        <path transform="translate(2283,0)" d="M29 890 180 1080 404 975Q392 934 378.0 895.0Q364 856 364 815L350 409Q350 404 350 400Q350 353 380.0 322.0Q410 291 449 275L249 31L37 202Q95 271 95 340L102 794Q102 842 29 890ZM59 1089 139 1484 436 1365Z"/>
+        <path transform="translate(2753,0)" d="M410 931 529 1080 785 891 936 1080 1255 849 1225 731 1212 409Q1212 404 1212 400Q1212 353 1242.0 322.0Q1272 291 1310 275L1110 31Q1036 89 996.5 134.0Q957 179 957 319Q957 329 957 340L964 710Q964 750 857 841L816 770L801 409Q801 406 801 403Q801 354 831.0 322.5Q861 291 900 275L700 31L487 202Q544 269 546 340L552 710Q552 754 435 849L376 779L367 409Q366 356 396.5 323.5Q427 291 466 275L266 31L55 202Q112 271 112 340L120 794Q120 842 46 890L197 1080L410 932Z"/>
+        <path transform="translate(4103,0)" d="M80 801Q313 957 467 1084Q544 1051 622 966Q791 785 822 588Q826 565 826 544Q826 478 789 437L457 14L29 225Q97 366 97 469L95 702Q92 774 80 801ZM349 836 346 411Q355 362 415.0 334.5Q475 307 494.5 307.0Q514 307 521 309Q609 329 609 420Q609 441 604 467Q570 632 505.5 716.5Q441 801 349 836Z"/>
+        <path transform="translate(4967,0)" d="M29 890 180 1080 404 975Q392 934 378.0 895.0Q364 856 364 815L350 409Q350 404 350 400Q350 353 380.0 322.0Q410 291 449 275L249 31L37 202Q95 271 95 340L102 794Q102 842 29 890ZM59 1089 139 1484 436 1365Z"/>
+        <path transform="translate(5437,0)" d="M395 934 525 1066Q726 927 797 784L637 570Q610 649 563.5 709.0Q517 769 409 832L376 787L357 446Q354 394 423.0 338.0Q492 282 530 266L364 31L54 272Q110 339 112 410L110 794Q107 842 36 890L187 1080Z"/>
+        <path transform="translate(6248,0)" d="M520 31 41 222Q68 372 68.0 534.5Q68 697 37 874L382 1077V1080L384 1079H385L774 800L369 374Q410 325 460.0 320.0Q510 315 542.5 315.0Q575 315 619.5 318.5Q664 322 729 324Q676 250 624.0 177.0Q572 104 520 31ZM354 810Q296 810 296 652Q296 562 326 472Q326 463 329 457L490 627Q507 645 507.0 663.0Q507 681 489.5 709.0Q472 737 454 755Q391 810 354 810Z"/>
+      </g>
+    </g>
 
-    <!-- Decorative divider -->
+    <!-- Decorative divider with drawn 4-point star in the middle -->
     <g transform="translate(0, 138)">
-      <line x1="0"   y1="0" x2="225" y2="0" stroke="#a87a2e" stroke-width="0.8" opacity="0.85"/>
-      <line x1="295" y1="0" x2="520" y2="0" stroke="#a87a2e" stroke-width="0.8" opacity="0.85"/>
-      <text x="260" y="6" text-anchor="middle"
-            font-family="Georgia, serif" font-size="18" fill="#a87a2e">✦</text>
+      <line x1="0"   y1="0" x2="245" y2="0" stroke="#a87a2e" stroke-width="0.8" opacity="0.85"/>
+      <line x1="275" y1="0" x2="520" y2="0" stroke="#a87a2e" stroke-width="0.8" opacity="0.85"/>
+      <path d="M 260,-7 L 263,-2 L 268,0 L 263,2 L 260,7 L 257,2 L 252,0 L 257,-2 Z"
+            fill="#a87a2e"/>
     </g>
 
     <!-- Tagline -->
