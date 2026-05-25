@@ -19,7 +19,7 @@ brew tap jlkendrick/tap
 brew install grimoire
 ```
 
-`**go install`:**
+**`go install`:**
 
 ```sh
 go install github.com/jlkendrick/grimoire@latest

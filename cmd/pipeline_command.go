@@ -158,8 +158,13 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 
 	// Forward the entry step's params as flags on the pipeline command, so
 	// `grimoire <pipeline> --x 4` reaches the first step the same way
-	// `grimoire <spell> --x 4` reaches a directly-cast spell.
+	// `grimoire <spell> --x 4` reaches a directly-cast spell. A ritual-level
+	// override in the first step's `params:` wins over the spell's own default.
+	first_step_overrides := pipeline_descriptor.Steps[0].Params
 	for _, param := range first_step_descriptor.Params {
+		if override, ok := first_step_overrides[param.Name]; ok {
+			param.Default = override
+		}
 		if err := registerParamFlag(command, param); err != nil {
 			return nil, err
 		}
