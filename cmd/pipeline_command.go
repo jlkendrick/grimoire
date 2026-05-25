@@ -13,6 +13,7 @@ import (
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 	engine "github.com/jlkendrick/grimoire/internal/engine"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
@@ -85,7 +86,7 @@ func (v *stepView) finish(output []byte) {
 	}
 }
 
-func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, descriptor_cache *cache.DescriptorCache) (*cobra.Command, error) {
+func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, descriptor_cache *cache.DescriptorCache, spellIndex *resolve.SpellIndex) (*cobra.Command, error) {
 	if len(pipeline_descriptor.Steps) == 0 {
 		return nil, fmt.Errorf("pipeline %s has no steps", pipeline_descriptor.CommandName)
 	}
@@ -93,10 +94,11 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 		return nil, fmt.Errorf("pipeline %s: first step must be a spell (reconciler invariant)", pipeline_descriptor.CommandName)
 	}
 
-	first_step_descriptor, ok := descriptor_cache.Functions[pipeline_descriptor.Steps[0].SpellName]
-	if !ok {
-		return nil, fmt.Errorf("pipeline %s: spell %s not found in descriptor cache", pipeline_descriptor.CommandName, pipeline_descriptor.Steps[0].SpellName)
+	first_step_descriptor_ptr, err := resolve.ResolveSpellRef(pipeline_descriptor.Steps[0].SpellName, descriptor_cache, spellIndex)
+	if err != nil {
+		return nil, fmt.Errorf("pipeline %s: %v", pipeline_descriptor.CommandName, err)
 	}
+	first_step_descriptor := *first_step_descriptor_ptr
 
 	command := &cobra.Command{
 		Use: pipeline_descriptor.CommandName,
@@ -137,7 +139,7 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 			}
 
 			start := time.Now()
-			result, err := engine.RunPipeline(pipeline_descriptor, descriptor_cache, inputs, hooks)
+			result, err := engine.RunPipeline(pipeline_descriptor, descriptor_cache, spellIndex, inputs, hooks)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)

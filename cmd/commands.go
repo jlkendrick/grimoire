@@ -9,14 +9,17 @@ import (
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 )
 
 // GenerateCommands builds cobra commands from a single scroll's descriptor
 // cache. resolvedNames maps a descriptor's CommandName to its final cobra
 // Use string (which may be a bare command name or a `<scroll>.<command>`
 // dot-form). scrollPath is appended to dot-form commands' Short so
-// `grimoire help` is navigable across scrolls.
-func GenerateCommands(descriptor_cache *cache.DescriptorCache, resolvedNames map[string]string, scrollPath string) ([]*cobra.Command, error) {
+// `grimoire help` is navigable across scrolls. spellIndex is threaded into
+// pipeline commands so ritual steps with cross-scroll refs can resolve
+// their spell descriptors at run time.
+func GenerateCommands(descriptor_cache *cache.DescriptorCache, resolvedNames map[string]string, scrollPath string, spellIndex *resolve.SpellIndex) ([]*cobra.Command, error) {
 	commands := []*cobra.Command{}
 
 	function_descriptors := make([]descriptor.FunctionDescriptor, 0, len(descriptor_cache.Functions))
@@ -43,7 +46,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache, resolvedNames map
 		return pipeline_descriptors[i].CommandName < pipeline_descriptors[j].CommandName
 	})
 	for _, pd := range pipeline_descriptors {
-		command, err := buildPipelineCommand(pd, descriptor_cache)
+		command, err := buildPipelineCommand(pd, descriptor_cache, spellIndex)
 		if err != nil {
 			return nil, err
 		}

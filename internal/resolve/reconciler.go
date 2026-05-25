@@ -42,8 +42,48 @@ func ReconcileFunctionDescriptor(function_descriptor *descriptor.FunctionDescrip
 	return *function_descriptor, nil
 }
 
+// ReconcileScrollAndDescriptors performs the full single-scroll reconcile
+// (spells + rituals) against the supplied cache. Cross-scroll ritual refs
+// are not supported here — callers that need them should use the two-phase
+// flow via ReconcileSpellsOnly / ReconcileRitualsOnly with a SpellIndex.
 func ReconcileScrollAndDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) error {
-	// Check if the scroll has changed since last run (early return if not)
+	return reconcileScroll(scroll_obj, descriptor_cache, nil)
+}
+
+// ReconcileSpellsOnly reconciles just the spell entries of a scroll into
+// its descriptor cache. Used by the two-phase reconcile in dispatch so all
+// spells across all scrolls are fresh before any ritual is validated.
+func ReconcileSpellsOnly(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) error {
+	mutated, err := ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache)
+	if err != nil {
+		return fmt.Errorf("error reconciling scroll and function descriptors: %v", err)
+	}
+	if mutated {
+		if err := cache.WriteDescriptorCache(descriptor_cache); err != nil {
+			return fmt.Errorf("error writing descriptor cache: %v", err)
+		}
+	}
+	return nil
+}
+
+// ReconcileRitualsOnly reconciles just the ritual entries of a scroll
+// against the supplied spell index. Bare step refs resolve against the
+// scroll's local cache; dotted refs (e.g. `b.deploy`) resolve against
+// index.ByScrollName[b].
+func ReconcileRitualsOnly(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache, index *SpellIndex) error {
+	mutated, err := ReconcileScrollAndPipelineDescriptors(scroll_obj, descriptor_cache, index)
+	if err != nil {
+		return fmt.Errorf("error reconciling scroll and pipeline descriptors: %v", err)
+	}
+	if mutated {
+		if err := cache.WriteDescriptorCache(descriptor_cache); err != nil {
+			return fmt.Errorf("error writing descriptor cache: %v", err)
+		}
+	}
+	return nil
+}
+
+func reconcileScroll(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache, index *SpellIndex) error {
 	scroll_hash, err := utils.HashFile(scroll_obj.Path)
 	if err != nil {
 		return fmt.Errorf("error hashing scroll: %v", err)
@@ -52,19 +92,16 @@ func ReconcileScrollAndDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *
 		return nil
 	}
 
-	// Reconcile the scroll and function descriptors
 	mutated1, err := ReconcileScrollAndFunctionDescriptors(scroll_obj, descriptor_cache)
 	if err != nil {
 		return fmt.Errorf("error reconciling scroll and function descriptors: %v", err)
 	}
 
-	// Reconcile the scroll and pipeline descriptors
-	mutated2, err := ReconcileScrollAndPipelineDescriptors(scroll_obj, descriptor_cache)
+	mutated2, err := ReconcileScrollAndPipelineDescriptors(scroll_obj, descriptor_cache, index)
 	if err != nil {
 		return fmt.Errorf("error reconciling scroll and pipeline descriptors: %v", err)
 	}
 
-	// If we made any changes, write the descriptor cache
 	if mutated1 || mutated2 {
 		descriptor_cache.ScrollHash = scroll_hash
 		if err := cache.WriteDescriptorCache(descriptor_cache); err != nil {
@@ -160,15 +197,18 @@ func getStepReference(value any) string {
 // descriptor cache. It does not touch the cache or scroll: callers (e.g. the
 // weave transpiler) use it to confirm a freshly-built ritual would survive
 // the next reconcile before writing it to the scroll.
-func ValidateRitual(ritual scroll.Ritual, descriptor_cache *cache.DescriptorCache) error {
+//
+// Pass a nil SpellIndex when the ritual is known to use bare references
+// only; dotted refs will error in that case.
+func ValidateRitual(ritual scroll.Ritual, descriptor_cache *cache.DescriptorCache, index *SpellIndex) error {
 	if len(ritual.Steps) > 0 && ritual.Steps[0].Kind() != "spell" {
 		return fmt.Errorf("ritual %s: first step must be a spell (got %s; CLI flags are derived from the entry spell's params)", ritual.Command, ritual.Steps[0].Kind())
 	}
-	_, err := validateAndConvertSteps(ritual.Steps, nil, descriptor_cache, ritual.Command)
+	_, err := validateAndConvertSteps(ritual.Steps, nil, descriptor_cache, index, ritual.Command)
 	return err
 }
 
-func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) (bool, error) {
+func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache, index *SpellIndex) (bool, error) {
 	mutated := false
 
 	// Rituals -> Pipeline descriptors
@@ -181,7 +221,7 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 		// enforces lexical scope for step-id references: a step can see
 		// ancestor-scope ids and earlier-sibling ids, but not ids declared
 		// inside a sibling branch.
-		steps, err := validateAndConvertSteps(ritual.Steps, nil, descriptor_cache, ritual.Command)
+		steps, err := validateAndConvertSteps(ritual.Steps, nil, descriptor_cache, index, ritual.Command)
 		if err != nil {
 			return false, err
 		}
@@ -229,8 +269,9 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 // validateAndConvertSteps walks a step list, enforces per-step rules, and
 // returns the corresponding descriptor steps. inheritedIds carries the
 // step ids visible from ancestor scopes (NOT sibling-branch scopes —
-// branch-internal ids stay branch-internal).
-func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descriptor_cache *cache.DescriptorCache, ritualName string) ([]descriptor.StepDescriptor, error) {
+// branch-internal ids stay branch-internal). index supplies cross-scroll
+// spell lookups for dotted refs; nil rejects all dotted refs.
+func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descriptor_cache *cache.DescriptorCache, index *SpellIndex, ritualName string) ([]descriptor.StepDescriptor, error) {
 	out := make([]descriptor.StepDescriptor, 0, len(steps))
 	siblingIds := []string{}
 
@@ -244,8 +285,8 @@ func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descrip
 	for _, step := range steps {
 		switch step.Kind() {
 		case "spell":
-			if _, ok := descriptor_cache.Functions[step.Spell]; !ok {
-				return nil, fmt.Errorf("ritual %s: spell %s not found in descriptor cache", ritualName, step.Spell)
+			if _, err := ResolveSpellRef(step.Spell, descriptor_cache, index); err != nil {
+				return nil, fmt.Errorf("ritual %s: %v", ritualName, err)
 			}
 			for _, value := range step.Params {
 				if ref := getStepReference(value); ref != "" && !slices.Contains(visible(), ref) {
@@ -307,13 +348,13 @@ func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descrip
 			}
 
 			branchScope := visible()
-			thenSteps, err := validateAndConvertSteps(step.Then, branchScope, descriptor_cache, ritualName)
+			thenSteps, err := validateAndConvertSteps(step.Then, branchScope, descriptor_cache, index, ritualName)
 			if err != nil {
 				return nil, err
 			}
 			var elseSteps []descriptor.StepDescriptor
 			if len(step.Else) > 0 {
-				elseSteps, err = validateAndConvertSteps(step.Else, branchScope, descriptor_cache, ritualName)
+				elseSteps, err = validateAndConvertSteps(step.Else, branchScope, descriptor_cache, index, ritualName)
 				if err != nil {
 					return nil, err
 				}

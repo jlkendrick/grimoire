@@ -100,7 +100,7 @@ func TestGenerateCommands_FlagsMatchParams(t *testing.T) {
 		},
 	}
 
-	commands, err := GenerateCommands(c, nil, "")
+	commands, err := GenerateCommands(c, nil, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateCommands: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestRun_OutputCorrect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadDescriptorCache: %v", err)
 	}
-	commands, err := GenerateCommands(c, nil, "")
+	commands, err := GenerateCommands(c, nil, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateCommands: %v", err)
 	}
@@ -452,7 +452,7 @@ def handle_err():
 		}
 	})
 
-	commands, err := GenerateCommands(dc, nil, "")
+	commands, err := GenerateCommands(dc, nil, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateCommands: %v", err)
 	}
@@ -563,7 +563,7 @@ def handle_normal():
 			t.Fatalf("Reconcile: %v", err)
 		}
 	})
-	commands, err := GenerateCommands(dc, nil, "")
+	commands, err := GenerateCommands(dc, nil, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateCommands: %v", err)
 	}
@@ -663,7 +663,7 @@ def echo_val(val: str):
 		}
 	})
 
-	commands, err := GenerateCommands(dc, nil, "")
+	commands, err := GenerateCommands(dc, nil, "", nil)
 	if err != nil {
 		t.Fatalf("GenerateCommands: %v", err)
 	}

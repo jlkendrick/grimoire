@@ -33,6 +33,51 @@ func LoadScrolls() ([]*Scroll, error) {
 	return LoadGlobalScrolls()
 }
 
+// LoadActiveAndAll returns two slices:
+//
+//   - active: the scrolls used for CLI command registration. Same semantics
+//     as LoadScrolls — local-only when a scroll.yaml exists upward of cwd,
+//     all registered otherwise.
+//   - all: the union of the local scroll (if any) and every registered
+//     scroll. This is always loaded so ritual step references like
+//     `<other-scroll-name>.<spell>` can be resolved even in local mode.
+//
+// Scrolls in the union are deduplicated by absolute path (memoized parses
+// already share pointers via cached_scrolls). When local is present and is
+// also in the registry, `all` contains a single entry for it.
+func LoadActiveAndAll() (active []*Scroll, all []*Scroll, err error) {
+	local, found, err := LoadLocalScroll()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	global, err := LoadGlobalScrolls()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if found {
+		active = []*Scroll{local}
+	} else {
+		active = global
+	}
+
+	seen := map[string]struct{}{}
+	if found {
+		all = append(all, local)
+		seen[local.Path] = struct{}{}
+	}
+	for _, s := range global {
+		if _, ok := seen[s.Path]; ok {
+			continue
+		}
+		seen[s.Path] = struct{}{}
+		all = append(all, s)
+	}
+
+	return active, all, nil
+}
+
 // LoadGlobalScrolls loads the global scroll registry from $GRIMOIRE_HOME/grimoire.yaml.
 func LoadGlobalScrolls() ([]*Scroll, error) {
 	registry, err := LoadRegistry()

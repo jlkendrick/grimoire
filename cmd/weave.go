@@ -44,23 +44,31 @@ var weave_cmd = &cobra.Command{
 		}
 
 		// 3. Bring the descriptor cache for that scroll up-to-date so the
-		//    validation below sees all spells currently in the scroll. This
-		//    mirrors the reconcile that the dynamic CLI path runs at startup.
+		//    validation below sees all spells currently in the scroll. We
+		//    also reconcile every other registered scroll's spells so a
+		//    ritual that uses cross-scroll dot-notation refs (e.g.
+		//    `other.do_thing`) can be validated against the full set.
 		descriptor_cache, err := cache.ReadDescriptorCache(scroll_obj.Path)
 		if err != nil {
 			fmt.Printf("Error loading descriptor cache: %v\n", err)
 			return
 		}
-		if err := resolve.ReconcileScrollAndDescriptors(scroll_obj, descriptor_cache); err != nil {
+		if err := resolve.ReconcileSpellsOnly(scroll_obj, descriptor_cache); err != nil {
 			fmt.Printf("%v\n", err)
 			return
 		}
 
+		spellIndex, _, err := buildGlobalSpellIndex()
+		if err != nil {
+			fmt.Printf("Warning: could not build cross-scroll index (cross-scroll refs will not resolve): %v\n", err)
+			spellIndex = nil
+		}
+
 		// 4. In-memory validation: same checks the pipeline reconciler runs
 		//    when it materializes a ritual descriptor (first step is a spell,
-		//    referenced spells exist in the cache, step-id refs are in scope,
-		//    condition expressions parse).
-		if err := resolve.ValidateRitual(ritual, descriptor_cache); err != nil {
+		//    referenced spells exist locally or via the spell index,
+		//    step-id refs are in scope, condition expressions parse).
+		if err := resolve.ValidateRitual(ritual, descriptor_cache, spellIndex); err != nil {
 			fmt.Printf("Error validating ritual: %v\n", err)
 			return
 		}

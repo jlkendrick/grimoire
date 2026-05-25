@@ -27,9 +27,14 @@ type IfStmt struct {
 }
 
 // 5. Function Calls
+//
+// An optional `module.` prefix lets a ritual call into a spell defined in
+// another registered scroll: bare `deploy()` resolves against the ritual's
+// own scroll; qualified `B.deploy()` resolves against scroll B's cache.
 type CallExpr struct {
-	Name string      `parser:"@Ident '('"`
-	Args []*Argument `parser:"( @@ ( ',' @@ )* )? ')'"` // Comma-separated arguments
+	Module string      `parser:"( @Ident '.' )?"`
+	Name   string      `parser:"@Ident '('"`
+	Args   []*Argument `parser:"( @@ ( ',' @@ )* )? ')'"` // Comma-separated arguments
 }
 
 type Argument struct {

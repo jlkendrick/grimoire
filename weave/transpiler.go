@@ -189,9 +189,13 @@ func bareCall(expr *ast.Expr) *ast.CallExpr {
 // stored as their natural Go types in Params; only when an arg is a composed
 // expression does it land as a string (the joined expression source).
 func (t *Transpiler) FlattenCall(call *ast.CallExpr, id string) (string, []scroll.Step) {
+	spellName := call.Name
+	if call.Module != "" {
+		spellName = call.Module + "." + call.Name
+	}
 	this_step := scroll.Step{
 		Id:     id,
-		Spell:  call.Name,
+		Spell:  spellName,
 		Params: make(map[string]any),
 	}
 

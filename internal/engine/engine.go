@@ -40,6 +40,7 @@ type pipelineExecState struct {
 	total            int
 	inputs           map[string]any
 	descriptor_cache *cache.DescriptorCache
+	spell_index      *resolve.SpellIndex
 	hooks            Hooks
 	terminalOutput   []byte
 	terminalRan      bool
@@ -47,8 +48,11 @@ type pipelineExecState struct {
 
 // RunPipeline executes a pipeline descriptor against the given cache,
 // seeding the entry spell with inputs. It is the single programmatic
-// entrypoint shared by every frontend (CLI today, REST later).
-func RunPipeline(pd descriptor.PipelineDescriptor, dc *cache.DescriptorCache, inputs map[string]any, hooks Hooks) (*Result, error) {
+// entrypoint shared by every frontend (CLI today, REST later). spellIndex
+// supplies cross-scroll spell resolution for steps whose SpellName uses
+// dot-notation (e.g. `proj.deploy`); pass nil when no cross-scroll
+// references are expected.
+func RunPipeline(pd descriptor.PipelineDescriptor, dc *cache.DescriptorCache, spellIndex *resolve.SpellIndex, inputs map[string]any, hooks Hooks) (*Result, error) {
 	if len(pd.Steps) == 0 {
 		return nil, fmt.Errorf("pipeline %s has no steps", pd.CommandName)
 	}
@@ -62,6 +66,7 @@ func RunPipeline(pd descriptor.PipelineDescriptor, dc *cache.DescriptorCache, in
 		total:            countSpellSteps(pd.Steps),
 		inputs:           inputs,
 		descriptor_cache: dc,
+		spell_index:      spellIndex,
 		hooks:            hooks,
 	}
 	if err := executeSteps(pd.Steps, state, true); err != nil {
@@ -144,10 +149,11 @@ func executeSteps(steps []descriptor.StepDescriptor, state *pipelineExecState, t
 			continue
 		}
 
-		function_descriptor, ok := state.descriptor_cache.Functions[step.SpellName]
-		if !ok {
-			return fmt.Errorf("spell %s not found in descriptor cache", step.SpellName)
+		function_descriptor_ptr, err := resolve.ResolveSpellRef(step.SpellName, state.descriptor_cache, state.spell_index)
+		if err != nil {
+			return err
 		}
+		function_descriptor := *function_descriptor_ptr
 		resolved_descriptor, err := resolve.ReconcileFunctionDescriptor(&function_descriptor)
 		if err != nil {
 			return fmt.Errorf("reconcile function descriptor: %v", err)
