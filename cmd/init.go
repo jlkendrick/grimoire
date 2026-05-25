@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	scroll "github.com/jlkendrick/grimoire/internal/scroll"
-
 	"github.com/spf13/cobra"
+
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
 var init_cmd = &cobra.Command{

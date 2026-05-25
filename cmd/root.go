@@ -41,6 +41,7 @@ var staticCommands = map[string]bool{
 	// "sync": true, TODO
 	"register": true,
 	"clean": true,
+	"weave": true,
 	"help": true,
 }
 

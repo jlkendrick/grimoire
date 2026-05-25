@@ -16,7 +16,7 @@ func TestFlattenCallParamsPreserveLiteralTypes(t *testing.T) {
 	}
 
 	tr := Transpiler{}
-	ritual, err := tr.transpileRitual(ast_ritual)
+	ritual, err := tr.TranspileRitual(ast_ritual)
 	if err != nil {
 		t.Fatalf("transpile: %v", err)
 	}
@@ -50,7 +50,7 @@ func TestFlattenExprComposedQuotesStringLiterals(t *testing.T) {
 	}
 
 	tr := Transpiler{}
-	ritual, err := tr.transpileRitual(ast_ritual)
+	ritual, err := tr.TranspileRitual(ast_ritual)
 	if err != nil {
 		t.Fatalf("transpile: %v", err)
 	}

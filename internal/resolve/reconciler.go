@@ -154,6 +154,20 @@ func getStepReference(value any) string {
 	return ""
 }
 
+// ValidateRitual runs the same validation the pipeline reconciler performs —
+// first-step-is-spell check, lexical scope checks on step-id references, and
+// condition-expression parsing for let/if steps — against the supplied
+// descriptor cache. It does not touch the cache or scroll: callers (e.g. the
+// weave transpiler) use it to confirm a freshly-built ritual would survive
+// the next reconcile before writing it to the scroll.
+func ValidateRitual(ritual scroll.Ritual, descriptor_cache *cache.DescriptorCache) error {
+	if len(ritual.Steps) > 0 && ritual.Steps[0].Kind() != "spell" {
+		return fmt.Errorf("ritual %s: first step must be a spell (got %s; CLI flags are derived from the entry spell's params)", ritual.Command, ritual.Steps[0].Kind())
+	}
+	_, err := validateAndConvertSteps(ritual.Steps, nil, descriptor_cache, ritual.Command)
+	return err
+}
+
 func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache) (bool, error) {
 	mutated := false
 

@@ -25,7 +25,7 @@ type FlatValue struct {
 	Src string
 }
 
-func (t *Transpiler) transpileRitual(ritual *ast.Ritual) (scroll.Ritual, error) {
+func (t *Transpiler) TranspileRitual(ritual *ast.Ritual) (scroll.Ritual, error) {
 	steps, err := t.transpileSteps(ritual.Body)
 	if err != nil {
 		return scroll.Ritual{}, err
