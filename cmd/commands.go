@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -9,7 +11,12 @@ import (
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 )
 
-func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command, error) {
+// GenerateCommands builds cobra commands from a single scroll's descriptor
+// cache. resolvedNames maps a descriptor's CommandName to its final cobra
+// Use string (which may be a bare command name or a `<scroll>.<command>`
+// dot-form). scrollPath is appended to dot-form commands' Short so
+// `grimoire help` is navigable across scrolls.
+func GenerateCommands(descriptor_cache *cache.DescriptorCache, resolvedNames map[string]string, scrollPath string) ([]*cobra.Command, error) {
 	commands := []*cobra.Command{}
 
 	function_descriptors := make([]descriptor.FunctionDescriptor, 0, len(descriptor_cache.Functions))
@@ -24,6 +31,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 		if err != nil {
 			return nil, err
 		}
+		applyResolvedName(command, fd.CommandName, resolvedNames, scrollPath)
 		commands = append(commands, command)
 	}
 
@@ -39,8 +47,20 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache) ([]*cobra.Command
 		if err != nil {
 			return nil, err
 		}
+		applyResolvedName(command, pd.CommandName, resolvedNames, scrollPath)
 		commands = append(commands, command)
 	}
 
 	return commands, nil
+}
+
+func applyResolvedName(cmd *cobra.Command, descriptorName string, resolvedNames map[string]string, scrollPath string) {
+	resolved, ok := resolvedNames[descriptorName]
+	if !ok || resolved == "" {
+		return
+	}
+	cmd.Use = resolved
+	if strings.Contains(resolved, ".") && cmd.Short == "" {
+		cmd.Short = fmt.Sprintf("from %s", scrollPath)
+	}
 }

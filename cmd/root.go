@@ -9,10 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cache "github.com/jlkendrick/grimoire/internal/cache"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
-	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -64,40 +62,9 @@ func Execute() {
 			return
 		}
 
-		// Track command names so we can warn on collisions across registered
-		// scrolls and let the first-registered definition win.
-		var cmds []*cobra.Command
-		seen := map[string]string{}
-
-		// Generate commands for all spells and rituals
-		for _, s := range scrolls {
-			descriptor_cache, err := cache.ReadDescriptorCache(s.Path)
-			if err != nil {
-				fmt.Printf("Error loading cache for %s: %v\n", s.Path, err)
-				return
-			}
-
-			if err := resolve.ReconcileScrollAndDescriptors(s, descriptor_cache); err != nil {
-				fmt.Printf("%v\n", err)
-				return
-			}
-
-			if descriptor_cache.Functions == nil {
-				continue
-			}
-			cmds, err = GenerateCommands(descriptor_cache)
-			if err != nil {
-				fmt.Printf("Error generating commands: %v\n", err)
-				return
-			}
-			for _, c := range cmds {
-				if prev, ok := seen[c.Use]; ok {
-					fmt.Fprintf(os.Stderr, "warning: command %q in %s shadowed by earlier definition in %s\n", c.Use, s.Path, prev)
-					continue
-				}
-				seen[c.Use] = s.Path
-				rootCmd.AddCommand(c)
-			}
+		if err := registerScrollCommands(scrolls); err != nil {
+			fmt.Printf("%v\n", err)
+			return
 		}
 	}
 

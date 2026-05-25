@@ -11,6 +11,7 @@ import (
 
 // User-facing structs. Simplified version of internal-only FunctionDescriptor.
 type Scroll struct {
+	Name              string       `yaml:"name,omitempty"` // Module-style identifier; used to disambiguate cross-scroll command collisions in global mode
 	RegisteredScrolls []ScrollPath `yaml:"registered_scrolls,omitempty"` // Global grimoire only
 	Spells            []Spell  		 `yaml:"spells,omitempty"` // Repo-level spells
 
