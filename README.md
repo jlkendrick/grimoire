@@ -1,8 +1,10 @@
-# Grimoire
+<p align="center">
+  <img src="assets/header.svg" alt="Grimoire — A spellbook for your codebase" width="100%">
+</p>
 
-> *A spellbook for your codebase.*
-
-**Status: Work in progress — not yet ready for general use.**
+<p align="center">
+  <sub><em>Status: Work in progress — not yet ready for general use.</em></sub>
+</p>
 
 ---
 
