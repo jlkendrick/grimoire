@@ -6,7 +6,12 @@
 
 ---
 
-Grimoire is a declarative, language-agnostic execution framework. The core idea is simple: you write pure business logic in whatever language you like, and Grimoire translates it into a fully typed CLI — no boilerplate, no argument parsing, no plumbing. Point it at a function, describe the interface in YAML, and it handles the rest.
+Grimoire is a declarative, language-agnostic **meta-runtime** for orchestrating polyglot computation. You write pure business logic in whatever language you like — Python, Go, more to come — and Grimoire stitches those functions into a single typed interface, handling argument parsing, type coercion, interpreter resolution, dependency provisioning, and cross-language data flow on your behalf.
+
+Two responsibilities sit at the core:
+
+- **Execution framework.** Point Grimoire at a function, describe the interface in YAML, and it generates a fully typed CLI command — no boilerplate, no decorators, no framework code touching your source.
+- **Polyglot orchestration.** Chain those functions into *rituals* — pipelines with assignment, conditionals, and structured data passing between steps — so a Python parser can hand off to a Go transformer to another Python step without any glue code.
 
 Later, the same configuration will also generate REST APIs from the same functions, with no changes to your code.
 
@@ -71,9 +76,9 @@ Grimoire handles interpreter resolution (virtual environments, `pyproject.toml`,
 
 In practice, you rarely write `params` by hand: `grimoire add <file>:<function>` extracts the signature from source and writes a minimal entry. Param overrides only need to appear in `scroll.yaml` when you want to deviate from what's in the source.
 
-### Rituals (experimental)
+### Rituals
 
-A *ritual* chains spells together, piping each step's output into the next:
+A *ritual* chains spells together into a pipeline. The simplest form pipes each step's output into the next:
 
 ```yaml
 rituals:
@@ -83,7 +88,63 @@ rituals:
       - spell: transform
 ```
 
-Rituals expose the entry step's flags on the ritual command itself, so `grimoire pipe_test --x 4` reaches the first spell exactly as a direct cast would. Support is intentionally minimal today — single linear pipelines, no branching or fan-out — and will grow over time.
+Rituals expose the entry step's flags on the ritual command itself, so `grimoire pipe_test --x 4` reaches the first spell exactly as a direct cast would.
+
+Beyond linear piping, rituals support:
+
+- **Binding step output to a name** — give a step an `id:` and downstream steps can read its result by name.
+- **Explicit parameter assignment** — wire any spell's params from prior step outputs (or literals) instead of relying on the previous step's stdout.
+- **Dot and bracket access** — pull substructure out of a step's result with `world[0]` or `result.a.b.c`.
+- **`let` bindings** — name an arbitrary expression (literal, reference, or boolean combination) for reuse later in the ritual.
+- **`if` / `else` branching** — branch on a condition expression; nested branching is allowed, and step ids declared inside a branch are scoped to it.
+
+```yaml
+rituals:
+  - command: weather_advice
+    steps:
+      - id: temp
+        spell: classify_temperature
+        params:
+          celsius: 35
+      - let: extreme
+        value: temp.freezing || temp.category == "hot"
+      - if: extreme
+        then:
+          - if: temp.freezing
+            then:
+              - spell: warn_frostbite
+            else:
+              - spell: recommend_shorts
+```
+
+Condition expressions support `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`, `!`, parens, quoted strings, and references resolved against the ritual's binding scope. Bool-typed conditions are strict — there's no JS-style truthy coercion.
+
+### Weave — the ritual DSL
+
+Writing rituals in YAML works, but as they grow with branches and bindings the structure starts to fight you. **Weave** is a small DSL for declaring rituals in a more natural, code-like syntax. A `.wv` file transpiles to a `scroll.yaml` ritual entry — nothing hidden, no parallel runtime, just another frontend for the same engine.
+
+```weave
+ritual weather_advice {
+    let temp = classify_temperature(celsius = 35)
+    let extreme = temp.freezing || temp.category == "hot"
+
+    if extreme {
+        if temp.freezing {
+            warn_frostbite()
+        } else {
+            recommend_shorts()
+        }
+    }
+}
+```
+
+Transpile and append to the local scroll with:
+
+```sh
+grimoire weave path/to/ritual.wv
+```
+
+The resulting ritual is validated against the descriptor cache before being written, so missing spells or out-of-scope references are caught at weave time. A `module.spell()` call form lets a Weave ritual reach into spells defined in another registered scroll.
 
 ## Key Commands
 
@@ -93,6 +154,7 @@ Rituals expose the entry step's flags on the ritual command itself, so `grimoire
 | `grimoire init`                  | Scaffold a `scroll.yaml` in the current directory                                                                          |
 | `grimoire add <file>:<function>` | Add a function to `scroll.yaml` and auto-extract its signature                                                             |
 | `grimoire register [path]`       | Register a project's `scroll.yaml` with the global grimoire (defaults to nearest `scroll.yaml` found via upward traversal) |
+| `grimoire weave <file>.wv`       | Transpile a Weave ritual into the local `scroll.yaml`                                                                      |
 | `grimoire clean [--global]`      | Remove cached venvs for spells whose source files no longer exist (`--force` purges all cached envs)                       |
 | `grimoire <command> [flags]`     | Cast a spell or run a ritual by its declared command name                                                                  |
 
@@ -110,6 +172,7 @@ internal/
   resolve/            Reconciler/merger that keeps the cache in sync with scrolls
   runtime/            Language adapters (Python, Go)
   utils/              File utilities, styling, spinners
+weave/                Weave DSL — parser, AST, and transpiler to scroll.yaml rituals
 sample/               Example project with a scroll.yaml and Python/Go scripts
 landing/              Marketing/landing site
 ```
