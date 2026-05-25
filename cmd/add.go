@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os"
 	"fmt"
 	"strings"
 	"path/filepath"
@@ -38,7 +37,7 @@ var add_cmd = &cobra.Command{
 		}
 
 		// 1. Find or create scroll to add function to
-		scroll_obj, err := resolveAddScroll()
+		scroll_obj, err := scroll.ResolveAddScroll()
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			return
@@ -175,34 +174,6 @@ var add_cmd = &cobra.Command{
 		scroll_name := filepath.Base(filepath.Dir(scroll_obj.Path))
 		fmt.Printf("%s Bound to scroll %s\n", accent_style("+"), spell_style(scroll_name))
 	},
-}
-
-// resolveAddScroll returns the local scroll that `add` should write into. If
-// no scroll exists in cwd or any parent, initializes one in cwd and registers
-// it with the global grimoire.
-func resolveAddScroll() (*scroll.Scroll, error) {
-	if local, found, err := scroll.LoadLocalScroll(); err != nil {
-		return nil, fmt.Errorf("Error loading local scroll: %v", err)
-	} else if found {
-		return local, nil
-	}
-
-	current_dir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("Error getting current directory: %v", err)
-	}
-
-	fmt.Printf("%s No scroll found, initializing new scroll\n", accent_style("+"))
-	cfg, err := scroll.InitScroll(current_dir, false)
-	if err != nil {
-		return nil, fmt.Errorf("Error initializing scroll: %v", err)
-	}
-	fmt.Printf("%s Inscribed scroll.yaml\n  · %s\n", accent_style("+"), dim_style(cfg.Path))
-	if err := scroll.RegisterScroll(cfg.Path); err != nil {
-		return nil, fmt.Errorf("Error registering scroll: %v", err)
-	}
-	fmt.Printf("%s Bound %s to the global grimoire\n", accent_style("+"), cfg.Path)
-	return cfg, nil
 }
 
 func init() {

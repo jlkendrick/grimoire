@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 
 	parser "github.com/jlkendrick/grimoire/weave/parser"
+	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
 func TestParse() {
 	// Load the test file
-	srcPath := filepath.Join(os.Getenv("HOME"), "Code/Projects/grimoire/sample/test.grm")
+	srcPath := filepath.Join(os.Getenv("HOME"), "Code/Projects/grimoire/sample/test.wv")
 	content, err := os.ReadFile(srcPath)
 	if err != nil {
 		fmt.Printf("Failed to read file: %v", err)
@@ -35,4 +36,23 @@ func TestParse() {
 	for i, step := range ritual.Steps {
 		fmt.Println(i + 1, ":", step)
 	}
+
+	// Write the ritual to the scroll
+	err = transpiler.writeToScroll(ritual)
+	if err != nil {
+		fmt.Printf("Failed to write ritual to scroll: %v", err)
+	}
+}
+
+func (t *Transpiler) writeToScroll(ritual scroll.Ritual) error {
+	scroll, err := scroll.ResolveAddScroll()
+	if err != nil {
+		return err
+	}
+
+	// Add the ritual to the scroll
+	scroll.Rituals = append(scroll.Rituals, ritual)
+
+	// Write the scroll to the file system
+	return scroll.Write()
 }

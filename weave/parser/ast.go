@@ -49,12 +49,17 @@ type OpRight struct {
 }
 
 // 7. Base Values
+//
+// Boolean precedes Ref so that the literals `true` and `false` are captured
+// as bools rather than as Ident-rooted references. Participle tries
+// alternatives in declaration order, and `@Ident` would otherwise consume
+// `true`/`false` before the boolean branch ever runs.
 type Term struct {
 	Call    *CallExpr `parser:"@@"`
+	Boolean *bool     `parser:"| ( @'true' | @'false' )"`
 	Ref     *RefExpr  `parser:"| @@"` // e.g., temp.freezing
 	String  *string   `parser:"| @String"`
 	Int     *int      `parser:"| @Int"`
-	Boolean *bool     `parser:"| ( @'true' | @'false' )"`
 }
 
 // Handles dot-notation and array indexing

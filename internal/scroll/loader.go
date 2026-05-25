@@ -97,3 +97,32 @@ func loadScrollFile(path string) (*Scroll, error) {
 	cached_scrolls[path] = s
 	return s, nil
 }
+
+
+// resolveAddScroll returns the local scroll that `add` should write into. If
+// no scroll exists in cwd or any parent, initializes one in cwd and registers
+// it with the global grimoire.
+func ResolveAddScroll() (*Scroll, error) {
+	if local, found, err := LoadLocalScroll(); err != nil {
+		return nil, fmt.Errorf("Error loading local scroll: %v", err)
+	} else if found {
+		return local, nil
+	}
+
+	current_dir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("Error getting current directory: %v", err)
+	}
+
+	fmt.Printf("%s No scroll found, initializing new scroll\n", utils.AccentStyle("+"))
+	cfg, err := InitScroll(current_dir, false)
+	if err != nil {
+		return nil, fmt.Errorf("Error initializing scroll: %v", err)
+	}
+	fmt.Printf("%s Inscribed scroll.yaml\n  · %s\n", utils.AccentStyle("+"), utils.DimStyle(cfg.Path))
+	if err := RegisterScroll(cfg.Path); err != nil {
+		return nil, fmt.Errorf("Error registering scroll: %v", err)
+	}
+	fmt.Printf("%s Bound %s to the global grimoire\n", utils.AccentStyle("+"), cfg.Path)
+	return cfg, nil
+}
