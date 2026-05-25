@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	parser "github.com/jlkendrick/grimoire/internal/weave/parser"
+	parser "github.com/jlkendrick/grimoire/weave/parser"
 )
 
 func TestParse() {
@@ -17,22 +17,22 @@ func TestParse() {
 	}
 
 	// Parse the file
-	ritual, err := parser.Parse(string(content))
+	ast_ritual, err := parser.Parse(string(content))
 	if err != nil {
 		fmt.Printf("Failed to parse file: %v", err)
 	}
 
 	// Print the ritual
-	fmt.Println(ritual)
+	fmt.Println(ast_ritual)
 
-	// Lower the ritual
+	// Transpile the ast ritual into a scroll.Ritual
 	transpiler := Transpiler{}
-	yaml_steps, err := transpiler.transpileSteps(ritual.Body)
+	ritual, err := transpiler.transpileRitual(ast_ritual)
 	if err != nil {
 		fmt.Printf("Failed to lower ritual: %v", err)
 	}
 
-	for i, step := range yaml_steps {
+	for i, step := range ritual.Steps {
 		fmt.Println(i + 1, ":", step)
 	}
 }

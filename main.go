@@ -2,7 +2,7 @@ package main
 
 import (
 	// cmd "github.com/jlkendrick/grimoire/cmd"
-	weave "github.com/jlkendrick/grimoire/internal/weave"
+	weave "github.com/jlkendrick/grimoire/weave"
 )
 
 func main() {

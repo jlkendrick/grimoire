@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	ast "github.com/jlkendrick/grimoire/internal/weave/parser"
+	ast "github.com/jlkendrick/grimoire/weave/parser"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
 
@@ -12,9 +12,15 @@ type Transpiler struct {
 	temp_counter int
 }
 
-func (t *Transpiler) nextTempId() string {
-	t.temp_counter++
-	return fmt.Sprintf("__temp_%d", t.temp_counter)
+func (t *Transpiler) transpileRitual(ritual *ast.Ritual) (scroll.Ritual, error) {
+	steps, err := t.transpileSteps(ritual.Body)
+	if err != nil {
+		return scroll.Ritual{}, err
+	}
+	return scroll.Ritual{
+		Command: ritual.Name,
+		Steps: steps,
+	}, nil
 }
 
 func (t *Transpiler) transpileSteps(stmts []*ast.Stmt) ([]scroll.Step, error) {
@@ -75,6 +81,11 @@ func (t *Transpiler) transpileSteps(stmts []*ast.Stmt) ([]scroll.Step, error) {
 	}
 
 	return yaml_steps, nil
+}
+
+func (t *Transpiler) nextTempId() string {
+	t.temp_counter++
+	return fmt.Sprintf("__temp_%d", t.temp_counter)
 }
 
 func (t *Transpiler) FlattenExpr(expr *ast.Expr) (string, []scroll.Step) {
