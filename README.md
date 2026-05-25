@@ -8,7 +8,7 @@
 
 ---
 
-Grimoire is a declarative, language-agnostic **meta-runtime** for orchestrating polyglot computation. You write pure business logic in whatever language you like — Python, Go, more to come — and Grimoire stitches those functions into a single typed interface, handling argument parsing, type coercion, interpreter resolution, dependency provisioning, and cross-language data flow on your behalf.
+Grimoire is a declarative, language-agnostic meta-runtime for orchestrating polyglot computation. You write pure business logic in whatever language you like — Python, Go, more to come — and Grimoire stitches those functions into a single typed interface, handling argument parsing, type coercion, interpreter resolution, dependency provisioning, and cross-language data flow on your behalf.
 
 Two responsibilities sit at the core:
 
