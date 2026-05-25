@@ -137,10 +137,11 @@ function Hero() {
           <a href="#commands" style={{color: "#cfc196", borderBottom: "none"}}>Commands</a>
           <a href="#anatomy" style={{color: "#cfc196", borderBottom: "none"}}>Anatomy of a Spell</a>
           <a href="#ritual" style={{color: "#cfc196", borderBottom: "none"}}>Rituals</a>
+          <a href="#weave" style={{color: "#cfc196", borderBottom: "none"}}>Weave</a>
         </div>
         <div style={{display: "flex", gap: 20, fontSize: 13}}>
           <a href="https://github.com/jlkendrick/grimoire" style={{color: "#cfc196", borderBottom: "none"}}>GitHub ⟶</a>
-          <a href="#" style={{color: "#d4a84a", borderBottom: "none"}}>v0.1.0</a>
+          <a href="#" style={{color: "#d4a84a", borderBottom: "none"}}>v0.3.2</a>
         </div>
       </nav>
 
@@ -157,7 +158,7 @@ function Hero() {
             fontFamily: "var(--serif-sc)", letterSpacing: "0.24em",
             fontSize: 11, color: "#a87a2e", marginBottom: 18,
           }}>
-            A DECLARATIVE EXECUTION FRAMEWORK
+            A POLYGLOT META-RUNTIME
           </div>
           <h1 style={{
             fontFamily: "var(--display)",
@@ -182,7 +183,8 @@ function Hero() {
             Write pure business logic in whatever tongue you choose. Describe the
             incantation in a <span className="mono" style={{color: "#d4a84a"}}>scroll.yaml</span>, and
             Grimoire forges it into a fully typed CLI — no boilerplate, no argument
-            parsing, no plumbing.
+            parsing, no plumbing. Then thread those functions into <em>rituals</em> that
+            branch, bind, and pass data across languages without a line of glue.
           </p>
 
           <div style={{display: "flex", gap: 10, marginTop: 26}}>
@@ -239,6 +241,7 @@ function Sidebar() {
         { label: "The Scrying Mirror", icon: <Sigil.Crystal/>, href: "#demo" },
         { label: "Anatomy of a Spell", icon: <Sigil.Book/>,    href: "#anatomy" },
         { label: "Anatomy of a Ritual",icon: <Sigil.Compass/>, href: "#ritual" },
+        { label: "Weave — the DSL",    icon: <Sigil.Feather/>, href: "#weave" },
         { label: "Command Codex",      icon: <Sigil.Wand/>,    href: "#commands" },
         { label: "Runtimes",           icon: <Sigil.Flame/>,   href: "#runtimes" },
       ])}
@@ -625,10 +628,11 @@ function Ritual() {
         <div style={{display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 48}}>
           <div>
             <p className="drop-cap" style={{fontSize: 15, lineHeight: 1.75, margin: "0 0 18px"}}>
-              A <em>ritual</em> is a chain of spells, threaded end to end. The stdout of
-              one becomes the stdin of the next — a pipeline of pure functions, each
-              passing its rendered payload onward. Where a spell speaks alone, a ritual
-              speaks a sequence: divine, transform, deliver.
+              A <em>ritual</em> is a chain of spells, threaded end to end. By default the
+              stdout of one becomes the stdin of the next — a pipeline of pure functions,
+              each passing its rendered payload onward. But a ritual is no mere straight
+              line: it can <em>bind</em> a step's result to a name, <em>branch</em> on a
+              condition, and reach into prior outputs by field.
             </p>
             <p style={{fontSize: 14, lineHeight: 1.75, margin: "0 0 24px", color: "var(--ink-soft)"}}>
               Rituals share the same <span className="mono" style={{fontSize: 13, color: "var(--ember)"}}>scroll.yaml</span>,
@@ -659,8 +663,10 @@ function Ritual() {
             }}>
               {[
                 ["Linear chains",   "Each step receives the previous step's output as a typed payload."],
-                ["Step references", "Bind a step with an id, then reach its fields from any later step — chars[0], world.name."],
-                ["Param overrides", "Later steps may override any param by name, or pin it to a constant."],
+                ["Step references", "Bind a step with an id, then reach its fields anywhere later — chars[0], world.name."],
+                ["Param overrides", "Wire any step's params from prior outputs or pin them to a constant."],
+                ["let bindings",    "Name an arbitrary expression — a literal, a reference, a boolean — for reuse downstream."],
+                ["if / else", "Branch on a condition expression with ==, <, &&, ||, !; nesting and branch-scoped ids allowed."],
                 ["Cast like a spell", "grimoire <ritual> — the entry step's params become the ritual's flags."],
               ].map(([k, v]) => (
                 <li key={k} style={{
@@ -688,17 +694,21 @@ function Ritual() {
             <div className="codeblock" style={{fontSize: 12.5}}>
 <span className="cmt"># scroll.yaml (continued)</span>
 {"\n"}<span className="key">rituals</span>:
-{"\n"}  - <span className="key">command</span>: <span className="val">story_seed</span>
+{"\n"}  - <span className="key">command</span>: <span className="val">weather_advice</span>
 {"\n"}    <span className="key">steps</span>:
-{"\n"}      - <span className="key">id</span>:    <span className="val">world</span>
-{"\n"}        <span className="key">spell</span>: <span className="val">seed_world</span>
-{"\n"}      - <span className="key">id</span>:    <span className="val">chars</span>
-{"\n"}        <span className="key">spell</span>: <span className="val">forge_characters</span>
-{"\n"}      - <span className="key">spell</span>: <span className="val">compose_opening</span>
+{"\n"}      - <span className="key">id</span>:    <span className="val">temp</span>
+{"\n"}        <span className="key">spell</span>: <span className="val">classify_temperature</span>
 {"\n"}        <span className="key">params</span>:
-{"\n"}          <span className="key">hero</span>:    <span className="val">chars[0]</span>
-{"\n"}          <span className="key">setting</span>: <span className="val">world[0]</span>
-{"\n"}          <span className="key">style</span>:   <span className="val">terse</span>
+{"\n"}          <span className="key">celsius</span>: <span className="val">35</span>
+{"\n"}      - <span className="key">let</span>:   <span className="val">extreme</span>
+{"\n"}        <span className="key">value</span>: <span className="val">temp.freezing || temp.category == </span><span className="str">"hot"</span>
+{"\n"}      - <span className="key">if</span>: <span className="val">extreme</span>
+{"\n"}        <span className="key">then</span>:
+{"\n"}          - <span className="key">if</span>: <span className="val">temp.freezing</span>
+{"\n"}            <span className="key">then</span>:
+{"\n"}              - <span className="key">spell</span>: <span className="val">warn_frostbite</span>
+{"\n"}            <span className="key">else</span>:
+{"\n"}              - <span className="key">spell</span>: <span className="val">recommend_shorts</span>
             </div>
 
             <div style={{
@@ -708,12 +718,12 @@ function Ritual() {
               THE GENERATED CLI
             </div>
             <div className="codeblock" style={{fontSize: 12.5}}>
-<span className="prompt">$ </span><span className="cmd">grimoire story_seed</span> <span className="arg">--seed</span> <span className="str">42</span>
-{"\n"}<span style={{color: "#b6c28a"}}>  ┌─ seed_world       ✓</span>
-{"\n"}<span style={{color: "#b6c28a"}}>  ├─ forge_characters ✓</span>
-{"\n"}<span style={{color: "#b6c28a"}}>  └─ compose_opening  ✓</span>
-{"\n"}<span style={{color: "#d6c79c"}}>  “The hermit set the lantern down,</span>
-{"\n"}<span style={{color: "#d6c79c"}}>   and the wolves leaned closer...”</span>
+<span className="prompt">$ </span><span className="cmd">grimoire weather_advice</span> <span className="arg">--celsius</span> <span className="str">35</span>
+{"\n"}<span style={{color: "#b6c28a"}}>  ┌─ classify_temperature ✓</span>
+{"\n"}<span style={{color: "#6b5a43"}}>  ├─ let extreme = true</span>
+{"\n"}<span style={{color: "#b6c28a"}}>  └─ recommend_shorts     ✓</span>
+{"\n"}<span style={{color: "#6b5a43"}}>     (temp.freezing → false, took the else branch)</span>
+{"\n"}<span style={{color: "#d6c79c"}}>  “35°C — leave the cloak at home.”</span>
             </div>
 
             <p style={{
@@ -732,21 +742,139 @@ function Ritual() {
   );
 }
 
+/* ---------------- Weave — the Ritual DSL ---------------- */
+function Weave() {
+  return (
+    <section id="weave" style={{marginBottom: 64}}>
+      <ScrollCard>
+        <SectionHead eyebrow="Chapter V" title="Weave — the Ritual DSL" seal="V"/>
+
+        <div style={{display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 48}}>
+          <div>
+            <p className="drop-cap" style={{fontSize: 15, lineHeight: 1.75, margin: "0 0 18px"}}>
+              Writing rituals in YAML works, but as they grow with branches and bindings
+              the structure begins to fight you. <em>Weave</em> is a small tongue for
+              declaring rituals in a natural, code-like form. A{" "}
+              <span className="mono" style={{fontSize: 13, color: "var(--ember)"}}>.wv</span> file
+              transpiles to a <span className="mono" style={{fontSize: 13, color: "var(--ember)"}}>scroll.yaml</span> ritual
+              entry — nothing hidden, no parallel runtime, just another frontend for the
+              same engine.
+            </p>
+            <p style={{fontSize: 14, lineHeight: 1.75, margin: "0 0 24px", color: "var(--ink-soft)"}}>
+              The woven ritual is validated against the descriptor cache before a single
+              line is written, so missing spells and out-of-scope references are caught
+              at weave time. A <span className="mono" style={{fontSize: 13, color: "var(--ember)"}}>module.spell()</span> call
+              form lets a Weave ritual reach into spells defined in another registered
+              scroll.
+            </p>
+
+            <div style={{
+              borderLeft: "2px solid var(--ember)",
+              padding: "4px 16px", margin: "28px 0",
+              fontFamily: "var(--display-2)", fontStyle: "italic",
+              fontSize: 16, lineHeight: 1.5, color: "var(--ink)",
+            }}>
+              “The YAML is the truth. The Weave is the telling.”
+              <div style={{
+                marginTop: 8, fontFamily: "var(--serif-sc)",
+                fontStyle: "normal", fontSize: 10, color: "var(--ink-faded)",
+                letterSpacing: "0.14em",
+              }}>
+                THIRD LAW OF THE GRIMOIRE
+              </div>
+            </div>
+
+            <ul style={{
+              listStyle: "none", padding: 0, margin: 0,
+              fontSize: 13.5, lineHeight: 1.6,
+            }}>
+              {[
+                ["Code-like syntax", "Braces and calls instead of nested YAML keys — branches read like branches."],
+                ["Transpiles to YAML", "grimoire weave appends a ritual entry to the local scroll — YAML stays the source of truth."],
+                ["Validated at weave time", "Checked against the descriptor cache; missing spells and bad refs fail before writing."],
+                ["Cross-scroll calls", "module.spell() reaches into spells from another registered scroll."],
+              ].map(([k, v]) => (
+                <li key={k} style={{
+                  display: "grid", gridTemplateColumns: "14px 1fr",
+                  gap: 10, padding: "10px 0",
+                  borderBottom: "1px dotted #9a8660",
+                }}>
+                  <span style={{color: "var(--ember)", fontSize: 13, lineHeight: 1.4}}>※</span>
+                  <div>
+                    <strong className="smallcaps" style={{color: "var(--ink)", fontSize: 12, letterSpacing: "0.08em"}}>{k.toUpperCase()}</strong>
+                    <div style={{color: "var(--ink-soft)", marginTop: 2}}>{v}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <div style={{
+              fontFamily: "var(--serif-sc)", fontSize: 11, letterSpacing: "0.16em",
+              color: "var(--ember)", marginBottom: 8,
+            }}>
+              A RITUAL, WOVEN
+            </div>
+            <div className="codeblock" style={{fontSize: 12.5}}>
+<span className="cmt"># weather_advice.wv</span>
+{"\n"}<span className="cmd">ritual</span> <span className="val">weather_advice</span> {"{"}
+{"\n"}    <span className="key">let</span> <span className="val">temp</span> = <span className="cmd">classify_temperature</span>(<span className="key">celsius</span> = <span className="val">35</span>)
+{"\n"}    <span className="key">let</span> <span className="val">extreme</span> = <span className="val">temp.freezing</span> || <span className="val">temp.category</span> == <span className="str">"hot"</span>
+{"\n"}
+{"\n"}    <span className="cmd">if</span> <span className="val">extreme</span> {"{"}
+{"\n"}        <span className="cmd">if</span> <span className="val">temp.freezing</span> {"{"}
+{"\n"}            <span className="cmd">warn_frostbite</span>()
+{"\n"}        {"}"} <span className="cmd">else</span> {"{"}
+{"\n"}            <span className="cmd">recommend_shorts</span>()
+{"\n"}        {"}"}
+{"\n"}    {"}"}
+{"\n"}{"}"}
+            </div>
+
+            <div style={{
+              fontFamily: "var(--serif-sc)", fontSize: 11, letterSpacing: "0.16em",
+              color: "var(--ember)", margin: "24px 0 8px",
+            }}>
+              THE INCANTATION
+            </div>
+            <div className="codeblock" style={{fontSize: 12.5}}>
+<span className="prompt">$ </span><span className="cmd">grimoire weave</span> <span className="arg">weather_advice.wv</span>
+{"\n"}<span style={{color: "#b6c28a"}}>  ✓ validated against the descriptor cache</span>
+{"\n"}<span style={{color: "#d4a84a"}}>  + wove ritual </span><span style={{color: "#b8442c"}}>weather_advice</span><span style={{color: "#d4a84a"}}> into scroll.yaml</span>
+            </div>
+
+            <p style={{
+              marginTop: 20, fontFamily: "var(--serif)",
+              fontSize: 13, fontStyle: "italic",
+              color: "var(--ink-soft)", lineHeight: 1.6,
+            }}>
+              The same ritual as Chapter IV — only the telling differs. The YAML it
+              produces is exactly what you'd have written by hand.
+            </p>
+          </div>
+        </div>
+      </ScrollCard>
+    </section>
+  );
+}
+
 /* ---------------- Commands Grimoire ---------------- */
 function Commands() {
   const rows = [
     ["grimoire init",                  "Scaffold a scroll.yaml in the current directory.",          "I"],
     ["grimoire add <file>:<function>", "Bind a function and auto-extract its signature.",           "II"],
     ["grimoire register [path]",       "Register a project’s scroll.yaml with the global grimoire.","III"],
-    ["grimoire clean [--global]",      "Purge cached venvs for functions whose source has vanished.","IV"],
-    ["grimoire <name> [flags]",        "Cast any bound spell — or any ritual — by its declared name.","V"],
+    ["grimoire weave <file>.wv",       "Transpile a Weave ritual into the local scroll.yaml.",      "IV"],
+    ["grimoire clean [--global]",      "Purge cached venvs for vanished sources (--force purges all).","V"],
+    ["grimoire <name> [flags]",        "Cast any bound spell — or any ritual — by its declared name.","VI"],
   ];
   return (
     <section id="commands" style={{marginBottom: 64}}>
       <ScrollCard>
-        <SectionHead eyebrow="Chapter V" title="The Command Codex" seal="V"/>
+        <SectionHead eyebrow="Chapter VI" title="The Command Codex" seal="VI"/>
         <p style={{fontSize: 15, lineHeight: 1.75, color: "var(--ink)", margin: "0 0 32px", maxWidth: 720}}>
-          Five gestures govern the grimoire. Commit them to memory, or keep them
+          A handful of gestures govern the grimoire. Commit them to memory, or keep them
           pinned near your conjuring-desk.
         </p>
         <table className="grimoire">
@@ -804,7 +932,7 @@ function Runtimes() {
   return (
     <section id="runtimes" style={{marginBottom: 64}}>
       <ScrollCard>
-        <SectionHead eyebrow="Chapter VI" title="Runtime Sigils" seal="VI"/>
+        <SectionHead eyebrow="Chapter VII" title="Runtime Sigils" seal="VII"/>
         <p style={{fontSize: 15, lineHeight: 1.75, color: "var(--ink)", margin: "0 0 36px", maxWidth: 720}}>
           Each tongue the grimoire speaks is bound by its own sigil — a small family
           of incantations that know how to summon its interpreter.
@@ -883,7 +1011,7 @@ function Footer() {
           </div>
         </div>
         {[
-          ["THE CODEX",   ["Quick Start", "Installation", "Commands", "Anatomy of a Spell", "Anatomy of a Ritual"]],
+          ["THE CODEX",   ["Quick Start", "Installation", "Commands", "Anatomy of a Spell", "Anatomy of a Ritual", "Weave DSL"]],
           ["GUILD HALL",  ["GitHub", "Issues", "Discussions", "Contribute"]],
           ["ARCANE LORE", ["Changelog", "Roadmap", "FAQ", "License"]],
         ].map(([t, items]) => (
@@ -945,6 +1073,7 @@ function App() {
           <DemoSection/>
           <Anatomy/>
           <Ritual/>
+          <Weave/>
           <Commands/>
           <Runtimes/>
         </main>

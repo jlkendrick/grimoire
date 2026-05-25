@@ -44,6 +44,21 @@ const SCENES = [
       { o: <T c="#6b5a43">◈ 0.42s · cached · python 3.12</T> },
     ],
   },
+  {
+    label: "IV · The Weaving",
+    title: "grimoire weave",
+    lines: [
+      { p: "~/projects/ledger", c: "grimoire weave rituals/close_books.wv" },
+      { o: <><T c="#d4a84a">+</T> <T c="#c0b080">Weaving ritual </T><T c="#b8442c">close_books</T></> },
+      { o: <><T c="#d4a84a">├──</T> <T c="#c0b080">parsing </T><T c="#b6c28a">close_books.wv</T></> },
+      { o: <><T c="#d4a84a">├──</T> <T c="#c0b080">validating against descriptor cache </T><T c="#b6c28a">✓</T></> },
+      { o: <><T c="#d4a84a">├──</T> <T c="#c0b080">spells </T><T c="#b6c28a">reconcile · audit · notify</T></> },
+      { o: <><T c="#d4a84a">└──</T> <T c="#c0b080">branch </T><T c="#b6c28a">if audit.clean … else …</T></> },
+      { o: "" },
+      { o: <T c="#d6c79c">  + appended ritual to scroll.yaml</T> },
+      { o: <T c="#6b5a43">◈ cast it with: grimoire close_books</T> },
+    ],
+  },
 ];
 
 function Terminal() {
