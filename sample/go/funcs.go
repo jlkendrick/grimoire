@@ -66,3 +66,14 @@ func ForgeCharacters(setting string, mood string) (string, string, string) {
 		pickFrom(villains, base+"|villain"),
 		pickFrom(mcguffins, base+"|mcguffin")
 }
+
+// Critic is a user-defined struct passed as a complex entry-point argument. The
+// generated Go wrapper qualifies the field type as userpkg.Critic.
+type Critic struct {
+	Name   string `json:"Name"`
+	Rating int    `json:"Rating"`
+}
+
+func ReviewParty(lead Critic, members []string) string {
+	return fmt.Sprintf("%s (rating %d) reviews a party of %d: %v", lead.Name, lead.Rating, len(members), members)
+}

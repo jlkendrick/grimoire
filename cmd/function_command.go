@@ -25,7 +25,11 @@ func buildFunctionCommand(function_descriptor descriptor.FunctionDescriptor) (*c
 				os.Exit(1)
 			}
 
-			payload := buildPayload(resolved_descriptor, cmd)
+			payload, err := buildPayload(resolved_descriptor, cmd)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error building arguments: %v\n", err)
+				os.Exit(1)
+			}
 
 			start := time.Now()
 			runResult, err := runtime.Run(&resolved_descriptor, payload, nil)

@@ -13,7 +13,7 @@ type Spell struct {
 	Command 	 	string `yaml:"command" json:"command"`
 	Path 	   		string `yaml:"path" json:"path"`
 	Function 		string `yaml:"function" json:"function"`
-	Params  		[]Param  `yaml:"params,omitempty" json:"params,omitempty"`
+	Params  		map[string]any `yaml:"params,omitempty" json:"params,omitempty"`
 	Interpreter string `yaml:"interpreter,omitempty" json:"interpreter,omitempty"`
 
 	ScrollPath 	string `yaml:"-" json:"-"`
@@ -58,14 +58,4 @@ func (s *Spell) Hash() (string, error) {
 		return "", fmt.Errorf("error hashing spell: %v", err)
 	}
 	return hash, nil
-}
-
-type Param struct {
-	Name 		string `yaml:"name"`
-	Type 		string `yaml:"type"`
-	Default any 	 `yaml:"default,omitempty"`
-}
-
-func (p Param) String() string {
-	return fmt.Sprintf("Param{\n\t\tName: %s,\n\t\tType: %s,\n\t\tDefault: %v\n\t}", p.Name, p.Type, p.Default)
 }

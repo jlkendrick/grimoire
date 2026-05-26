@@ -93,8 +93,8 @@ func TestGenerateCommands_FlagsMatchParams(t *testing.T) {
 				RelPathToSourceFile: "greet.py",
 				ScrollPath:          "/tmp/fake/scroll.yaml",
 				Params: []desc.ParamDescriptor{
-					{Name: "n", ResolvedType: &desc.TypeInfo{Kind: "int", Name: "int"}, Default: "1"},
-					{Name: "who", ResolvedType: &desc.TypeInfo{Kind: "string", Name: "str"}, Default: nil},
+					{Name: "n", ResolvedType: &desc.TypeInfo{Kind: desc.TypeKindPrimitive, Name: "int"}, Default: "1"},
+					{Name: "who", ResolvedType: &desc.TypeInfo{Kind: desc.TypeKindPrimitive, Name: "str"}, Default: nil},
 				},
 			},
 		},
@@ -170,7 +170,7 @@ func TestRun_OutputCorrect(t *testing.T) {
 			Interpreter:         "python3",
 			SourceHash:          srcHash,
 			Params: []desc.ParamDescriptor{
-				{Name: "name", ResolvedType: &desc.TypeInfo{Kind: "string", Name: "str"}, Default: "world"},
+				{Name: "name", ResolvedType: &desc.TypeInfo{Kind: desc.TypeKindPrimitive, Name: "str"}, Default: "world"},
 			},
 		},
 	})
@@ -315,7 +315,7 @@ func TestStaleness_Spell(t *testing.T) {
 			ScrollPath:          scrollPath,
 			SpellHash:           originalSpellHash,
 			Params: []desc.ParamDescriptor{
-				{Name: "name", ResolvedType: &desc.TypeInfo{Kind: "string", Name: "str"}, Default: nil},
+				{Name: "name", ResolvedType: &desc.TypeInfo{Kind: desc.TypeKindPrimitive, Name: "str"}, Default: nil},
 			},
 		},
 	})

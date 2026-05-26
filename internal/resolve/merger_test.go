@@ -64,7 +64,9 @@ func TestMerge_EmptySpellPathLeavesDescriptorPath(t *testing.T) {
 	}
 }
 
-func TestMerge_ParamTypeAndDefaultOverlay(t *testing.T) {
+// TestMerge_ParamValueOverlay: a spell override sets only the param's default
+// value; the extracted type is left untouched (the scroll cannot restate it).
+func TestMerge_ParamValueOverlay(t *testing.T) {
 	d := desc.FunctionDescriptor{
 		Params: []desc.ParamDescriptor{
 			{Name: "n", ResolvedType: &desc.TypeInfo{Kind: desc.TypeKindPrimitive, Name: "int"}, Default: nil},
@@ -72,13 +74,13 @@ func TestMerge_ParamTypeAndDefaultOverlay(t *testing.T) {
 	}
 	s := scroll.Spell{
 		Command: "c",
-		Params:  []scroll.Param{{Name: "n", Type: "int", Default: int64(5)}},
+		Params:  map[string]any{"n": int64(5)},
 	}
 	if err := resolve.MergeSpellIntoFunctionDescriptor(s, &d); err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
 	if d.Params[0].ResolvedType == nil || d.Params[0].ResolvedType.Name != "int" {
-		t.Errorf("ResolvedType.Name = %+v, want int", d.Params[0].ResolvedType)
+		t.Errorf("ResolvedType.Name = %+v, want int (extraction type must be preserved)", d.Params[0].ResolvedType)
 	}
 	if d.Params[0].Default != int64(5) {
 		t.Errorf("Default = %#v, want int64(5)", d.Params[0].Default)
@@ -96,7 +98,7 @@ func TestMerge_UnmatchedSpellParamIgnored(t *testing.T) {
 	}
 	s := scroll.Spell{
 		Command: "c",
-		Params:  []scroll.Param{{Name: "ghost", Type: "int", Default: "1"}},
+		Params:  map[string]any{"ghost": "1"},
 	}
 	if err := resolve.MergeSpellIntoFunctionDescriptor(s, &d); err != nil {
 		t.Fatalf("Merge: %v", err)

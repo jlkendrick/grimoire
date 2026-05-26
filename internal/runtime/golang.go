@@ -146,6 +146,50 @@ type WrapperData struct {
 	Args       []ParamDef
 }
 
+// qualifyGoType renders the Go type for a wrapper Input struct field,
+// prefixing user-defined (struct) type names with the `userpkg` import alias so
+// the generated wrapper compiles. Built-in scalars and collections of them are
+// emitted verbatim. The structure is reconstructed from the classified
+// TypeInfo; map keys are assumed to be built-in types (the common case).
+func qualifyGoType(info *descriptor.TypeInfo) string {
+	if info == nil {
+		return "interface{}"
+	}
+	switch info.Kind {
+	case descriptor.TypeKindList:
+		return "[]" + qualifyGoType(info.Element)
+	case descriptor.TypeKindMap:
+		return "map[" + goMapKeyType(info.Name) + "]" + qualifyGoType(info.Element)
+	case descriptor.TypeKindOptional:
+		return "*" + qualifyGoType(info.Element)
+	case descriptor.TypeKindStruct:
+		return "userpkg." + info.Name
+	default: // primitive or unknown — emit the captured type text as-is
+		return info.Name
+	}
+}
+
+// goMapKeyType extracts the key type K from a Go map type string "map[K]V".
+func goMapKeyType(name string) string {
+	rest, ok := strings.CutPrefix(name, "map[")
+	if !ok {
+		return "string"
+	}
+	depth := 0
+	for i := 0; i < len(rest); i++ {
+		switch rest[i] {
+		case '[':
+			depth++
+		case ']':
+			if depth == 0 {
+				return rest[:i]
+			}
+			depth--
+		}
+	}
+	return "string"
+}
+
 type ParamDef struct {
 	Name string // e.g., "A", "B", "Message" (Title-cased for JSON exporting)
 	Type string // e.g., "int", "string", "bool"
@@ -303,7 +347,7 @@ func (a *GoAdapter) Compile(execution_context *ExecutionContext) error {
 	for _, param := range descriptor.Params {
 		args_def = append(args_def, ParamDef{
 			Name: uppercaseFirst(param.Name),
-			Type: param.ResolvedType.Name,
+			Type: qualifyGoType(param.ResolvedType),
 			Key: strings.ToLower(param.Name),
 		})
 	}

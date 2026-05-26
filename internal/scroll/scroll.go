@@ -61,18 +61,14 @@ func InitScroll(dir string, include_boilerplate bool) (*Scroll, error) {
 				Command:  "hello",
 				Path:     "path/to/hello_world.py",
 				Function: "hello_world",
-				Params:   []Param{
-					{Name: "n", Type: "int", Default: "1"},
-				},
+				Params:   map[string]any{"n": 1},
 			},
 		}
 		opts = append(opts, yaml.WithComment(yaml.CommentMap{
-			"$.spells[0].command":           []*yaml.Comment{yaml.LineComment("CLI command associated with running the function")},
-			"$.spells[0].path":              []*yaml.Comment{yaml.LineComment("Path to the file containing the function")},
-			"$.spells[0].function":          []*yaml.Comment{yaml.LineComment("Name of the function to run")},
-			"$.spells[0].params[0].name":    []*yaml.Comment{yaml.LineComment("Name of the argument")},
-			"$.spells[0].params[0].type":    []*yaml.Comment{yaml.LineComment("Type of the argument")},
-			"$.spells[0].params[0].default": []*yaml.Comment{yaml.LineComment("Default value of the argument (optional)")},
+			"$.spells[0].command":  []*yaml.Comment{yaml.LineComment("CLI command associated with running the function")},
+			"$.spells[0].path":     []*yaml.Comment{yaml.LineComment("Path to the file containing the function")},
+			"$.spells[0].function": []*yaml.Comment{yaml.LineComment("Name of the function to run")},
+			"$.spells[0].params":   []*yaml.Comment{yaml.LineComment("Optional default-value overrides, keyed by param name")},
 		}))
 	}
 

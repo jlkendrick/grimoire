@@ -17,35 +17,14 @@ func MergeSpellIntoFunctionDescriptor(existing_spell scroll.Spell, function_desc
 		function_descriptor.FunctionName = existing_spell.Function
 	}
 
-	if len(existing_spell.Params) > 0 {
-		for _, existing_param := range existing_spell.Params {
-			// Look up param in function_descriptor.Params by name
-			for i, ir_param := range function_descriptor.Params {
-				if ir_param.Name == existing_param.Name {
-
-					// See what fields we need to override
-					if existing_param.Type != "" {
-						function_descriptor.Params[i].ResolvedType = &descriptor.TypeInfo{
-							Name: existing_param.Type,
-						}
-					}
-
-					if existing_param.Type != "" {
-						function_descriptor.Params[i].ResolvedType = &descriptor.TypeInfo{
-							Name: existing_param.Type,
-						}
-						switch existing_param.Type {
-						case "str", "int", "float", "bool":
-							function_descriptor.Params[i].ResolvedType.Kind = descriptor.TypeKindPrimitive
-						}
-					}
-
-					if existing_param.Default != nil {
-						function_descriptor.Params[i].Default = existing_param.Default
-					}
-					
-					break
-				}
+	// Spell params are value-only overrides keyed by param name: the scroll can
+	// override a param's default value, never its type. The type always comes
+	// from source extraction.
+	for name, value := range existing_spell.Params {
+		for i := range function_descriptor.Params {
+			if function_descriptor.Params[i].Name == name {
+				function_descriptor.Params[i].Default = value
+				break
 			}
 		}
 	}

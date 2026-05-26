@@ -45,9 +45,7 @@ func extractGoParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor {
 			args[i] = descriptor.ParamDescriptor{
 				Name: name,
 				RawTypeText: typ,
-				ResolvedType: &descriptor.TypeInfo{
-					Name: typ,
-				},
+				ResolvedType: classifyGoType(typ),
 				Default: nil,
 				ExtractorNotes: []string{},
 			}
@@ -69,10 +67,10 @@ func extractGoParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor {
 		}
 		return []descriptor.ParamDescriptor{
 			{
-				Name: name, 
-				RawTypeText: "..." + typ, 
-				ResolvedType: &descriptor.TypeInfo{Name: "..." + typ}, 
-				Default: nil, 
+				Name: name,
+				RawTypeText: "..." + typ,
+				ResolvedType: classifyGoType("..." + typ),
+				Default: nil,
 				ExtractorNotes: []string{},
 			},
 		}
