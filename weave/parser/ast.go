@@ -60,11 +60,31 @@ type OpRight struct {
 // alternatives in declaration order, and `@Ident` would otherwise consume
 // `true`/`false` before the boolean branch ever runs.
 type Term struct {
-	Call    *CallExpr `parser:"@@"`
-	Boolean *bool     `parser:"| ( @'true' | @'false' )"`
-	Ref     *RefExpr  `parser:"| @@"` // e.g., temp.freezing
-	String  *string   `parser:"| @String"`
-	Int     *int      `parser:"| @Int"`
+	Call    *CallExpr  `parser:"@@"`
+	Boolean *bool      `parser:"| ( @'true' | @'false' )"`
+	List    *ListLit   `parser:"| @@"`   // [a, b, c]
+	Object  *ObjectLit `parser:"| @@"`   // { key = value, ... }
+	Ref     *RefExpr   `parser:"| @@"`   // e.g., temp.freezing
+	String  *string    `parser:"| @String"`
+	Float   *float64   `parser:"| @Float"`
+	Int     *int       `parser:"| @Int"`
+}
+
+// ListLit and ObjectLit are collection literals. They are valid only as a
+// direct call-argument value (e.g. `f(tags = [1, 2])`), not inside operator
+// expressions or if/let conditions — the transpiler enforces this since the
+// scroll condition grammar has no notion of collection literals.
+type ListLit struct {
+	Elements []*Expr `parser:"'[' ( @@ ( ',' @@ )* )? ']'"`
+}
+
+type ObjectLit struct {
+	Entries []*ObjectEntry `parser:"'{' ( @@ ( ',' @@ )* )? '}'"`
+}
+
+type ObjectEntry struct {
+	Key   string `parser:"( @Ident | @String ) '='"`
+	Value *Expr  `parser:"@@"`
 }
 
 // Handles dot-notation and array indexing

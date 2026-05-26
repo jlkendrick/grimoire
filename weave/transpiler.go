@@ -11,6 +11,16 @@ import (
 
 type Transpiler struct {
 	temp_counter int
+	err          error // first error encountered during flattening
+}
+
+// fail records the first flattening error. FlattenExpr/FlattenTerm don't return
+// errors (they're called in many places), so they stash the error here and
+// transpileSteps surfaces it.
+func (t *Transpiler) fail(format string, args ...any) {
+	if t.err == nil {
+		t.err = fmt.Errorf(format, args...)
+	}
 }
 
 // FlatValue carries the result of flattening a term/expression in two forms.
@@ -23,6 +33,13 @@ type Transpiler struct {
 type FlatValue struct {
 	Val any
 	Src string
+
+	// IsCollection marks a list/object literal; IsRef marks a reference path.
+	// Both are illegal outside a direct call argument (operator expressions,
+	// if conditions, and let values), and refs/calls are illegal inside a
+	// collection literal. The transpiler uses these flags to reject such cases.
+	IsCollection bool
+	IsRef        bool
 }
 
 func (t *Transpiler) TranspileRitual(ritual *ast.Ritual) (scroll.Ritual, error) {
@@ -52,6 +69,9 @@ func (t *Transpiler) transpileSteps(stmts []*ast.Stmt) ([]scroll.Step, error) {
 			}
 
 			flat, hoisted := t.FlattenExpr(stmt.Let.Expr)
+			if flat.IsCollection {
+				t.fail("list/object literals are only allowed as call arguments, not as a let value")
+			}
 
 			yaml_steps = append(yaml_steps, hoisted...)
 
@@ -65,6 +85,9 @@ func (t *Transpiler) transpileSteps(stmts []*ast.Stmt) ([]scroll.Step, error) {
 
 		if stmt.If != nil {
 			condition, condition_hoisted := t.FlattenExpr(stmt.If.Condition)
+			if condition.IsCollection {
+				t.fail("list/object literals cannot be used as an if condition")
+			}
 
 			yaml_steps = append(yaml_steps, condition_hoisted...)
 
@@ -91,6 +114,10 @@ func (t *Transpiler) transpileSteps(stmts []*ast.Stmt) ([]scroll.Step, error) {
 
 			yaml_steps = append(yaml_steps, call_hoisted...)
 		}
+
+		if t.err != nil {
+			return nil, t.err
+		}
 	}
 
 	return yaml_steps, nil
@@ -116,11 +143,18 @@ func (t *Transpiler) FlattenExpr(expr *ast.Expr) (FlatValue, []scroll.Step) {
 		return left, hoisted
 	}
 
+	if left.IsCollection {
+		t.fail("list/object literals cannot be used in an operator expression")
+	}
+
 	var sb strings.Builder
 	sb.WriteString(left.Src)
 	for _, op := range expr.Right {
 		right, op_hoisted := t.FlattenTerm(op.Right)
 		hoisted = append(hoisted, op_hoisted...)
+		if right.IsCollection {
+			t.fail("list/object literals cannot be used in an operator expression")
+		}
 		sb.WriteString(" ")
 		sb.WriteString(op.Operator)
 		sb.WriteString(" ")
@@ -139,7 +173,24 @@ func (t *Transpiler) FlattenExpr(expr *ast.Expr) (FlatValue, []scroll.Step) {
 func (t *Transpiler) FlattenTerm(term *ast.Term) (FlatValue, []scroll.Step) {
 	if term.Ref != nil {
 		s := StringifyRef(term.Ref)
-		return FlatValue{Val: s, Src: s}, nil
+		return FlatValue{Val: s, Src: s, IsRef: true}, nil
+	}
+	if term.List != nil {
+		out := make([]any, 0, len(term.List.Elements))
+		for _, el := range term.List.Elements {
+			out = append(out, t.flattenLiteralElement(el))
+		}
+		return FlatValue{Val: out, IsCollection: true}, nil
+	}
+	if term.Object != nil {
+		out := make(map[string]any, len(term.Object.Entries))
+		for _, e := range term.Object.Entries {
+			out[e.Key] = t.flattenLiteralElement(e.Value)
+		}
+		return FlatValue{Val: out, IsCollection: true}, nil
+	}
+	if term.Float != nil {
+		return FlatValue{Val: *term.Float, Src: strconv.FormatFloat(*term.Float, 'g', -1, 64)}, nil
 	}
 	if term.String != nil {
 		// The default participle lexer's @String token includes the surrounding
@@ -170,6 +221,21 @@ func (t *Transpiler) FlattenTerm(term *ast.Term) (FlatValue, []scroll.Step) {
 	}
 
 	return FlatValue{Val: "", Src: ""}, nil
+}
+
+// flattenLiteralElement lowers an element of a list/object literal to its Go
+// value. Elements must be literals or nested literal collections — references
+// and calls are rejected, since the runtime only resolves references at the
+// top level of a step's params, not nested inside a collection payload.
+func (t *Transpiler) flattenLiteralElement(expr *ast.Expr) any {
+	flat, hoisted := t.FlattenExpr(expr)
+	if len(hoisted) > 0 {
+		t.fail("calls are not allowed inside list/object literals")
+	}
+	if flat.IsRef {
+		t.fail("references are not allowed inside list/object literals")
+	}
+	return flat.Val
 }
 
 // bareCall returns the call if expr is exactly a single call term with no
