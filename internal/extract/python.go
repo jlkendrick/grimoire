@@ -130,9 +130,7 @@ func extractPythonParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
 		return []descriptor.ParamDescriptor{{
 			Name: name,
 			RawTypeText: typ,
-			ResolvedType: &descriptor.TypeInfo{
-				Name: typ,
-			},
+			ResolvedType: classifyPythonType(typ),
 			Default: nil,
 			ExtractorNotes: []string{"missing default value"},
 		}}
@@ -150,11 +148,7 @@ func extractPythonParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
 		var resolved_type *descriptor.TypeInfo
 		if typeNode != nil {
 			typ = string(typeNode.Content(src))
-			resolved_type = &descriptor.TypeInfo{Name: typ}
-			switch typ {
-			case "str", "int", "float", "bool":
-				resolved_type.Kind = descriptor.TypeKindPrimitive
-			}
+			resolved_type = classifyPythonType(typ)
 		}
 
 		var default_value any
