@@ -83,3 +83,17 @@ def warn_frostbite():
 
 def recommend_shorts():
 	return "leave the jacket at home"
+
+
+from dataclasses import dataclass
+
+@dataclass
+class Person:
+	Name: str
+	Age: int
+
+def summarize_party(people: list, tags: list[str], meta: dict):
+	# Demonstrates complex entry-point args: a JSON list of objects, a slice of
+	# strings, and a JSON map. Inputs arrive as plain dicts/lists.
+	names = ", ".join(p.get("Name", "?") for p in people)
+	return f"party of {len(people)} ({names}); tags={tags}; meta_keys={sorted(meta)}"

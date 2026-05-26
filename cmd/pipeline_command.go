@@ -103,7 +103,11 @@ func buildPipelineCommand(pipeline_descriptor descriptor.PipelineDescriptor, des
 	command := &cobra.Command{
 		Use: pipeline_descriptor.CommandName,
 		Run: func(cmd *cobra.Command, args []string) {
-			inputs := buildPayload(first_step_descriptor, cmd)
+			inputs, err := buildPayload(first_step_descriptor, cmd)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error building arguments: %v\n", err)
+				os.Exit(1)
+			}
 
 			// stepView lifecycle is keyed by the engine's spell-step
 			// counter. The terminal step never enters this map — its
