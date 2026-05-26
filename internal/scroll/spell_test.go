@@ -15,7 +15,7 @@ func TestSpellHash_StableAcrossCalls(t *testing.T) {
 		Command:  "greet",
 		Path:     "greet.py",
 		Function: "greet",
-		Params:   []scroll.Param{{Name: "name", Type: "str", Default: "world"}},
+		Params:   map[string]any{"name": "world"},
 	}
 	h1, err := s.Hash()
 	if err != nil {
@@ -33,10 +33,10 @@ func TestSpellHash_StableAcrossCalls(t *testing.T) {
 func TestSpellHash_ChangesWithParamDefault(t *testing.T) {
 	a := scroll.Spell{
 		Command: "greet", Path: "greet.py", Function: "greet",
-		Params: []scroll.Param{{Name: "name", Type: "str", Default: "world"}},
+		Params: map[string]any{"name": "world"},
 	}
 	b := a
-	b.Params = []scroll.Param{{Name: "name", Type: "str", Default: "moon"}}
+	b.Params = map[string]any{"name": "moon"}
 
 	ha, err := a.Hash()
 	if err != nil {
@@ -73,10 +73,9 @@ func TestSpellHash_IgnoresRuntimeFields(t *testing.T) {
 	}
 }
 
-// TestParamUnmarshalYAML_PreservesIntDefault verifies that int defaults
-// arrive in the IR as a numeric Go type, not stringified — that's the
-// signal flag registration uses to construct typed cobra defaults without
-// re-parsing.
+// TestParamUnmarshalYAML_PreservesIntDefault verifies that int value overrides
+// arrive in the IR as a numeric Go type, not stringified — that's the signal
+// flag registration uses to construct typed cobra defaults without re-parsing.
 func TestParamUnmarshalYAML_PreservesIntDefault(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "scroll.yaml")
@@ -85,9 +84,7 @@ func TestParamUnmarshalYAML_PreservesIntDefault(t *testing.T) {
     path: c.py
     function: c
     params:
-      - name: n
-        type: int
-        default: 5
+      n: 5
 `)
 	s, err := scroll.ParseScroll(path)
 	if err != nil {
@@ -96,7 +93,7 @@ func TestParamUnmarshalYAML_PreservesIntDefault(t *testing.T) {
 	if len(s.Spells) != 1 || len(s.Spells[0].Params) != 1 {
 		t.Fatalf("unexpected parse shape: %+v", s)
 	}
-	got := s.Spells[0].Params[0].Default
+	got := s.Spells[0].Params["n"]
 	switch v := got.(type) {
 	case int:
 		if v != 5 { t.Errorf("Default = %d, want 5", v) }
@@ -112,21 +109,21 @@ func TestParamUnmarshalYAML_PreservesIntDefault(t *testing.T) {
 }
 
 func TestParamUnmarshalYAML_PreservesStringDefault(t *testing.T) {
-	var p scroll.Param
-	if err := yaml.Unmarshal([]byte("name: x\ntype: str\ndefault: hello\n"), &p); err != nil {
+	var s scroll.Scroll
+	if err := yaml.Unmarshal([]byte("spells:\n  - command: c\n    path: c.py\n    function: c\n    params:\n      name: hello\n"), &s); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	if p.Default != "hello" {
-		t.Errorf("Default = %#v, want %q", p.Default, "hello")
+	if got := s.Spells[0].Params["name"]; got != "hello" {
+		t.Errorf("Default = %#v, want %q", got, "hello")
 	}
 }
 
-func TestParamUnmarshalYAML_NilDefaultStaysNil(t *testing.T) {
-	var p scroll.Param
-	if err := yaml.Unmarshal([]byte("name: x\ntype: str\n"), &p); err != nil {
+func TestParamUnmarshalYAML_NoParamsStaysEmpty(t *testing.T) {
+	var s scroll.Scroll
+	if err := yaml.Unmarshal([]byte("spells:\n  - command: c\n    path: c.py\n    function: c\n"), &s); err != nil {
 		t.Fatalf("Unmarshal: %v", err)
 	}
-	if p.Default != nil {
-		t.Errorf("Default = %#v, want nil", p.Default)
+	if len(s.Spells[0].Params) != 0 {
+		t.Errorf("Params = %#v, want empty", s.Spells[0].Params)
 	}
 }
