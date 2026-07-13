@@ -16,7 +16,10 @@ type Env struct {
 	ResolveSpell func(name string) (*ir.Function, error)
 
 	// RunSpell executes a function with a fully built payload and returns
-	// its decoded (JSON) output.
+	// its decoded return value. A spell's "output" is always its return
+	// value: the runtime wrappers reserve the subprocess's stdout for the
+	// JSON-encoded return and reroute user prints to stderr, so printed
+	// text never enters the data flow.
 	RunSpell func(ctx context.Context, fn *ir.Function, payload map[string]any) (any, error)
 
 	// Present receives every printed value, in declaration order.

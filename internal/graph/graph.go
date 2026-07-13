@@ -39,8 +39,9 @@ const (
 	// InputSeed: the graph's seed value — ritual inputs / CLI flags for
 	// the root graph, the owning if-node's input for a branch subgraph.
 	InputSeed
-	// InputChain: the sole dependency's output. This is the implicit
-	// stdout→stdin pipe; the builder only emits it inside pipe scopes.
+	// InputChain: the sole dependency's output. This is the implicit pipe
+	// between steps — the previous function's return value becomes this
+	// function's arguments. The builder only emits it inside pipe scopes.
 	InputChain
 	// InputParams: the Params map with reference strings resolved against
 	// the shared bindings at the moment the node becomes ready.

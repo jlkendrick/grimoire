@@ -51,7 +51,8 @@ func (op *SpellOp) payload(in any) (map[string]any, error) {
 	return payload, nil
 }
 
-// adaptChained maps an upstream step's decoded output onto fn's params.
+// adaptChained maps an upstream step's decoded return value onto fn's
+// params.
 // A list whose length matches a multi-param function unpacks positionally
 // (mirroring Python's `return a, b`); a map that covers every param maps
 // by name; anything else binds whole to the first param, so a function
