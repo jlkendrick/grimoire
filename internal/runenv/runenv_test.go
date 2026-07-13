@@ -86,6 +86,59 @@ def double(n: int = 0):
 	}
 }
 
+// TestSpellChecker_ValidatesFrontHalf exercises the whole load-time front
+// half against a real cache: parse scroll → reconcile (extraction) →
+// FromRitual → ValidatePipeline with the cache-backed existence check.
+// No python needed — nothing runs; extraction is tree-sitter only.
+func TestSpellChecker_ValidatesFrontHalf(t *testing.T) {
+	testsupport.SetupGrimoireHome(t)
+	dir := testsupport.WithScrollDir(t)
+
+	testsupport.WriteFile(t, filepath.Join(dir, "spells.py"), `def fetch(n: int = 2):
+    return {"ok": True, "n": n}
+`)
+	scrollPath := testsupport.WriteScrollYAML(t, dir, `spells:
+  - command: fetch
+    path: spells.py
+    function: fetch
+`)
+
+	sc, err := scroll.ParseScroll(scrollPath)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	dc, err := cache.ReadDescriptorCache(scrollPath)
+	if err != nil {
+		t.Fatalf("ReadDescriptorCache: %v", err)
+	}
+	if err := resolve.ReconcileScrollAndDescriptors(sc, dc); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	check := SpellChecker(dc, nil)
+	if err := check("fetch"); err != nil {
+		t.Errorf("known spell rejected: %v", err)
+	}
+	if err := check("ghost"); err == nil {
+		t.Error("unknown spell accepted")
+	}
+
+	valid := ir.FromRitual(&scroll.Ritual{Command: "report", Steps: []scroll.Step{
+		{Id: "check", Spell: "fetch"},
+		{Print: "check.n"},
+	}})
+	if err := graph.ValidatePipeline(valid, check); err != nil {
+		t.Errorf("front half rejected a valid ritual: %v", err)
+	}
+
+	bad := ir.FromRitual(&scroll.Ritual{Command: "report", Steps: []scroll.Step{
+		{Spell: "ghost"},
+	}})
+	if err := graph.ValidatePipeline(bad, check); err == nil {
+		t.Error("front half accepted a ritual naming an unknown spell")
+	}
+}
+
 // TestRealPipeline_ElseBranch flips the condition through the seed and
 // checks the else-branch print.
 func TestRealPipeline_ElseBranch(t *testing.T) {
