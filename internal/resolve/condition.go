@@ -458,3 +458,12 @@ func referenceRoot(path string) string {
 	}
 	return path
 }
+
+// RootRefs returns the root identifier of every reference in expr, in
+// first-appearance order (duplicates preserved). The graph builder derives
+// dependency edges from these.
+func RootRefs(expr Expr) []string { return conditionRootRefs(expr) }
+
+// ReferenceRoot returns the leading identifier of a reference path:
+// "src.path" → "src", "items[0].id" → "items", "src" → "src".
+func ReferenceRoot(path string) string { return referenceRoot(path) }
