@@ -7,6 +7,7 @@ import (
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 	extract "github.com/jlkendrick/grimoire/internal/extract"
+	ir "github.com/jlkendrick/grimoire/internal/ir"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
@@ -130,30 +131,15 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 			} else {
 				fmt.Printf("%s Spell %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(spell.Command))
 			}
-			abs_path_to_function, err := utils.MakeScrollRelPathAbs(spell.Path, spell.ScrollPath)
-			if err != nil {
-				return false, fmt.Errorf("error making scroll rel path abs: %v", err)
-			}
-			function_descriptor_generator := extract.FunctionDescriptorGenerator{
-				CommandName:         spell.Command,
-				FunctionName:        spell.Function,
-				RelPathToSourceFile: spell.Path,
-				AbsPathToSourceFile: abs_path_to_function,
-				ScrollPath:          scroll_obj.Path,
-				SpellHash:           curr_hash,
-				Interpreter:         spell.Interpreter,
-			}
-			resolved_descriptor, err := function_descriptor_generator.Generate()
+			// Conversion is ir.FromSpell's job (extraction + override
+			// merge); this loop only decides WHEN it runs and caches the
+			// result.
+			resolved_descriptor, err := ir.FromSpell(spell)
 			if err != nil {
 				return false, fmt.Errorf("error generating spell descriptor: %v", err)
 			}
 
-			err = MergeSpellIntoFunctionDescriptor(spell, &resolved_descriptor)
-			if err != nil {
-				return false, fmt.Errorf("error merging spell into function descriptor: %v", err)
-			}
-
-			descriptor_cache.Functions[spell.Command] = resolved_descriptor
+			descriptor_cache.Functions[spell.Command] = *resolved_descriptor
 			mutated = true
 		}
 	}
