@@ -120,3 +120,47 @@ func TestParseScroll_RejectsSpellRitualCommandCollision(t *testing.T) {
 		t.Errorf("error = %v, want duplicate-command error", err)
 	}
 }
+
+func TestParseScroll_PrintSteps(t *testing.T) {
+	ts.SetupGrimoireHome(t)
+	dir := ts.WithScrollDir(t)
+	path := ts.WriteScrollYAML(t, dir, `spells:
+  - command: fetch
+    path: f.py
+    function: fetch
+rituals:
+  - command: report
+    steps:
+      - id: check
+        spell: fetch
+      - if: check.ok
+        then:
+          - print: check.n
+        else:
+          - print: '"skipped"'
+      - print: check
+`)
+
+	s, err := scroll.ParseScroll(path)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	if len(s.Rituals) != 1 || len(s.Rituals[0].Steps) != 3 {
+		t.Fatalf("rituals = %+v, want one ritual with 3 steps", s.Rituals)
+	}
+	steps := s.Rituals[0].Steps
+
+	ifStep := steps[1]
+	if ifStep.Kind() != "if" || len(ifStep.Then) != 1 || len(ifStep.Else) != 1 {
+		t.Fatalf("step 1 = %+v, want if-step with one-step branches", ifStep)
+	}
+	if got := ifStep.Then[0]; got.Kind() != "print" || got.Print != "check.n" {
+		t.Errorf("then print = %+v, want print step check.n", got)
+	}
+	if got := ifStep.Else[0]; got.Kind() != "print" || got.Print != `"skipped"` {
+		t.Errorf("else print = %+v, want quoted string literal expression", got)
+	}
+	if got := steps[2]; got.Kind() != "print" || got.Print != "check" {
+		t.Errorf("tail print = %+v, want print step check", got)
+	}
+}

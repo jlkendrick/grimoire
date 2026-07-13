@@ -1,6 +1,7 @@
 package scroll_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
@@ -38,28 +39,25 @@ func TestRitualHash_StableAndOrderSensitive(t *testing.T) {
 }
 
 // TestRitualHash_SpellOnlyRitualUnaffectedByNewFields confirms a ritual
-// with no if-steps hashes the same as it would have before the new
-// Condition/Then/Else fields were added. omitempty on the new JSON tags
-// is what keeps this invariant — if it regresses, existing cached
-// rituals would all reconcile on first run after upgrade.
+// with only spell-steps serializes exactly as it did before the newer
+// step kinds (if/let/print) existed. omitempty on the new JSON tags is
+// what keeps this invariant — if it regresses, every existing cached
+// ritual would reconcile on first run after upgrade.
 func TestRitualHash_SpellOnlyRitualUnaffectedByNewFields(t *testing.T) {
 	r := scroll.Ritual{
 		Command: "pipe",
 		Steps:   []scroll.Step{{Id: "a", Spell: "foo"}, {Spell: "bar"}},
 	}
-	h, err := r.Hash()
+	js, err := json.Marshal(r)
 	if err != nil {
-		t.Fatalf("Hash: %v", err)
+		t.Fatalf("Marshal: %v", err)
 	}
-	// Hash computed before the new fields were introduced — checking it
-	// here makes the contract explicit and would catch accidental tag
-	// changes on the existing fields.
-	const wantPrefix = "" // hash content isn't asserted directly; we
-	// just make sure the field shape doesn't accidentally include
-	// empty If/Then/Else in the JSON.
-	_ = wantPrefix
-	if h == "" {
-		t.Errorf("Hash empty")
+	// The canonical JSON the hash is computed over. Newer step fields
+	// must not appear when unset; the always-present fields (Id, Spell,
+	// Params) must keep their shape.
+	want := `{"Command":"pipe","Steps":[{"Id":"a","Spell":"foo","Params":null},{"Id":"","Spell":"bar","Params":null}]}`
+	if string(js) != want {
+		t.Errorf("canonical JSON changed:\n got  %s\n want %s", js, want)
 	}
 }
 
@@ -122,6 +120,28 @@ func TestRitualHash_ElseBranchChangesHash(t *testing.T) {
 	}
 }
 
+func TestRitualHash_PrintStepChangesHash(t *testing.T) {
+	without := scroll.Ritual{
+		Command: "pipe",
+		Steps:   []scroll.Step{{Id: "a", Spell: "foo"}},
+	}
+	with := scroll.Ritual{
+		Command: "pipe",
+		Steps:   []scroll.Step{{Id: "a", Spell: "foo"}, {Print: "a.result"}},
+	}
+	h1, err := without.Hash()
+	if err != nil {
+		t.Fatalf("Hash without: %v", err)
+	}
+	h2, err := with.Hash()
+	if err != nil {
+		t.Fatalf("Hash with: %v", err)
+	}
+	if h1 == h2 {
+		t.Errorf("expected adding a print step to change the hash")
+	}
+}
+
 func TestStep_Kind(t *testing.T) {
 	tests := []struct {
 		name string
@@ -131,6 +151,8 @@ func TestStep_Kind(t *testing.T) {
 		{"spell step", scroll.Step{Spell: "foo"}, "spell"},
 		{"id'd spell step", scroll.Step{Id: "x", Spell: "foo"}, "spell"},
 		{"if step", scroll.Step{If: "cond", Then: []scroll.Step{{Spell: "a"}}}, "if"},
+		{"let step", scroll.Step{Let: "x", Value: "1 > 0"}, "let"},
+		{"print step", scroll.Step{Print: "a.result"}, "print"},
 		{"empty step defaults to spell", scroll.Step{}, "spell"},
 	}
 	for _, tt := range tests {

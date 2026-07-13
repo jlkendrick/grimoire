@@ -12,14 +12,16 @@ type Ritual struct {
 	Steps   []Step `yaml:"steps"`
 }
 
-// Step is one of three kinds: spell-step (Spell set), if-step (If set),
-// or let-step (Let set, binding a name to the result of an expression).
-// The reconciler enforces mutual exclusivity and the other shape rules
-// (no id on if-step, non-empty then, no spell+if mixing, first step is
-// a spell so CLI flags can be derived).
+// Step is one of four kinds: spell-step (Spell set), if-step (If set),
+// let-step (Let set, binding a name to the result of an expression), or
+// print-step (Print set, declaring a ritual output — the expression's
+// value goes to the frontend's presenter). The reconciler enforces
+// mutual exclusivity and the other shape rules (no id on if-step,
+// non-empty then, no spell+if mixing, first step is a spell so CLI
+// flags can be derived).
 //
-// The newer fields (If/Then/Else/Let/Value) carry json:",omitempty" so
-// adding them doesn't perturb the JSON hash of pre-existing spell-only
+// The newer fields (If/Then/Else/Let/Value/Print) carry json:",omitempty"
+// so adding them doesn't perturb the JSON hash of pre-existing spell-only
 // rituals.
 type Step struct {
 	Id     string         `yaml:"id,omitempty"`
@@ -32,6 +34,8 @@ type Step struct {
 
 	Let   string `yaml:"let,omitempty" json:",omitempty"`
 	Value string `yaml:"value,omitempty" json:",omitempty"`
+
+	Print string `yaml:"print,omitempty" json:",omitempty"`
 }
 
 func (s Step) Kind() string {
@@ -40,6 +44,9 @@ func (s Step) Kind() string {
 	}
 	if s.If != "" {
 		return "if"
+	}
+	if s.Print != "" {
+		return "print"
 	}
 	return "spell"
 }
