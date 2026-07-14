@@ -1,18 +1,10 @@
-package resolve
+package expr
 
 import (
 	"fmt"
-	"strings"
 	"strconv"
-
-	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	"strings"
 )
-
-func ResolveFunctionDescriptor(fd *descriptor.FunctionDescriptor) error {
-	// TODO: implement methods for resolving types.
-	// Simple casting is already done in the cmd/commands.go file.
-	return nil
-}
 
 func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 	isReference := func(value any) bool {
@@ -30,7 +22,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 				return true
 			}
 		}
-		return false	
+		return false
 	}
 
 	getFirstAccessorIdx := func(value_str string, start_idx int) int {
@@ -43,7 +35,6 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		return len(value_str)
 	}
 
-
 	if !isReference(value) {
 		return value, false, nil
 	}
@@ -53,7 +44,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 	if !ok {
 		return value, false, nil
 	}
-	
+
 	// Base case for recursion: if there is a binding for the value, return it
 	if binding, ok := bindings[value_str]; ok {
 		return binding, true, nil
@@ -73,7 +64,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		// Get the index from the value
 		left_bracket_idx := first_accessor_idx
 		right_bracket_idx := strings.Index(value_str, "]")
-		index := value_str[left_bracket_idx+1:right_bracket_idx]
+		index := value_str[left_bracket_idx+1 : right_bracket_idx]
 		index_int, err := strconv.Atoi(index)
 		if err != nil {
 			return nil, false, fmt.Errorf("invalid index %s", index)
@@ -87,7 +78,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 			return nil, false, fmt.Errorf("index %s is out of bounds", index)
 		}
 		ref_value := ref_output_list[index_int]
-		
+
 		// Recurse to resolve multiple levels of accessors
 
 		// step_id[N].field
@@ -97,7 +88,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		// Add a binding for what we just resolved
 		binding_id := id + "$" + index + "$"
 		bindings[binding_id] = ref_value
-		return ResolveReference(binding_id + value_str[right_bracket_idx+1:], bindings)
+		return ResolveReference(binding_id+value_str[right_bracket_idx+1:], bindings)
 
 	case '.':
 		// Object key access
@@ -127,7 +118,7 @@ func ResolveReference(value any, bindings map[string]any) (any, bool, error) {
 		// Add a binding for what we just resolved
 		binding_id := id + "@" + key
 		bindings[binding_id] = ref_value
-		return ResolveReference(binding_id + value_str[key_right:], bindings)
+		return ResolveReference(binding_id+value_str[key_right:], bindings)
 	}
 
 	// What the

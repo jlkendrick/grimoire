@@ -6,6 +6,7 @@ import (
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	expr "github.com/jlkendrick/grimoire/internal/expr"
 	extract "github.com/jlkendrick/grimoire/internal/extract"
 	ir "github.com/jlkendrick/grimoire/internal/ir"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
@@ -298,11 +299,11 @@ func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descrip
 			if step.Value == "" {
 				return nil, fmt.Errorf("ritual %s: let %q requires a 'value:' expression", ritualName, step.Let)
 			}
-			letExpr, err := ParseCondition(step.Value)
+			letExpr, err := expr.ParseCondition(step.Value)
 			if err != nil {
 				return nil, fmt.Errorf("ritual %s: invalid let %q value %q: %v", ritualName, step.Let, step.Value, err)
 			}
-			for _, root := range conditionRootRefs(letExpr) {
+			for _, root := range expr.RootRefs(letExpr) {
 				if !slices.Contains(visible(), root) {
 					return nil, fmt.Errorf("ritual %s: let %q references %s which is not in scope", ritualName, step.Let, root)
 				}
@@ -323,11 +324,11 @@ func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descrip
 			if len(step.Then) == 0 {
 				return nil, fmt.Errorf("ritual %s: if-step 'then' branch cannot be empty", ritualName)
 			}
-			expr, err := ParseCondition(step.If)
+			condExpr, err := expr.ParseCondition(step.If)
 			if err != nil {
 				return nil, fmt.Errorf("ritual %s: invalid condition %q: %v", ritualName, step.If, err)
 			}
-			for _, root := range conditionRootRefs(expr) {
+			for _, root := range expr.RootRefs(condExpr) {
 				if !slices.Contains(visible(), root) {
 					return nil, fmt.Errorf("ritual %s: condition references %s which is not in scope", ritualName, root)
 				}

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sort"
 
+	expr "github.com/jlkendrick/grimoire/internal/expr"
 	ir "github.com/jlkendrick/grimoire/internal/ir"
-	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 )
 
 // BuildFunction compiles a bare spell invocation into the one-node graph
@@ -247,7 +247,7 @@ func (b *builder) readRefs(step ir.Step, writers map[string]string) ([]string, e
 			// The runtime resolver treats it as one, so the builder must
 			// too, or the edge is missed and the step races its data.
 			if s, ok := v.(string); ok {
-				if root := resolve.ReferenceRoot(s); writers[root] != "" {
+				if root := expr.ReferenceRoot(s); writers[root] != "" {
 					roots = append(roots, root)
 				}
 			}
@@ -278,11 +278,11 @@ func (b *builder) readRefs(step ir.Step, writers map[string]string) ([]string, e
 }
 
 func exprRoots(src string) ([]string, error) {
-	expr, err := resolve.ParseCondition(src)
+	parsed, err := expr.ParseCondition(src)
 	if err != nil {
 		return nil, fmt.Errorf("parse %q: %w", src, err)
 	}
-	return resolve.RootRefs(expr), nil
+	return expr.RootRefs(parsed), nil
 }
 
 // freeRefs returns the references a branch subtree reads that are bound by
@@ -311,7 +311,7 @@ func refsInSubtree(steps []ir.Step) ([]string, error) {
 		case "spell":
 			for _, v := range s.Params {
 				if str, ok := v.(string); ok {
-					out = append(out, resolve.ReferenceRoot(str))
+					out = append(out, expr.ReferenceRoot(str))
 				}
 			}
 		case "let":

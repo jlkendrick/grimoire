@@ -7,6 +7,7 @@ import (
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	expr "github.com/jlkendrick/grimoire/internal/expr"
 	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 	runtime "github.com/jlkendrick/grimoire/internal/runtime"
 )
@@ -116,11 +117,11 @@ func executeSteps(steps []descriptor.StepDescriptor, state *pipelineExecState, t
 		thisTerminalScope := terminalScope && isLastInList
 
 		if step.Kind() == "if" {
-			expr, err := resolve.ParseCondition(step.Condition)
+			parsed, err := expr.ParseCondition(step.Condition)
 			if err != nil {
 				return fmt.Errorf("parse condition %q: %v", step.Condition, err)
 			}
-			cond, err := resolve.EvaluateCondition(expr, state.bindings)
+			cond, err := expr.EvaluateCondition(parsed, state.bindings)
 			if err != nil {
 				return fmt.Errorf("evaluate condition %q: %v", step.Condition, err)
 			}
@@ -137,11 +138,11 @@ func executeSteps(steps []descriptor.StepDescriptor, state *pipelineExecState, t
 		}
 
 		if step.Kind() == "let" {
-			expr, err := resolve.ParseCondition(step.Value)
+			parsed, err := expr.ParseCondition(step.Value)
 			if err != nil {
 				return fmt.Errorf("parse let %q value %q: %v", step.Let, step.Value, err)
 			}
-			val, err := resolve.EvaluateExpression(expr, state.bindings)
+			val, err := expr.EvaluateExpression(parsed, state.bindings)
 			if err != nil {
 				return fmt.Errorf("evaluate let %q: %v", step.Let, err)
 			}
@@ -285,7 +286,7 @@ func buildPayloadFromBindings(params map[string]any, bindings map[string]any, fu
 	payload := make(map[string]interface{})
 
 	for name, value := range params {
-		ref_value, is_reference, err := resolve.ResolveReference(value, bindings)
+		ref_value, is_reference, err := expr.ResolveReference(value, bindings)
 		if err != nil {
 			return nil, err
 		}

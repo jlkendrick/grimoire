@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	resolve "github.com/jlkendrick/grimoire/internal/resolve"
+	expr "github.com/jlkendrick/grimoire/internal/expr"
 )
 
 // IfOp evaluates its condition against the current bindings and executes
@@ -23,11 +23,11 @@ type IfOp struct {
 }
 
 func (op *IfOp) Run(ctx context.Context, in any, ex *Exec) (any, error) {
-	expr, err := resolve.ParseCondition(op.Cond)
+	parsed, err := expr.ParseCondition(op.Cond)
 	if err != nil {
 		return nil, fmt.Errorf("parse condition %q: %w", op.Cond, err)
 	}
-	cond, err := resolve.EvaluateCondition(expr, ex.Bindings())
+	cond, err := expr.EvaluateCondition(parsed, ex.Bindings())
 	if err != nil {
 		return nil, fmt.Errorf("evaluate condition %q: %w", op.Cond, err)
 	}
@@ -62,11 +62,11 @@ type LetOp struct {
 }
 
 func (op *LetOp) Run(_ context.Context, in any, ex *Exec) (any, error) {
-	expr, err := resolve.ParseCondition(op.Expr)
+	parsed, err := expr.ParseCondition(op.Expr)
 	if err != nil {
 		return nil, fmt.Errorf("parse let %q value %q: %w", op.Name, op.Expr, err)
 	}
-	val, err := resolve.EvaluateExpression(expr, ex.Bindings())
+	val, err := expr.EvaluateExpression(parsed, ex.Bindings())
 	if err != nil {
 		return nil, fmt.Errorf("evaluate let %q: %w", op.Name, err)
 	}
@@ -89,11 +89,11 @@ type PrintOp struct {
 func (op *PrintOp) Run(_ context.Context, in any, ex *Exec) (any, error) {
 	val := in
 	if op.Expr != "" {
-		expr, err := resolve.ParseCondition(op.Expr)
+		parsed, err := expr.ParseCondition(op.Expr)
 		if err != nil {
 			return nil, fmt.Errorf("parse print %q: %w", op.Expr, err)
 		}
-		val, err = resolve.EvaluateExpression(expr, ex.Bindings())
+		val, err = expr.EvaluateExpression(parsed, ex.Bindings())
 		if err != nil {
 			return nil, fmt.Errorf("evaluate print %q: %w", op.Expr, err)
 		}

@@ -6,7 +6,7 @@ import (
 	"maps"
 	"sync"
 
-	resolve "github.com/jlkendrick/grimoire/internal/resolve"
+	expr "github.com/jlkendrick/grimoire/internal/expr"
 )
 
 // Exec is the state shared by every scope of a single invocation: the
@@ -36,7 +36,7 @@ func (ex *Exec) Bind(name string, val any) {
 }
 
 // Bindings returns a snapshot of the current bindings. Callers always get
-// a copy: resolve.ResolveReference memoizes intermediate accessor lookups
+// a copy: expr.ResolveReference memoizes intermediate accessor lookups
 // by writing synthetic keys back into the map it is handed, so the live
 // map must never escape this package.
 func (ex *Exec) Bindings() map[string]any {
@@ -203,7 +203,7 @@ func (r *run) resolveInput(n *Node) (any, error) {
 		bindings := r.ex.Bindings()
 		resolved := make(map[string]any, len(n.Input.Params))
 		for name, raw := range n.Input.Params {
-			val, isRef, err := resolve.ResolveReference(raw, bindings)
+			val, isRef, err := expr.ResolveReference(raw, bindings)
 			if err != nil {
 				return nil, fmt.Errorf("param %s: %w", name, err)
 			}

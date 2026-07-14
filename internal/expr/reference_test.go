@@ -1,16 +1,16 @@
-package resolve_test
+package expr_test
 
 import (
 	"reflect"
 	"strings"
 	"testing"
 
-	resolve "github.com/jlkendrick/grimoire/internal/resolve"
+	expr "github.com/jlkendrick/grimoire/internal/expr"
 )
 
 func TestResolveReference_NonStringPassesThrough(t *testing.T) {
 	bindings := map[string]any{"step1": "anything"}
-	got, ok, err := resolve.ResolveReference(42, bindings)
+	got, ok, err := expr.ResolveReference(42, bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -24,7 +24,7 @@ func TestResolveReference_NonStringPassesThrough(t *testing.T) {
 
 func TestResolveReference_StringWithNoMatchingBindingPassesThrough(t *testing.T) {
 	bindings := map[string]any{"step1": "anything"}
-	got, ok, err := resolve.ResolveReference("just a plain string", bindings)
+	got, ok, err := expr.ResolveReference("just a plain string", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestResolveReference_BareBindingNameIsAReference(t *testing.T) {
 	// A bare binding name (no accessor) is treated as a reference
 	// to the full result of the previous step.
 	bindings := map[string]any{"step1": "hello"}
-	got, ok, err := resolve.ResolveReference("step1", bindings)
+	got, ok, err := expr.ResolveReference("step1", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestResolveReference_ListIndex(t *testing.T) {
 	bindings := map[string]any{
 		"step1": []any{"a", "b", "c"},
 	}
-	got, ok, err := resolve.ResolveReference("step1[1]", bindings)
+	got, ok, err := expr.ResolveReference("step1[1]", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestResolveReference_MapKey(t *testing.T) {
 	bindings := map[string]any{
 		"step1": map[string]any{"name": "alice", "age": 30},
 	}
-	got, ok, err := resolve.ResolveReference("step1.name", bindings)
+	got, ok, err := expr.ResolveReference("step1.name", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestResolveReference_ListThenKey(t *testing.T) {
 			map[string]any{"name": "bob"},
 		},
 	}
-	got, ok, err := resolve.ResolveReference("step1[1].name", bindings)
+	got, ok, err := expr.ResolveReference("step1[1].name", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestResolveReference_KeyThenIndex(t *testing.T) {
 			"items": []any{"x", "y", "z"},
 		},
 	}
-	got, ok, err := resolve.ResolveReference("step1.items[2]", bindings)
+	got, ok, err := expr.ResolveReference("step1.items[2]", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestResolveReference_NestedMapKeys(t *testing.T) {
 			},
 		},
 	}
-	got, ok, err := resolve.ResolveReference("step1.user.profile.name", bindings)
+	got, ok, err := expr.ResolveReference("step1.user.profile.name", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestResolveReference_NestedListIndexes(t *testing.T) {
 			[]any{"c", "d"},
 		},
 	}
-	got, ok, err := resolve.ResolveReference("step1[1][0]", bindings)
+	got, ok, err := expr.ResolveReference("step1[1][0]", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -177,7 +177,7 @@ func TestResolveReference_DeepMixedChain(t *testing.T) {
 			},
 		},
 	}
-	got, ok, err := resolve.ResolveReference("step1.users[0].tags[1]", bindings)
+	got, ok, err := expr.ResolveReference("step1.users[0].tags[1]", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestResolveReference_ResolvesToNonScalar(t *testing.T) {
 			"items": []any{"x", "y"},
 		},
 	}
-	got, ok, err := resolve.ResolveReference("step1.items", bindings)
+	got, ok, err := expr.ResolveReference("step1.items", bindings)
 	if err != nil {
 		t.Fatalf("ResolveReference: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestResolveReference_IndexOutOfBounds(t *testing.T) {
 	bindings := map[string]any{
 		"step1": []any{"a", "b"},
 	}
-	_, _, err := resolve.ResolveReference("step1[5]", bindings)
+	_, _, err := expr.ResolveReference("step1[5]", bindings)
 	if err == nil {
 		t.Fatalf("expected error for out-of-bounds index")
 	}
@@ -225,7 +225,7 @@ func TestResolveReference_NegativeIndexRejected(t *testing.T) {
 	bindings := map[string]any{
 		"step1": []any{"a", "b"},
 	}
-	_, _, err := resolve.ResolveReference("step1[-1]", bindings)
+	_, _, err := expr.ResolveReference("step1[-1]", bindings)
 	if err == nil {
 		t.Fatalf("expected error for negative index")
 	}
@@ -235,7 +235,7 @@ func TestResolveReference_NonNumericIndex(t *testing.T) {
 	bindings := map[string]any{
 		"step1": []any{"a", "b"},
 	}
-	_, _, err := resolve.ResolveReference("step1[abc]", bindings)
+	_, _, err := expr.ResolveReference("step1[abc]", bindings)
 	if err == nil {
 		t.Fatalf("expected error for non-numeric index")
 	}
@@ -248,7 +248,7 @@ func TestResolveReference_IndexOnNonList(t *testing.T) {
 	bindings := map[string]any{
 		"step1": map[string]any{"name": "alice"},
 	}
-	_, _, err := resolve.ResolveReference("step1[0]", bindings)
+	_, _, err := expr.ResolveReference("step1[0]", bindings)
 	if err == nil {
 		t.Fatalf("expected error when indexing a non-list")
 	}
@@ -261,7 +261,7 @@ func TestResolveReference_KeyAccessOnNonMap(t *testing.T) {
 	bindings := map[string]any{
 		"step1": []any{"a", "b"},
 	}
-	_, _, err := resolve.ResolveReference("step1.name", bindings)
+	_, _, err := expr.ResolveReference("step1.name", bindings)
 	if err == nil {
 		t.Fatalf("expected error when key-accessing a non-map")
 	}
@@ -274,7 +274,7 @@ func TestResolveReference_MissingKey(t *testing.T) {
 	bindings := map[string]any{
 		"step1": map[string]any{"name": "alice"},
 	}
-	_, _, err := resolve.ResolveReference("step1.missing", bindings)
+	_, _, err := expr.ResolveReference("step1.missing", bindings)
 	if err == nil {
 		t.Fatalf("expected error for missing key")
 	}
@@ -289,7 +289,7 @@ func TestResolveReference_MidChainKeyMissing(t *testing.T) {
 			"user": map[string]any{"name": "alice"},
 		},
 	}
-	_, _, err := resolve.ResolveReference("step1.user.missing", bindings)
+	_, _, err := expr.ResolveReference("step1.user.missing", bindings)
 	if err == nil {
 		t.Fatalf("expected error for missing key in chain")
 	}
@@ -301,7 +301,7 @@ func TestResolveReference_MidChainIndexOutOfBounds(t *testing.T) {
 			"items": []any{"a"},
 		},
 	}
-	_, _, err := resolve.ResolveReference("step1.items[7]", bindings)
+	_, _, err := expr.ResolveReference("step1.items[7]", bindings)
 	if err == nil {
 		t.Fatalf("expected error for out-of-bounds in chain")
 	}

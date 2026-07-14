@@ -1,4 +1,8 @@
-package resolve
+// Package expr is Grimoire's expression language: the grammar behind
+// if:, value:, and print: (parsing and evaluation) plus the
+// reference-path resolver that params: values use. It is a leaf package
+// consumed by the graph core, the validator, and the sync layer alike.
+package expr
 
 import (
 	"fmt"
