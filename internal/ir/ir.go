@@ -33,6 +33,11 @@ type Pipeline struct {
 	Command string
 	Mode    Mode // mode of the top-level scope; empty = pipe
 	Steps   []Step
+
+	// RitualHash is sync bookkeeping: the hash of the scroll ritual this
+	// pipeline was lowered from, letting the reconciler skip unchanged
+	// rituals. Function carries SourceHash/SpellHash for the same reason.
+	RitualHash string `json:",omitempty"`
 }
 
 // Step is one of four kinds, discriminated by which fields are set —

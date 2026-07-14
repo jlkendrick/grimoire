@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	graph "github.com/jlkendrick/grimoire/internal/graph"
@@ -47,7 +48,14 @@ func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, present func(v a
 		// RunResult.Runtime (the version string the CLI shows) is dropped
 		// here for now; it returns with the observer.
 		RunSpell: func(_ context.Context, fn *ir.Function, payload map[string]any) (any, error) {
-			res, err := runtime.Run(fn, payload, &runtime.RunOptions{SuppressFraming: true})
+			res, err := runtime.Run(fn, payload, &runtime.RunOptions{
+				SuppressFraming: true,
+				// Spell prints (rerouted to the subprocess's stderr by
+				// the wrappers) surface on Grimoire's stderr: stdout
+				// carries only declared prints. Streaming these into a
+				// per-step UI is the observer's future job.
+				OnStderrLine: func(line string) { fmt.Fprintln(os.Stderr, line) },
+			})
 			if err != nil {
 				return nil, err
 			}

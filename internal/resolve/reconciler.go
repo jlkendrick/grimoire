@@ -2,12 +2,11 @@ package resolve
 
 import (
 	"fmt"
-	"slices"
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
-	expr "github.com/jlkendrick/grimoire/internal/expr"
 	extract "github.com/jlkendrick/grimoire/internal/extract"
+	graph "github.com/jlkendrick/grimoire/internal/graph"
 	ir "github.com/jlkendrick/grimoire/internal/ir"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
@@ -160,56 +159,35 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 	return mutated, nil
 }
 
-// getStepReference returns the root binding id of a step-param reference
-// like "step.field" or "step[0]" — empty string if the value is not a
-// reference. Crucially, bare strings without an accessor are NOT
-// references (they're literal user-provided values); reference detection
-// only kicks in when a path accessor is present.
-func getStepReference(value any) string {
-	s, ok := value.(string)
-	if !ok {
-		return ""
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] == '.' || s[i] == '[' {
-			return s[:i]
-		}
-	}
-	return ""
+// ValidateRitual reports whether a ritual would survive reconcile: lower
+// it to IR and validate by building — the same front half the reconciler
+// runs at scroll load. Callers (e.g. the weave transpiler) use it to
+// confirm a freshly-built ritual before writing it to the scroll. Pass a
+// nil SpellIndex when the ritual uses bare references only.
+func ValidateRitual(ritual scroll.Ritual, descriptor_cache *cache.DescriptorCache, index *SpellIndex) error {
+	return graph.ValidatePipeline(ir.FromRitual(&ritual), spellExists(descriptor_cache, index))
 }
 
-// ValidateRitual runs the same validation the pipeline reconciler performs —
-// first-step-is-spell check, lexical scope checks on step-id references, and
-// condition-expression parsing for let/if steps — against the supplied
-// descriptor cache. It does not touch the cache or scroll: callers (e.g. the
-// weave transpiler) use it to confirm a freshly-built ritual would survive
-// the next reconcile before writing it to the scroll.
-//
-// Pass a nil SpellIndex when the ritual is known to use bare references
-// only; dotted refs will error in that case.
-func ValidateRitual(ritual scroll.Ritual, descriptor_cache *cache.DescriptorCache, index *SpellIndex) error {
-	if len(ritual.Steps) > 0 && ritual.Steps[0].Kind() != "spell" {
-		return fmt.Errorf("ritual %s: first step must be a spell (got %s; CLI flags are derived from the entry spell's params)", ritual.Command, ritual.Steps[0].Kind())
+// spellExists adapts spell-ref resolution to the existence check
+// graph.ValidatePipeline expects.
+func spellExists(descriptor_cache *cache.DescriptorCache, index *SpellIndex) func(name string) error {
+	return func(name string) error {
+		_, err := ResolveSpellRef(name, descriptor_cache, index)
+		return err
 	}
-	_, err := validateAndConvertSteps(ritual.Steps, nil, descriptor_cache, index, ritual.Command)
-	return err
 }
 
 func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor_cache *cache.DescriptorCache, index *SpellIndex) (bool, error) {
 	mutated := false
 
-	// Rituals -> Pipeline descriptors
+	// Rituals -> Pipelines. Conversion (ir.FromRitual) answers what the
+	// ritual means; validation (graph.ValidatePipeline) answers whether it
+	// would build — the same builder the runtime uses, so scroll-load
+	// errors match run-time reality. This loop only decides WHEN and
+	// caches the result.
 	for _, ritual := range scroll_obj.Rituals {
-		if len(ritual.Steps) > 0 && ritual.Steps[0].Kind() != "spell" {
-			return false, fmt.Errorf("ritual %s: first step must be a spell (got %s; CLI flags are derived from the entry spell's params)", ritual.Command, ritual.Steps[0].Kind())
-		}
-
-		// Recursively validate steps and convert to descriptors. The walker
-		// enforces lexical scope for step-id references: a step can see
-		// ancestor-scope ids and earlier-sibling ids, but not ids declared
-		// inside a sibling branch.
-		steps, err := validateAndConvertSteps(ritual.Steps, nil, descriptor_cache, index, ritual.Command)
-		if err != nil {
+		pipeline := ir.FromRitual(&ritual)
+		if err := graph.ValidatePipeline(pipeline, spellExists(descriptor_cache, index)); err != nil {
 			return false, err
 		}
 
@@ -228,11 +206,8 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 			} else {
 				fmt.Printf("%s Ritual %s has changed since last run. Divining signature...\n", utils.SpellStyle("+"), utils.SpellStyle(ritual.Command))
 			}
-			descriptor_cache.Pipelines[ritual.Command] = descriptor.PipelineDescriptor{
-				CommandName: ritual.Command,
-				Steps:       steps,
-				RitualHash:  new_hash,
-			}
+			pipeline.RitualHash = new_hash
+			descriptor_cache.Pipelines[ritual.Command] = *pipeline
 			mutated = true
 		}
 	}
@@ -251,109 +226,4 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 	}
 
 	return mutated, nil
-}
-
-// validateAndConvertSteps walks a step list, enforces per-step rules, and
-// returns the corresponding descriptor steps. inheritedIds carries the
-// step ids visible from ancestor scopes (NOT sibling-branch scopes —
-// branch-internal ids stay branch-internal). index supplies cross-scroll
-// spell lookups for dotted refs; nil rejects all dotted refs.
-func validateAndConvertSteps(steps []scroll.Step, inheritedIds []string, descriptor_cache *cache.DescriptorCache, index *SpellIndex, ritualName string) ([]descriptor.StepDescriptor, error) {
-	out := make([]descriptor.StepDescriptor, 0, len(steps))
-	siblingIds := []string{}
-
-	visible := func() []string {
-		v := make([]string, 0, len(inheritedIds)+len(siblingIds))
-		v = append(v, inheritedIds...)
-		v = append(v, siblingIds...)
-		return v
-	}
-
-	for _, step := range steps {
-		switch step.Kind() {
-		case "spell":
-			if _, err := ResolveSpellRef(step.Spell, descriptor_cache, index); err != nil {
-				return nil, fmt.Errorf("ritual %s: %v", ritualName, err)
-			}
-			for _, value := range step.Params {
-				if ref := getStepReference(value); ref != "" && !slices.Contains(visible(), ref) {
-					return nil, fmt.Errorf("ritual %s: step %s references %s which is not in scope", ritualName, step.Spell, ref)
-				}
-			}
-			out = append(out, descriptor.StepDescriptor{
-				Id:        step.Id,
-				SpellName: step.Spell,
-				Params:    step.Params,
-			})
-			if step.Id != "" {
-				siblingIds = append(siblingIds, step.Id)
-			}
-
-		case "let":
-			if step.Spell != "" || step.If != "" || len(step.Then) > 0 || len(step.Else) > 0 {
-				return nil, fmt.Errorf("ritual %s: let-step %q cannot mix with spell/if fields", ritualName, step.Let)
-			}
-			if step.Id != "" {
-				return nil, fmt.Errorf("ritual %s: let-step uses 'let:' for the binding name; remove the redundant 'id:' field", ritualName)
-			}
-			if step.Value == "" {
-				return nil, fmt.Errorf("ritual %s: let %q requires a 'value:' expression", ritualName, step.Let)
-			}
-			letExpr, err := expr.ParseCondition(step.Value)
-			if err != nil {
-				return nil, fmt.Errorf("ritual %s: invalid let %q value %q: %v", ritualName, step.Let, step.Value, err)
-			}
-			for _, root := range expr.RootRefs(letExpr) {
-				if !slices.Contains(visible(), root) {
-					return nil, fmt.Errorf("ritual %s: let %q references %s which is not in scope", ritualName, step.Let, root)
-				}
-			}
-			out = append(out, descriptor.StepDescriptor{
-				Let:   step.Let,
-				Value: step.Value,
-			})
-			siblingIds = append(siblingIds, step.Let)
-
-		case "if":
-			if step.Id != "" {
-				return nil, fmt.Errorf("ritual %s: if-step cannot have an id", ritualName)
-			}
-			if step.Spell != "" {
-				return nil, fmt.Errorf("ritual %s: step cannot set both 'if' and 'spell'", ritualName)
-			}
-			if len(step.Then) == 0 {
-				return nil, fmt.Errorf("ritual %s: if-step 'then' branch cannot be empty", ritualName)
-			}
-			condExpr, err := expr.ParseCondition(step.If)
-			if err != nil {
-				return nil, fmt.Errorf("ritual %s: invalid condition %q: %v", ritualName, step.If, err)
-			}
-			for _, root := range expr.RootRefs(condExpr) {
-				if !slices.Contains(visible(), root) {
-					return nil, fmt.Errorf("ritual %s: condition references %s which is not in scope", ritualName, root)
-				}
-			}
-
-			branchScope := visible()
-			thenSteps, err := validateAndConvertSteps(step.Then, branchScope, descriptor_cache, index, ritualName)
-			if err != nil {
-				return nil, err
-			}
-			var elseSteps []descriptor.StepDescriptor
-			if len(step.Else) > 0 {
-				elseSteps, err = validateAndConvertSteps(step.Else, branchScope, descriptor_cache, index, ritualName)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			out = append(out, descriptor.StepDescriptor{
-				Condition: step.If,
-				Then:      thenSteps,
-				Else:      elseSteps,
-			})
-		}
-	}
-
-	return out, nil
 }

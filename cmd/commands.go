@@ -9,6 +9,7 @@ import (
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	ir "github.com/jlkendrick/grimoire/internal/ir"
 	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 )
 
@@ -38,19 +39,19 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache, resolvedNames map
 		commands = append(commands, command)
 	}
 
-	pipeline_descriptors := make([]descriptor.PipelineDescriptor, 0, len(descriptor_cache.Pipelines))
+	pipelines := make([]ir.Pipeline, 0, len(descriptor_cache.Pipelines))
 	for _, pd := range descriptor_cache.Pipelines {
-		pipeline_descriptors = append(pipeline_descriptors, pd)
+		pipelines = append(pipelines, pd)
 	}
-	sort.Slice(pipeline_descriptors, func(i, j int) bool {
-		return pipeline_descriptors[i].CommandName < pipeline_descriptors[j].CommandName
+	sort.Slice(pipelines, func(i, j int) bool {
+		return pipelines[i].Command < pipelines[j].Command
 	})
-	for _, pd := range pipeline_descriptors {
+	for _, pd := range pipelines {
 		command, err := buildPipelineCommand(pd, descriptor_cache, spellIndex)
 		if err != nil {
 			return nil, err
 		}
-		applyResolvedName(command, pd.CommandName, resolvedNames, scrollPath)
+		applyResolvedName(command, pd.Command, resolvedNames, scrollPath)
 		commands = append(commands, command)
 	}
 

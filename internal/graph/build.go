@@ -50,7 +50,7 @@ func BuildPipeline(p *ir.Pipeline, env Env) (*Graph, error) {
 	}
 
 	b := &builder{env: env}
-	g, err := b.scope(p.Steps, mode)
+	g, err := b.scope(p.Steps, mode, true)
 	if err != nil {
 		return nil, fmt.Errorf("pipeline %s: %w", p.Command, err)
 	}
@@ -77,11 +77,14 @@ func (b *builder) syntheticID(label string) string {
 	return fmt.Sprintf("%s#%d", label, b.n)
 }
 
-func (b *builder) scope(steps []ir.Step, mode ir.Mode) (*Graph, error) {
+// scope compiles one step list. root marks the pipeline's top-level
+// scope, whose seed is the CLI-flags payload; branch scopes are seeded
+// with an upstream value instead (see pipeScope).
+func (b *builder) scope(steps []ir.Step, mode ir.Mode, root bool) (*Graph, error) {
 	if mode == ir.ModeGraph {
 		return b.graphScope(steps)
 	}
-	return b.pipeScope(steps)
+	return b.pipeScope(steps, root)
 }
 
 // node builds the mode-independent part of a step: its op (recursing into
@@ -112,13 +115,13 @@ func (b *builder) node(step ir.Step, scopeMode ir.Mode) (*Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		then, err := b.scope(step.Then, branchMode)
+		then, err := b.scope(step.Then, branchMode, false)
 		if err != nil {
 			return nil, err
 		}
 		var els *Graph
 		if len(step.Else) > 0 {
-			if els, err = b.scope(step.Else, branchMode); err != nil {
+			if els, err = b.scope(step.Else, branchMode, false); err != nil {
 				return nil, err
 			}
 		}
@@ -136,7 +139,13 @@ func (b *builder) node(step ir.Step, scopeMode ir.Mode) (*Node, error) {
 // pipeScope compiles a step list to a chain: every node depends on its
 // predecessor, data flows through Chain inputs unless a spell declares
 // explicit params, and the scope's result is its tail.
-func (b *builder) pipeScope(steps []ir.Step) (*Graph, error) {
+//
+// A branch scope's seed is the if-node's input — an upstream step's
+// return value, not a flags payload — so a branch-entry spell without
+// params adapts it exactly like a chained input (the linear engine's
+// "prev_result continues into the branch" rule). Only the root scope's
+// entry receives a direct payload map.
+func (b *builder) pipeScope(steps []ir.Step, root bool) (*Graph, error) {
 	g := &Graph{}
 	prev := ""
 	for _, step := range steps {
@@ -157,7 +166,7 @@ func (b *builder) pipeScope(steps []ir.Step) (*Graph, error) {
 			n.Deps = []string{prev}
 		}
 		if sp, ok := n.Op.(*SpellOp); ok {
-			sp.Chained = n.Input.Kind == InputChain
+			sp.Chained = n.Input.Kind == InputChain || (n.Input.Kind == InputSeed && !root)
 		}
 
 		g.Nodes = append(g.Nodes, n)

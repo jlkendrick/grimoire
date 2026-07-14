@@ -7,6 +7,7 @@ import (
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	ir "github.com/jlkendrick/grimoire/internal/ir"
 	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 	scroll "github.com/jlkendrick/grimoire/internal/scroll"
 )
@@ -27,7 +28,7 @@ func makeCache(scrollPath string, spells ...string) *cache.DescriptorCache {
 		Version:    cache.CACHE_VERSION,
 		ScrollPath: scrollPath,
 		Functions:  functions,
-		Pipelines:  map[string]descriptor.PipelineDescriptor{},
+		Pipelines:  map[string]ir.Pipeline{},
 	}
 }
 

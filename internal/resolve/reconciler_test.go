@@ -279,7 +279,7 @@ rituals:
 	if !ok {
 		t.Fatalf("pipeline 'pipe' not added; map=%+v", dc.Pipelines)
 	}
-	if len(pd.Steps) != 1 || pd.Steps[0].SpellName != "greet" {
+	if len(pd.Steps) != 1 || pd.Steps[0].Spell != "greet" {
 		t.Errorf("Steps wrong: %+v", pd.Steps)
 	}
 	if pd.RitualHash == "" {
@@ -336,10 +336,10 @@ rituals:
 	if pd.Steps[1].Kind() != "if" {
 		t.Errorf("expected step 2 to be an if-step, got %s", pd.Steps[1].Kind())
 	}
-	if pd.Steps[1].Condition != `g == "hello world"` {
-		t.Errorf("Condition = %q", pd.Steps[1].Condition)
+	if pd.Steps[1].If != `g == "hello world"` {
+		t.Errorf("If = %q", pd.Steps[1].If)
 	}
-	if len(pd.Steps[1].Then) != 1 || pd.Steps[1].Then[0].SpellName != "shout" {
+	if len(pd.Steps[1].Then) != 1 || pd.Steps[1].Then[0].Spell != "shout" {
 		t.Errorf("Then branch wrong: %+v", pd.Steps[1].Then)
 	}
 }

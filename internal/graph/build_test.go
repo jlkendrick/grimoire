@@ -100,6 +100,35 @@ func TestBuildPipeline_PipeChainShape(t *testing.T) {
 	}
 }
 
+func TestBuildPipeline_BranchEntrySpellAdaptsChained(t *testing.T) {
+	var calls fakeCalls
+	env := fakeEnv(nil, nil, &calls)
+	g := mustBuild(t, &ir.Pipeline{Command: "r", Steps: []ir.Step{
+		{Id: "check", Spell: "status"},
+		{If: "check.ok", Then: []ir.Step{{Spell: "handle"}}},
+	}}, env)
+
+	// The root entry takes the flags payload directly; a branch entry's
+	// seed is an upstream return value, so a no-params branch entry must
+	// adapt it like a chained input (a zero-param spell gets {}, not the
+	// whole upstream map as kwargs).
+	if g.Nodes[0].Op.(*SpellOp).Chained {
+		t.Error("root entry spell must take the flags payload directly")
+	}
+	var ifNode *Node
+	for _, n := range g.Nodes {
+		if _, ok := n.Op.(*IfOp); ok {
+			ifNode = n
+		}
+	}
+	if ifNode == nil {
+		t.Fatal("no if node built")
+	}
+	if !ifNode.Op.(*IfOp).Then.Nodes[0].Op.(*SpellOp).Chained {
+		t.Error("branch entry spell without params must adapt its seed as a chained input")
+	}
+}
+
 func TestBuildPipeline_ExplicitPrintDisablesAutoPrint(t *testing.T) {
 	var calls fakeCalls
 	env := fakeEnv(nil, nil, &calls)

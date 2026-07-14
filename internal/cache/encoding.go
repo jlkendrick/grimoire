@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	utils "github.com/jlkendrick/grimoire/internal/utils"
 	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
+	ir "github.com/jlkendrick/grimoire/internal/ir"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
 // Cache format:
@@ -19,14 +20,17 @@ import (
 //
 // scroll-id is the hash of the scroll path
 
-const CACHE_VERSION = 1
+// CACHE_VERSION 2: Pipelines hold ir.Pipeline (ir.Step field names) in
+// place of the old PipelineDescriptor. Caches written by other versions
+// are discarded on read and rebuilt by the next reconcile.
+const CACHE_VERSION = 2
 
 type DescriptorCache struct {
-	Version 	 int 							                        `json:"version"`
-	ScrollHash string 							                    `json:"scroll_hash"`
-	ScrollPath string 							                    `json:"scroll_path"`
+	Version    int                                      `json:"version"`
+	ScrollHash string                                   `json:"scroll_hash"`
+	ScrollPath string                                   `json:"scroll_path"`
 	Functions  map[string]descriptor.FunctionDescriptor `json:"functions"` // spell command -> function descriptor
-	Pipelines  map[string]descriptor.PipelineDescriptor `json:"pipelines"` // ritual command -> pipeline descriptor
+	Pipelines  map[string]ir.Pipeline                   `json:"pipelines"` // ritual command -> pipeline descriptor
 }
 
 // cached_descriptor_caches memoizes per-scroll DescriptorCache objects within
@@ -71,7 +75,7 @@ func ReadDescriptorCache(scroll_path string) (*DescriptorCache, error) {
 			ScrollHash: "", // empty so that we correctly trigger a re-run of the reconciler
 			ScrollPath: scroll_path,
 			Functions:  make(map[string]descriptor.FunctionDescriptor),
-			Pipelines:  make(map[string]descriptor.PipelineDescriptor),
+			Pipelines:  make(map[string]ir.Pipeline),
 		}
 		cached_descriptor_caches[scroll_path] = dc
 		return dc, nil
@@ -86,13 +90,27 @@ func ReadDescriptorCache(scroll_path string) (*DescriptorCache, error) {
 		return nil, err
 	}
 
+	// A cache written by another schema version would decode into junk
+	// (field names differ); discard it and let reconcile rebuild.
+	if dc.Version != CACHE_VERSION {
+		dc = DescriptorCache{
+			Version:    CACHE_VERSION,
+			ScrollHash: "",
+			ScrollPath: scroll_path,
+			Functions:  make(map[string]descriptor.FunctionDescriptor),
+			Pipelines:  make(map[string]ir.Pipeline),
+		}
+		cached_descriptor_caches[scroll_path] = &dc
+		return &dc, nil
+	}
+
 	// If there are no functions or pipelines, intitialize them to empty maps to
 	// avoid nil map dereferences.
 	if dc.Functions == nil {
 		dc.Functions = make(map[string]descriptor.FunctionDescriptor)
 	}
 	if dc.Pipelines == nil {
-		dc.Pipelines = make(map[string]descriptor.PipelineDescriptor)
+		dc.Pipelines = make(map[string]ir.Pipeline)
 	}
 	cached_descriptor_caches[scroll_path] = &dc
 	return &dc, nil
