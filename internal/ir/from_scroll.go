@@ -17,6 +17,7 @@ import (
 func FromRitual(r *scroll.Ritual) *Pipeline {
 	return &Pipeline{
 		Command: r.Command,
+		Mode:    Mode(r.Mode),
 		Steps:   fromSteps(r.Steps),
 	}
 }
@@ -102,6 +103,7 @@ func fromSteps(steps []scroll.Step) []Step {
 			If:   s.If,
 			Then: fromSteps(s.Then),
 			Else: fromSteps(s.Else),
+			Mode: Mode(s.Mode),
 
 			Let:   s.Let,
 			Value: s.Value,

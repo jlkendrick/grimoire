@@ -142,6 +142,29 @@ func TestRitualHash_PrintStepChangesHash(t *testing.T) {
 	}
 }
 
+func TestRitualHash_ModeChangesHash(t *testing.T) {
+	pipe := scroll.Ritual{
+		Command: "r",
+		Steps:   []scroll.Step{{Id: "a", Spell: "foo"}},
+	}
+	graphMode := scroll.Ritual{
+		Command: "r",
+		Mode:    "graph",
+		Steps:   []scroll.Step{{Id: "a", Spell: "foo"}},
+	}
+	h1, err := pipe.Hash()
+	if err != nil {
+		t.Fatalf("Hash pipe: %v", err)
+	}
+	h2, err := graphMode.Hash()
+	if err != nil {
+		t.Fatalf("Hash graph: %v", err)
+	}
+	if h1 == h2 {
+		t.Errorf("expected mode: to change the ritual hash")
+	}
+}
+
 func TestStep_Kind(t *testing.T) {
 	tests := []struct {
 		name string

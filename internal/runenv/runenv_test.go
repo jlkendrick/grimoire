@@ -139,6 +139,89 @@ func TestSpellChecker_ValidatesFrontHalf(t *testing.T) {
 	}
 }
 
+// TestRealPipeline_GraphModeFromYAML is the full graph-mode path: mode:
+// parsed from scroll.yaml, reconciled (validated by building), lowered,
+// built, and run — two independent python spells fanning out from the
+// seed and a third joining their outputs by reference.
+func TestRealPipeline_GraphModeFromYAML(t *testing.T) {
+	if !testsupport.PythonAvailable() {
+		t.Skip("python3 not on PATH")
+	}
+	testsupport.SetupGrimoireHome(t)
+	dir := testsupport.WithScrollDir(t)
+
+	testsupport.WriteFile(t, filepath.Join(dir, "spells.py"), `def left(n: int = 1):
+    return {"v": n * 2}
+
+
+def right(n: int = 1):
+    return {"v": n * 3}
+
+
+def join(a: int = 0, b: int = 0):
+    return a + b
+`)
+	scrollPath := testsupport.WriteScrollYAML(t, dir, `spells:
+  - command: left
+    path: spells.py
+    function: left
+  - command: right
+    path: spells.py
+    function: right
+  - command: join
+    path: spells.py
+    function: join
+rituals:
+  - command: fan
+    mode: graph
+    steps:
+      - id: l
+        spell: left
+      - id: r
+        spell: right
+      - id: joined
+        spell: join
+        params:
+          a: l.v
+          b: r.v
+      - print: joined
+`)
+
+	sc, err := scroll.ParseScroll(scrollPath)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	dc, err := cache.ReadDescriptorCache(scrollPath)
+	if err != nil {
+		t.Fatalf("ReadDescriptorCache: %v", err)
+	}
+	if err := resolve.ReconcileScrollAndDescriptors(sc, dc); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+	if got := dc.Pipelines["fan"].Mode; got != ir.ModeGraph {
+		t.Fatalf("cached pipeline mode = %q, want graph", got)
+	}
+
+	var prints []any
+	env := New(dc, nil, func(v any) error {
+		prints = append(prints, v)
+		return nil
+	})
+	pipeline := dc.Pipelines["fan"]
+	g, err := graph.BuildPipeline(&pipeline, env)
+	if err != nil {
+		t.Fatalf("BuildPipeline: %v", err)
+	}
+	if _, err := graph.Run(context.Background(), g, map[string]any{"n": 2}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// left(2) → 4, right(2) → 6, join(4, 6) → 10.
+	if !slices.Equal(prints, []any{10.0}) {
+		t.Errorf("prints = %v, want [10]", prints)
+	}
+}
+
 // TestRealPipeline_ElseBranch flips the condition through the seed and
 // checks the else-branch print.
 func TestRealPipeline_ElseBranch(t *testing.T) {

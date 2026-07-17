@@ -54,3 +54,20 @@ func TestFromRitual_KindsSurviveLowering(t *testing.T) {
 		}
 	}
 }
+
+func TestFromRitual_LowersModes(t *testing.T) {
+	r := &scroll.Ritual{Command: "r", Mode: "graph", Steps: []scroll.Step{
+		{Id: "a", Spell: "s"},
+		{If: "a.ok", Mode: "pipe", Then: []scroll.Step{{Spell: "t"}}},
+	}}
+	p := ir.FromRitual(r)
+	if p.Mode != ir.ModeGraph {
+		t.Errorf("pipeline mode = %q, want graph", p.Mode)
+	}
+	if p.Steps[1].Mode != ir.ModePipe {
+		t.Errorf("if-step mode = %q, want pipe", p.Steps[1].Mode)
+	}
+	if p.Steps[0].Mode != "" {
+		t.Errorf("spell step mode = %q, want empty", p.Steps[0].Mode)
+	}
+}

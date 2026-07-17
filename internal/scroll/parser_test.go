@@ -164,3 +164,39 @@ rituals:
 		t.Errorf("tail print = %+v, want print step check", got)
 	}
 }
+
+func TestParseScroll_ModeFields(t *testing.T) {
+	ts.SetupGrimoireHome(t)
+	dir := ts.WithScrollDir(t)
+	path := ts.WriteScrollYAML(t, dir, `spells:
+  - command: fetch
+    path: f.py
+    function: fetch
+rituals:
+  - command: fan
+    mode: graph
+    steps:
+      - id: a
+        spell: fetch
+      - if: a.ok
+        mode: pipe
+        then:
+          - spell: fetch
+      - print: a
+`)
+
+	s, err := scroll.ParseScroll(path)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	r := s.Rituals[0]
+	if r.Mode != "graph" {
+		t.Errorf("ritual mode = %q, want graph", r.Mode)
+	}
+	if r.Steps[1].Mode != "pipe" {
+		t.Errorf("if-step mode = %q, want pipe override", r.Steps[1].Mode)
+	}
+	if r.Steps[0].Mode != "" {
+		t.Errorf("spell step mode = %q, want empty", r.Steps[0].Mode)
+	}
+}
