@@ -2,8 +2,11 @@ package runenv
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
@@ -59,7 +62,7 @@ def double(n: int = 0):
 	env := New(dc, nil, func(v any) error {
 		prints = append(prints, v)
 		return nil
-	})
+	}, nil)
 
 	p := &ir.Pipeline{Command: "demo", Steps: []ir.Step{
 		{Spell: "fetch", Id: "check"},
@@ -206,7 +209,7 @@ rituals:
 	env := New(dc, nil, func(v any) error {
 		prints = append(prints, v)
 		return nil
-	})
+	}, nil)
 	pipeline := dc.Pipelines["fan"]
 	g, err := graph.BuildPipeline(&pipeline, env)
 	if err != nil {
@@ -256,7 +259,7 @@ func TestRealPipeline_ElseBranch(t *testing.T) {
 	env := New(dc, nil, func(v any) error {
 		prints = append(prints, v)
 		return nil
-	})
+	}, nil)
 
 	p := &ir.Pipeline{Command: "demo", Steps: []ir.Step{
 		{Spell: "fetch", Id: "check"},
@@ -276,5 +279,112 @@ func TestRealPipeline_ElseBranch(t *testing.T) {
 
 	if !slices.Equal(prints, []any{"skipped"}) {
 		t.Errorf("prints = %v, want [skipped]", prints)
+	}
+}
+
+// TestObserver_SpellLifecycleEvents drives a two-step pipe ritual with a
+// chatty first spell and asserts the event stream: per-spell ordering,
+// distinct ids, decoded return values, the runtime version, and user
+// prints arriving as stderr events instead of leaking to the terminal.
+func TestObserver_SpellLifecycleEvents(t *testing.T) {
+	if !testsupport.PythonAvailable() {
+		t.Skip("python3 not on PATH")
+	}
+	testsupport.SetupGrimoireHome(t)
+	dir := testsupport.WithScrollDir(t)
+
+	testsupport.WriteFile(t, filepath.Join(dir, "spells.py"), `def loud(n: int = 1):
+    print("working hard")
+    return {"n": n + 1}
+
+
+def quiet(n: int = 0):
+    return n * 10
+`)
+	scrollPath := testsupport.WriteScrollYAML(t, dir, `spells:
+  - command: loud
+    path: spells.py
+    function: loud
+  - command: quiet
+    path: spells.py
+    function: quiet
+`)
+
+	sc, err := scroll.ParseScroll(scrollPath)
+	if err != nil {
+		t.Fatalf("ParseScroll: %v", err)
+	}
+	dc, err := cache.ReadDescriptorCache(scrollPath)
+	if err != nil {
+		t.Fatalf("ReadDescriptorCache: %v", err)
+	}
+	if err := resolve.ReconcileScrollAndDescriptors(sc, dc); err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	type event struct {
+		kind, spell, line string
+		id                int
+		out               any
+		rt                string
+	}
+	var mu sync.Mutex
+	var events []event
+	record := func(e event) {
+		mu.Lock()
+		events = append(events, e)
+		mu.Unlock()
+	}
+	obs := &Observer{
+		OnSpellStart: func(id int, spell string) {
+			record(event{kind: "start", id: id, spell: spell})
+		},
+		OnSpellStderr: func(id int, line string) {
+			record(event{kind: "stderr", id: id, line: line})
+		},
+		OnSpellFinish: func(id int, spell string, out any, rt string, err error) {
+			if err != nil {
+				t.Errorf("finish err for %s: %v", spell, err)
+			}
+			record(event{kind: "finish", id: id, spell: spell, out: out, rt: rt})
+		},
+	}
+
+	env := New(dc, nil, func(any) error { return nil }, obs)
+	p := ir.FromRitual(&scroll.Ritual{Command: "chain", Steps: []scroll.Step{
+		{Spell: "loud"},
+		{Spell: "quiet"},
+	}})
+	g, err := graph.BuildPipeline(p, env)
+	if err != nil {
+		t.Fatalf("BuildPipeline: %v", err)
+	}
+	if _, err := graph.Run(context.Background(), g, map[string]any{"n": 1}); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// Pipe mode is deterministic: loud fully finishes before quiet starts.
+	kinds := make([]string, len(events))
+	for i, e := range events {
+		kinds[i] = fmt.Sprintf("%s:%d", e.kind, e.id)
+	}
+	want := []string{"start:1", "stderr:1", "finish:1", "start:2", "finish:2"}
+	if !slices.Equal(kinds, want) {
+		t.Fatalf("event stream = %v, want %v", kinds, want)
+	}
+	if events[0].spell != "loud" || events[3].spell != "quiet" {
+		t.Errorf("spell names = %q, %q", events[0].spell, events[3].spell)
+	}
+	if events[1].line != "working hard" {
+		t.Errorf("stderr line = %q, want the user print", events[1].line)
+	}
+	if m, ok := events[2].out.(map[string]any); !ok || m["n"] != 2.0 {
+		t.Errorf("loud finish out = %v, want decoded map with n=2", events[2].out)
+	}
+	if events[4].out != 20.0 {
+		t.Errorf("quiet finish out = %v, want 20", events[4].out)
+	}
+	if !strings.Contains(events[2].rt, "python") {
+		t.Errorf("runtime version = %q, want a python version string", events[2].rt)
 	}
 }

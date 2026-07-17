@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	cache "github.com/jlkendrick/grimoire/internal/cache"
 	graph "github.com/jlkendrick/grimoire/internal/graph"
@@ -19,11 +20,30 @@ import (
 	runtime "github.com/jlkendrick/grimoire/internal/runtime"
 )
 
+// Observer receives spell lifecycle events from a running graph. It is
+// presentation's window into execution: the engine never sees it —
+// everything observable already crosses the Env seam, so observation is
+// a property of how this environment runs spells.
+//
+// id is unique per spell invocation within one Env, assigned in start
+// order. In graph scopes spells overlap, so callbacks MUST be safe under
+// concurrent calls; events for one id are always ordered (start, then
+// stderr lines, then finish). A nil Observer disables observation and
+// routes spell stderr straight to os.Stderr.
+type Observer struct {
+	OnSpellStart  func(id int, spell string)
+	OnSpellStderr func(id int, line string)
+	// OnSpellFinish carries the decoded return value (nil on error) and
+	// the runtime-version string reported by the adapter (may be empty).
+	OnSpellFinish func(id int, spell string, out any, runtimeVersion string, err error)
+}
+
 // New builds a graph.Env backed by the real runtime. dc is the invoking
 // scroll's descriptor cache; spells supplies cross-scroll resolution for
 // dot-form spell names and may be nil when none are expected. present
-// receives every printed value in declaration order.
-func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, present func(v any) error) graph.Env {
+// receives every printed value in declaration order. obs may be nil.
+func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, present func(v any) error, obs *Observer) graph.Env {
+	var spellCounter atomic.Int64
 	return graph.Env{
 		ResolveSpell: func(name string) (*ir.Function, error) {
 			fd, err := resolve.ResolveSpellRef(name, dc, spells)
@@ -48,18 +68,36 @@ func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, present func(v a
 		// RunResult.Runtime (the version string the CLI shows) is dropped
 		// here for now; it returns with the observer.
 		RunSpell: func(_ context.Context, fn *ir.Function, payload map[string]any) (any, error) {
+			id := int(spellCounter.Add(1))
+			if obs != nil && obs.OnSpellStart != nil {
+				obs.OnSpellStart(id, fn.CommandName)
+			}
+
+			// Spell prints (rerouted to the subprocess's stderr by the
+			// wrappers) go to the observer when one is watching, else
+			// straight to Grimoire's stderr: stdout carries only
+			// declared prints.
+			onStderr := func(line string) { fmt.Fprintln(os.Stderr, line) }
+			if obs != nil && obs.OnSpellStderr != nil {
+				onStderr = func(line string) { obs.OnSpellStderr(id, line) }
+			}
+
 			res, err := runtime.Run(fn, payload, &runtime.RunOptions{
 				SuppressFraming: true,
-				// Spell prints (rerouted to the subprocess's stderr by
-				// the wrappers) surface on Grimoire's stderr: stdout
-				// carries only declared prints. Streaming these into a
-				// per-step UI is the observer's future job.
-				OnStderrLine: func(line string) { fmt.Fprintln(os.Stderr, line) },
+				OnStderrLine:    onStderr,
 			})
 			if err != nil {
+				if obs != nil && obs.OnSpellFinish != nil {
+					obs.OnSpellFinish(id, fn.CommandName, nil, "", err)
+				}
 				return nil, err
 			}
-			return decodeReturnValue(res.Output)
+
+			out, err := decodeReturnValue(res.Output)
+			if obs != nil && obs.OnSpellFinish != nil {
+				obs.OnSpellFinish(id, fn.CommandName, out, res.Runtime, err)
+			}
+			return out, err
 		},
 
 		Present: present,

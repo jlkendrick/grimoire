@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -14,7 +13,27 @@ import (
 	ir "github.com/jlkendrick/grimoire/internal/ir"
 	resolve "github.com/jlkendrick/grimoire/internal/resolve"
 	runenv "github.com/jlkendrick/grimoire/internal/runenv"
+	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
+
+// countSpellSteps counts spell-steps across all branches — the N of the
+// renderer's "step k/N". For branched rituals k may not reach N when a
+// branch is skipped; recomputing N without evaluating conditions is
+// impossible, so the count is honest about the whole pipeline, not the
+// taken path.
+func countSpellSteps(steps []ir.Step) int {
+	n := 0
+	for _, s := range steps {
+		switch s.Kind() {
+		case "spell":
+			n++
+		case "if":
+			n += countSpellSteps(s.Then)
+			n += countSpellSteps(s.Else)
+		}
+	}
+	return n
+}
 
 // buildPipelineCommand exposes a ritual as a CLI command. The entry
 // spell's params become the command's flags; on run the pipeline is
@@ -48,7 +67,13 @@ func buildPipelineCommand(pipeline ir.Pipeline, descriptor_cache *cache.Descript
 				os.Exit(1)
 			}
 
-			env := runenv.New(descriptor_cache, spellIndex, presentJSON)
+			r := newRenderer(os.Stdout, os.Stderr, utils.StderrIsTTY(), countSpellSteps(pipeline.Steps))
+			obs := &runenv.Observer{
+				OnSpellStart:  r.spellStart,
+				OnSpellStderr: r.spellStderr,
+				OnSpellFinish: r.spellFinish,
+			}
+			env := runenv.New(descriptor_cache, spellIndex, r.present, obs)
 			g, err := graph.BuildPipeline(&pipeline, env)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -56,12 +81,13 @@ func buildPipelineCommand(pipeline ir.Pipeline, descriptor_cache *cache.Descript
 			}
 
 			start := time.Now()
-			if _, err := graph.Run(context.Background(), g, inputs); err != nil {
+			_, err = graph.Run(context.Background(), g, inputs)
+			if err != nil {
+				r.close()
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				os.Exit(1)
 			}
-			elapsed := time.Since(start)
-			fmt.Fprintf(os.Stderr, "\n%s %s\n", accent_style("◈"), dim_style(fmt.Sprintf("%.2fs", elapsed.Seconds())))
+			r.footer(time.Since(start).Seconds())
 		},
 	}
 
@@ -80,17 +106,4 @@ func buildPipelineCommand(pipeline ir.Pipeline, descriptor_cache *cache.Descript
 	}
 
 	return command, nil
-}
-
-// presentJSON writes one declared output as canonical JSON on stdout.
-// Values arrive decoded (they are function return values); re-encoding
-// prints objects and strings exactly as the old engine's raw-bytes
-// passthrough did.
-func presentJSON(v any) error {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(data))
-	return nil
 }
