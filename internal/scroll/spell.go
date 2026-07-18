@@ -1,7 +1,6 @@
 package scroll
 
 import (
-	"os"
 	"fmt"
 	"encoding/json"
 
@@ -30,22 +29,6 @@ func GenerateMinimalSpellFromFunctionDescriptor(function_descriptor descriptor.F
 
 func (s Spell) String() string {
 	return fmt.Sprintf("Spell{\n\tCommand: %s,\n\tPath: %s,\n\tFunction: %s,\n\tParams: %v,\n\tInterpreter: %s\n}", s.Command, s.Path, s.Function, s.Params, s.Interpreter)
-}
-
-func (s Spell) GenerateYAML() string {
-	return fmt.Sprintf("  - name: %s\n    file: %s\n    function: %s\n    args: %v\n    interpreter: %s\n", s.Command, s.Path, s.Function, s.Params, s.Interpreter)
-}
-
-func (s Spell) LoadSourceCode() ([]byte, error) {
-	p, err := utils.ExpandUserPath(s.Path)
-	if err != nil {
-		return nil, fmt.Errorf("error resolving path: %w", err)
-	}
-	source_code, err := os.ReadFile(p)
-	if err != nil {
-		return nil, fmt.Errorf("error loading source code: %v", err)
-	}
-	return source_code, nil
 }
 
 func (s *Spell) Hash() (string, error) {
