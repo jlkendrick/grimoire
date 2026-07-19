@@ -2,42 +2,47 @@ package graph
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
+	expr "github.com/jlkendrick/grimoire/internal/expr"
 	ir "github.com/jlkendrick/grimoire/internal/ir"
 )
 
 // ValidatePipeline reports whether a pipeline is well-formed and would
-// build, without resolving spells to runnable functions. It is the
-// scroll-load entry point for ritual validation and composes the two
-// halves of the answer:
+// build, without preparing anything to run. It is the scroll-load entry
+// point for ritual validation and composes two halves:
 //
 //  1. a static pass over the IR — step shape rules, expression syntax,
-//     and reference scoping (mode-aware: a pipe scope sees earlier
-//     siblings and ancestors; a graph scope sees all siblings, because
-//     there order is derived rather than declared)
-//  2. the builder itself, run with a stub environment and its result
+//     reference scoping (mode-aware: a pipe scope sees earlier siblings
+//     and ancestors; a graph scope sees all siblings, because there
+//     order is derived rather than declared), and TYPE checking: a
+//     static environment of binding name → type is threaded alongside
+//     visibility, fed by spell return annotations, and every explicit
+//     params: wire, condition, and let is checked against it. Typing is
+//     gradual — Unknown passes everything, so unannotated scrolls are
+//     never rejected.
+//  2. the builder itself, run against a stub env with its result
 //     discarded — cycles, duplicate graph bindings, mode placement, and
 //     every future structural rule come from the same code that builds
 //     the runnable graph, so validation cannot drift from execution.
 //
-// spellExists confirms a spell name is known (descriptor cache and/or
-// cross-scroll index); nil skips existence checks.
-func ValidatePipeline(p *ir.Pipeline, spellExists func(name string) error) error {
+// resolveSpell resolves a step's spell name to its Function (descriptor
+// cache and/or cross-scroll index) so the type environment can see
+// param and return annotations; nil skips existence and type checks.
+func ValidatePipeline(p *ir.Pipeline, resolveSpell func(name string) (*ir.Function, error)) error {
 	mode, err := effectiveMode(p.Mode, ir.ModePipe)
 	if err != nil {
 		return fmt.Errorf("pipeline %s: %w", p.Command, err)
 	}
-	if err := checkSteps(p.Steps, nil, mode, p.Command); err != nil {
+	if err := checkSteps(p.Steps, nil, nil, mode, p.Command, resolveSpell); err != nil {
 		return err
 	}
 
 	env := Env{
 		ResolveSpell: func(name string) (*ir.Function, error) {
-			if spellExists != nil {
-				if err := spellExists(name); err != nil {
-					return nil, err
-				}
+			if resolveSpell != nil {
+				return resolveSpell(name)
 			}
 			return &ir.Function{CommandName: name}, nil
 		},
@@ -47,19 +52,43 @@ func ValidatePipeline(p *ir.Pipeline, spellExists func(name string) error) error
 }
 
 // checkSteps walks one scope enforcing shape rules, expression syntax,
-// and reference visibility. inherited carries binding names from ancestor
-// scopes — never from sibling branches; branch-internal names stay
-// branch-internal.
-func checkSteps(steps []ir.Step, inherited []string, mode ir.Mode, command string) error {
+// reference visibility, and type compatibility. inherited/inheritedTypes
+// carry binding names and types from ancestor scopes — never from
+// sibling branches; branch-internal names stay branch-internal.
+func checkSteps(steps []ir.Step, inherited []string, inheritedTypes map[string]*ir.TypeInfo, mode ir.Mode, command string, resolveSpell func(string) (*ir.Function, error)) error {
 	visible := slices.Clone(inherited)
+	types := maps.Clone(inheritedTypes)
+	if types == nil {
+		types = map[string]*ir.TypeInfo{}
+	}
+
+	// lookup is nil-safe and lenient: resolution failures surface in the
+	// builder pass with proper errors; here they just mean Unknown.
+	lookup := func(name string) *ir.Function {
+		if resolveSpell == nil {
+			return nil
+		}
+		fn, err := resolveSpell(name)
+		if err != nil {
+			return nil
+		}
+		return fn
+	}
+
 	if mode == ir.ModeGraph {
 		// Graph scopes relax declaration order: any sibling binding is
-		// referenceable, and the builder's cycle check catches abuse.
+		// referenceable (the builder's cycle check catches abuse), so
+		// spell return types pre-bind for the whole scope. Let types
+		// bind at their declaration position — a forward reference to a
+		// let sees Unknown, which is lenient, not wrong.
 		for _, s := range steps {
 			switch s.Kind() {
 			case "spell":
 				if s.Id != "" {
 					visible = append(visible, s.Id)
+					if fn := lookup(s.Spell); fn != nil {
+						types[s.Id] = fn.Returns
+					}
 				}
 			case "let":
 				visible = append(visible, s.Let)
@@ -74,23 +103,43 @@ func checkSteps(steps []ir.Step, inherited []string, mode ir.Mode, command strin
 
 		switch s.Kind() {
 		case "spell":
-			for _, v := range s.Params {
+			fn := lookup(s.Spell)
+			for name, v := range s.Params {
 				// Only accessor-rooted values ("x.y", "x[0]") can be
-				// statically judged: a bare string that names nothing
-				// visible is a literal, not an error — the same rule the
-				// runtime resolver applies.
+				// statically judged for scope: a bare string that names
+				// nothing visible is a literal, not an error — the same
+				// rule the runtime resolver applies.
 				if root := accessorRoot(v); root != "" && !slices.Contains(visible, root) {
 					return fmt.Errorf("pipeline %s: step %s references %s which is not in scope", command, s.Spell, root)
+				}
+				if fn == nil {
+					continue
+				}
+				expected := paramType(fn, name)
+				actual, err := paramValueType(v, visible, types)
+				if err != nil {
+					return fmt.Errorf("pipeline %s: step %s param %s: %w", command, s.Spell, name, err)
+				}
+				if err := ir.Compatible(expected, actual); err != nil {
+					return fmt.Errorf("pipeline %s: step %s param %s: %w", command, s.Spell, name, err)
 				}
 			}
 			if mode != ir.ModeGraph && s.Id != "" {
 				visible = append(visible, s.Id)
+				if fn != nil {
+					types[s.Id] = fn.Returns
+				}
 			}
 
 		case "let":
 			if err := checkExprRefs(s.Value, visible, command, fmt.Sprintf("let %q", s.Let)); err != nil {
 				return err
 			}
+			t, err := inferType(s.Value, types)
+			if err != nil {
+				return fmt.Errorf("pipeline %s: let %q: %w", command, s.Let, err)
+			}
+			types[s.Let] = t
 			if mode != ir.ModeGraph {
 				visible = append(visible, s.Let)
 			}
@@ -99,24 +148,76 @@ func checkSteps(steps []ir.Step, inherited []string, mode ir.Mode, command strin
 			if err := checkExprRefs(s.Print, visible, command, "print"); err != nil {
 				return err
 			}
+			if _, err := inferType(s.Print, types); err != nil {
+				return fmt.Errorf("pipeline %s: print: %w", command, err)
+			}
 
 		case "if":
 			if err := checkExprRefs(s.If, visible, command, "condition"); err != nil {
 				return err
 			}
+			t, err := inferType(s.If, types)
+			if err != nil {
+				return fmt.Errorf("pipeline %s: condition %q: %w", command, s.If, err)
+			}
+			// The strict-bool contract, enforced statically when known.
+			if err := ir.RequireBool(t); err != nil {
+				return fmt.Errorf("pipeline %s: condition %q: %w", command, s.If, err)
+			}
 			branchMode, err := effectiveMode(s.Mode, mode)
 			if err != nil {
 				return fmt.Errorf("pipeline %s: %w", command, err)
 			}
-			if err := checkSteps(s.Then, visible, branchMode, command); err != nil {
+			if err := checkSteps(s.Then, visible, types, branchMode, command, resolveSpell); err != nil {
 				return err
 			}
-			if err := checkSteps(s.Else, visible, branchMode, command); err != nil {
+			if err := checkSteps(s.Else, visible, types, branchMode, command, resolveSpell); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// paramValueType types one params: value. A string that names a visible
+// binding (bare or accessor-rooted) is a reference and walks the type
+// environment; any other value is a YAML literal and types as itself.
+func paramValueType(v any, visible []string, types map[string]*ir.TypeInfo) (*ir.TypeInfo, error) {
+	if s, ok := v.(string); ok {
+		root := expr.ReferenceRoot(s)
+		if slices.Contains(visible, root) {
+			return ir.WalkRef(types[root], s[len(root):])
+		}
+		if accessorRoot(v) != "" {
+			// Accessor-rooted but out of scope: the scope check already
+			// rejected it; nothing further to say about its type.
+			return nil, nil
+		}
+	}
+	return ir.TypeOfLiteral(v), nil
+}
+
+// paramType returns the declared type of fn's parameter, or nil for a
+// name the signature doesn't declare — which is not an error here: the
+// function may take **kwargs or the extractor may have skipped the
+// parameter, and Unknown is the honest answer.
+func paramType(fn *ir.Function, name string) *ir.TypeInfo {
+	for _, p := range fn.Params {
+		if p.Name == name {
+			return p.ResolvedType
+		}
+	}
+	return nil
+}
+
+func inferType(src string, types map[string]*ir.TypeInfo) (*ir.TypeInfo, error) {
+	parsed, err := expr.ParseCondition(src)
+	if err != nil {
+		// Parse errors are reported (with better context) by
+		// checkExprRefs; treat as Unknown here.
+		return nil, nil
+	}
+	return ir.InferExpr(parsed, types)
 }
 
 func checkExprRefs(src string, visible []string, command, what string) error {

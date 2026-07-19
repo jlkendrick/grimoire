@@ -97,13 +97,20 @@ func TestSpellChecker_ValidatesFrontHalf(t *testing.T) {
 	testsupport.SetupGrimoireHome(t)
 	dir := testsupport.WithScrollDir(t)
 
-	testsupport.WriteFile(t, filepath.Join(dir, "spells.py"), `def fetch(n: int = 2):
-    return {"ok": True, "n": n}
+	testsupport.WriteFile(t, filepath.Join(dir, "spells.py"), `def fetch(n: int = 2) -> dict[str, int]:
+    return {"ok": 1, "n": n}
+
+
+def shout(msg: str) -> str:
+    return msg.upper()
 `)
 	scrollPath := testsupport.WriteScrollYAML(t, dir, `spells:
   - command: fetch
     path: spells.py
     function: fetch
+  - command: shout
+    path: spells.py
+    function: shout
 `)
 
 	sc, err := scroll.ParseScroll(scrollPath)
@@ -118,11 +125,11 @@ func TestSpellChecker_ValidatesFrontHalf(t *testing.T) {
 		t.Fatalf("Reconcile: %v", err)
 	}
 
-	check := SpellChecker(dc, nil)
-	if err := check("fetch"); err != nil {
-		t.Errorf("known spell rejected: %v", err)
+	resolver := SpellResolver(dc, nil)
+	if fn, err := resolver("fetch"); err != nil || fn.CommandName != "fetch" {
+		t.Errorf("known spell rejected: %v (fn=%+v)", err, fn)
 	}
-	if err := check("ghost"); err == nil {
+	if _, err := resolver("ghost"); err == nil {
 		t.Error("unknown spell accepted")
 	}
 
@@ -130,15 +137,36 @@ func TestSpellChecker_ValidatesFrontHalf(t *testing.T) {
 		{Id: "check", Spell: "fetch"},
 		{Print: "check.n"},
 	}})
-	if err := graph.ValidatePipeline(valid, check); err != nil {
+	if err := graph.ValidatePipeline(valid, resolver); err != nil {
 		t.Errorf("front half rejected a valid ritual: %v", err)
 	}
 
 	bad := ir.FromRitual(&scroll.Ritual{Command: "report", Steps: []scroll.Step{
 		{Spell: "ghost"},
 	}})
-	if err := graph.ValidatePipeline(bad, check); err == nil {
+	if err := graph.ValidatePipeline(bad, resolver); err == nil {
 		t.Error("front half accepted a ritual naming an unknown spell")
+	}
+
+	// Typed wiring through REAL extraction: fetch is annotated
+	// -> dict[str, int], so wiring check.n into shout's str param is a
+	// load-time type error.
+	badType := ir.FromRitual(&scroll.Ritual{Command: "report", Steps: []scroll.Step{
+		{Id: "check", Spell: "fetch"},
+		{Spell: "shout", Params: map[string]any{"msg": "check.n"}},
+	}})
+	err = graph.ValidatePipeline(badType, resolver)
+	if err == nil || !strings.Contains(err.Error(), "cannot wire int into str") {
+		t.Errorf("typed wiring: err = %v, want int-into-str load error", err)
+	}
+
+	goodType := ir.FromRitual(&scroll.Ritual{Command: "report", Steps: []scroll.Step{
+		{Id: "check", Spell: "fetch"},
+		{Spell: "shout", Params: map[string]any{"msg": "check.n"}},
+	}})
+	goodType.Steps[1].Params["msg"] = `hello`
+	if err := graph.ValidatePipeline(goodType, resolver); err != nil {
+		t.Errorf("literal str into str param rejected: %v", err)
 	}
 }
 

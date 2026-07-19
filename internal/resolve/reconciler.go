@@ -165,15 +165,16 @@ func ReconcileScrollAndFunctionDescriptors(scroll_obj *scroll.Scroll, descriptor
 // confirm a freshly-built ritual before writing it to the scroll. Pass a
 // nil SpellIndex when the ritual uses bare references only.
 func ValidateRitual(ritual scroll.Ritual, descriptor_cache *cache.DescriptorCache, index *SpellIndex) error {
-	return graph.ValidatePipeline(ir.FromRitual(&ritual), spellExists(descriptor_cache, index))
+	return graph.ValidatePipeline(ir.FromRitual(&ritual), spellResolver(descriptor_cache, index))
 }
 
-// spellExists adapts spell-ref resolution to the existence check
-// graph.ValidatePipeline expects.
-func spellExists(descriptor_cache *cache.DescriptorCache, index *SpellIndex) func(name string) error {
-	return func(name string) error {
-		_, err := ResolveSpellRef(name, descriptor_cache, index)
-		return err
+// spellResolver adapts spell-ref resolution to the resolver
+// graph.ValidatePipeline expects — the validator reads param and return
+// annotations off the resolved Function for type checking. Spells
+// reconcile before rituals, so the cached descriptors are fresh.
+func spellResolver(descriptor_cache *cache.DescriptorCache, index *SpellIndex) func(name string) (*ir.Function, error) {
+	return func(name string) (*ir.Function, error) {
+		return ResolveSpellRef(name, descriptor_cache, index)
 	}
 }
 
@@ -187,7 +188,7 @@ func ReconcileScrollAndPipelineDescriptors(scroll_obj *scroll.Scroll, descriptor
 	// caches the result.
 	for _, ritual := range scroll_obj.Rituals {
 		pipeline := ir.FromRitual(&ritual)
-		if err := graph.ValidatePipeline(pipeline, spellExists(descriptor_cache, index)); err != nil {
+		if err := graph.ValidatePipeline(pipeline, spellResolver(descriptor_cache, index)); err != nil {
 			return false, err
 		}
 

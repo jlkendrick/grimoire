@@ -261,13 +261,46 @@ func InferExpr(e expr.Expr, env map[string]*TypeInfo) (*TypeInfo, error) {
 }
 
 func requireBool(t *TypeInfo, op string) error {
+	if RequireBool(t) != nil {
+		return fmt.Errorf("operator %s requires bool operands, got %s", op, describe(t))
+	}
+	return nil
+}
+
+// RequireBool enforces the strict-bool contract statically when the
+// type is known; Unknown passes and the runtime check stays
+// authoritative.
+func RequireBool(t *TypeInfo) error {
 	if opaque(t) {
 		return nil
 	}
 	if t.Kind == descriptor.TypeKindPrimitive && canonicalPrimitive(t.Name) == "bool" {
 		return nil
 	}
-	return fmt.Errorf("operator %s requires bool operands, got %s", op, describe(t))
+	return fmt.Errorf("expected a bool, got %s", describe(t))
+}
+
+// TypeOfLiteral types a scroll params: value that is not a reference —
+// a YAML literal. Containers type with Unknown elements; unrecognized
+// shapes are Unknown (nil).
+func TypeOfLiteral(v any) *TypeInfo {
+	switch v.(type) {
+	case string:
+		return &TypeInfo{Kind: descriptor.TypeKindPrimitive, Name: "str"}
+	case bool:
+		return &TypeInfo{Kind: descriptor.TypeKindPrimitive, Name: "bool"}
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return &TypeInfo{Kind: descriptor.TypeKindPrimitive, Name: "int"}
+	case float32, float64:
+		return &TypeInfo{Kind: descriptor.TypeKindPrimitive, Name: "float"}
+	case map[string]any:
+		return &TypeInfo{Kind: descriptor.TypeKindMap}
+	case []any:
+		return &TypeInfo{Kind: descriptor.TypeKindList}
+	case nil:
+		return &TypeInfo{Kind: descriptor.TypeKindNone}
+	}
+	return nil
 }
 
 func requireNumeric(t *TypeInfo, op string) error {

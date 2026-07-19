@@ -127,15 +127,14 @@ func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, cfg Config) grap
 	}
 }
 
-// SpellChecker returns the cache-backed existence check that
-// graph.ValidatePipeline expects: it confirms a step's spell name
-// resolves against the scroll's descriptor cache (and the cross-scroll
-// index for dotted names) without touching source files or preparing
-// anything to run.
-func SpellChecker(dc *cache.DescriptorCache, spells *resolve.SpellIndex) func(name string) error {
-	return func(name string) error {
-		_, err := resolve.ResolveSpellRef(name, dc, spells)
-		return err
+// SpellResolver returns the cache-backed resolver that
+// graph.ValidatePipeline expects: it resolves a step's spell name
+// against the scroll's descriptor cache (and the cross-scroll index for
+// dotted names) so validation can read param and return annotations —
+// without touching source files or preparing anything to run.
+func SpellResolver(dc *cache.DescriptorCache, spells *resolve.SpellIndex) func(name string) (*ir.Function, error) {
+	return func(name string) (*ir.Function, error) {
+		return resolve.ResolveSpellRef(name, dc, spells)
 	}
 }
 

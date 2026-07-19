@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	descriptor "github.com/jlkendrick/grimoire/internal/descriptor"
 	ir "github.com/jlkendrick/grimoire/internal/ir"
 )
 
@@ -20,11 +21,11 @@ func TestValidatePipeline_ValidRitual(t *testing.T) {
 			Else: []ir.Step{{Print: `"small"`}}},
 	}}
 
-	known := func(name string) error {
+	known := func(name string) (*ir.Function, error) {
 		if name == "fetch" || name == "handle" {
-			return nil
+			return &ir.Function{CommandName: name}, nil
 		}
-		return fmt.Errorf("spell %q not found", name)
+		return nil, fmt.Errorf("spell %q not found", name)
 	}
 	if err := ValidatePipeline(p, known); err != nil {
 		t.Errorf("valid pipeline rejected: %v", err)
@@ -149,7 +150,7 @@ func TestValidatePipeline_ExpressionErrors(t *testing.T) {
 }
 
 func TestValidatePipeline_BuilderRulesSurface(t *testing.T) {
-	unknown := func(name string) error { return fmt.Errorf("spell %q not found", name) }
+	unknown := func(name string) (*ir.Function, error) { return nil, fmt.Errorf("spell %q not found", name) }
 
 	// Unknown spell via spellExists.
 	p := &ir.Pipeline{Command: "r", Steps: []ir.Step{{Spell: "ghost"}}}
@@ -171,4 +172,92 @@ func TestValidatePipeline_BuilderRulesSurface(t *testing.T) {
 	if err := ValidatePipeline(p, nil); err == nil || !strings.Contains(err.Error(), "cycle") {
 		t.Errorf("cycle: err = %v", err)
 	}
+}
+
+// TestValidatePipeline_TypedWiring is the plan's acceptance suite: a
+// spell annotated -> dict[str, int] wired through explicit params, with
+// gradual typing everywhere else.
+func TestValidatePipeline_TypedWiring(t *testing.T) {
+	prim := func(name string) *ir.TypeInfo {
+		return &ir.TypeInfo{Kind: descriptor.TypeKindPrimitive, Name: name}
+	}
+	fns := map[string]*ir.Function{
+		"fetch": {CommandName: "fetch", Returns: &ir.TypeInfo{Kind: descriptor.TypeKindMap, Element: prim("int")}},
+		"num":   {CommandName: "num", Returns: prim("int")},
+		"bare":  {CommandName: "bare"}, // unannotated
+		"handle": {CommandName: "handle", Params: []ir.Param{
+			{Name: "v", ResolvedType: prim("int")},
+			{Name: "s", ResolvedType: prim("str")},
+		}},
+	}
+	resolver := func(name string) (*ir.Function, error) {
+		if fn, ok := fns[name]; ok {
+			return fn, nil
+		}
+		return nil, fmt.Errorf("spell %q not found", name)
+	}
+	lead := ir.Step{Id: "check", Spell: "fetch"} // check: dict[str, int]
+
+	for _, tc := range []struct {
+		name string
+		step ir.Step
+		want string // "" = valid
+	}{
+		{"map element into int", ir.Step{Spell: "handle", Params: map[string]any{"v": "check.key"}}, ""},
+		{"map element into str errors", ir.Step{Spell: "handle", Params: map[string]any{"s": "check.key"}}, "cannot wire int into str"},
+		{"whole map into int errors", ir.Step{Spell: "handle", Params: map[string]any{"v": "check"}}, "cannot wire dict"},
+		{"literal str into int errors", ir.Step{Spell: "handle", Params: map[string]any{"v": "hello"}}, "cannot wire str into int"},
+		{"literal int into int", ir.Step{Spell: "handle", Params: map[string]any{"v": 5}}, ""},
+		{"literal int into str errors", ir.Step{Spell: "handle", Params: map[string]any{"s": 5}}, "cannot wire int into str"},
+		{"undeclared param name passes", ir.Step{Spell: "handle", Params: map[string]any{"kwarg": 5}}, ""},
+		{"non-bool condition errors", ir.Step{If: "check.key", Then: []ir.Step{{Spell: "bare"}}}, "expected a bool"},
+		{"comparison condition ok", ir.Step{If: "check.key > 1", Then: []ir.Step{{Spell: "bare"}}}, ""},
+		{"ordering on the whole map errors", ir.Step{If: "check > 1", Then: []ir.Step{{Spell: "bare"}}}, "requires numeric"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &ir.Pipeline{Command: "r", Steps: []ir.Step{lead, tc.step}}
+			err := ValidatePipeline(p, resolver)
+			if tc.want == "" {
+				if err != nil {
+					t.Fatalf("err = %v, want valid", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v, want %q", err, tc.want)
+			}
+		})
+	}
+
+	t.Run("let type flows into condition check", func(t *testing.T) {
+		p := &ir.Pipeline{Command: "r", Steps: []ir.Step{
+			lead,
+			{Let: "n", Value: "check.key"}, // n: int
+			{If: "n", Then: []ir.Step{{Spell: "bare"}}},
+		}}
+		if err := ValidatePipeline(p, resolver); err == nil || !strings.Contains(err.Error(), "expected a bool") {
+			t.Fatalf("err = %v, want strict-bool error through the let", err)
+		}
+	})
+
+	t.Run("accessor on a primitive return errors", func(t *testing.T) {
+		p := &ir.Pipeline{Command: "r", Steps: []ir.Step{
+			{Id: "n", Spell: "num"},
+			{Spell: "handle", Params: map[string]any{"v": "n.field"}},
+		}}
+		if err := ValidatePipeline(p, resolver); err == nil || !strings.Contains(err.Error(), "cannot access field") {
+			t.Fatalf("err = %v, want accessor error", err)
+		}
+	})
+
+	t.Run("unannotated spells pass everything", func(t *testing.T) {
+		p := &ir.Pipeline{Command: "r", Steps: []ir.Step{
+			{Id: "x", Spell: "bare"},
+			{Spell: "handle", Params: map[string]any{"v": "x.anything[3].deep"}},
+			{If: "x.whatever", Then: []ir.Step{{Spell: "bare"}}},
+		}}
+		if err := ValidatePipeline(p, resolver); err != nil {
+			t.Fatalf("gradual typing must not reject unannotated wiring: %v", err)
+		}
+	})
 }
