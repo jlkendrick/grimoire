@@ -41,7 +41,7 @@ func (g *FunctionDescriptorGenerator) Generate() (descriptor.FunctionDescriptor,
 		return descriptor.FunctionDescriptor{}, fmt.Errorf("unsupported file extension: %s", file_extension)
 	}
 
-	function_descriptor, err := extractor.GenerateDescriptor_ParamsOnly(g.AbsPathToSourceFile, g.FunctionName)
+	function_descriptor, err := extractor.GenerateDescriptor(g.AbsPathToSourceFile, g.FunctionName)
 	if err != nil {
 		return descriptor.FunctionDescriptor{}, err
 	}
@@ -73,7 +73,7 @@ func MinifyFunctionDescriptor(function_descriptor descriptor.FunctionDescriptor)
 }
 
 type LanguageExtractor interface {
-	GenerateDescriptor_ParamsOnly(abs_path_to_function string, function_name string) (descriptor.FunctionDescriptor, error)
+	GenerateDescriptor(abs_path_to_function string, function_name string) (descriptor.FunctionDescriptor, error)
 }
 
 // grammarConfig holds the language-specific knobs needed to extract a
@@ -98,45 +98,54 @@ type grammarConfig struct {
 	// Returning multiple Args handles languages like Go where one declaration
 	// can name several parameters sharing a type: func f(x, y int).
 	extractParam func(n *sitter.Node, src []byte) []descriptor.ParamDescriptor
+
+	// extractReturn reads the function node's return annotation into a
+	// TypeInfo. Return nil for unannotated functions (or shapes outside
+	// the v1 type inventory) — nil means Unknown downstream.
+	extractReturn func(fnNode *sitter.Node, src []byte) *descriptor.TypeInfo
 }
 
-func generateDescriptorBase_ParamsOnly(cfg grammarConfig, path, funcName string) (descriptor.FunctionDescriptor, error) {
+func generateDescriptorBase(cfg grammarConfig, path, funcName string) (descriptor.FunctionDescriptor, error) {
 	var function_descriptor descriptor.FunctionDescriptor
 
-	// Extract the function signature using our method of choice (determined in ExtractParams)
-	params, err := extractParamsBase(cfg, path, funcName)
+	params, returns, err := extractSignatureBase(cfg, path, funcName)
 	if err != nil {
 		return descriptor.FunctionDescriptor{}, err
 	}
 
-	// Fill in the params
 	function_descriptor.Params = params
+	function_descriptor.Returns = returns
 
 	return function_descriptor, nil
 }
 
-func extractParamsBase(cfg grammarConfig, path, funcName string) ([]descriptor.ParamDescriptor, error) {
+func extractSignatureBase(cfg grammarConfig, path, funcName string) ([]descriptor.ParamDescriptor, *descriptor.TypeInfo, error) {
 	parser := sitter.NewParser()
 	parser.SetLanguage(cfg.language())
 
 	src, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tree, err := parser.ParseCtx(context.Background(), nil, src)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	fnNode := findFunctionNode(tree.RootNode(), src, funcName, cfg.functionNodeType)
 	if fnNode == nil {
-		return nil, fmt.Errorf("function %s not found in %s", funcName, path)
+		return nil, nil, fmt.Errorf("function %s not found in %s", funcName, path)
+	}
+
+	var returns *descriptor.TypeInfo
+	if cfg.extractReturn != nil {
+		returns = cfg.extractReturn(fnNode, src)
 	}
 
 	paramsNode := fnNode.ChildByFieldName(cfg.parametersField)
 	if paramsNode == nil {
-		return []descriptor.ParamDescriptor{}, nil
+		return []descriptor.ParamDescriptor{}, returns, nil
 	}
 
 	params := []descriptor.ParamDescriptor{}
@@ -149,7 +158,7 @@ func extractParamsBase(cfg grammarConfig, path, funcName string) ([]descriptor.P
 		params = append(params, param...)
 	}
 
-	return params, nil
+	return params, returns, nil
 }
 
 // findFunctionNode performs a DFS over the AST looking for a node of

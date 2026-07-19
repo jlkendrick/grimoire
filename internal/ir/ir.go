@@ -16,6 +16,10 @@ type Function = descriptor.FunctionDescriptor
 // Param is one parameter of a Function.
 type Param = descriptor.ParamDescriptor
 
+// TypeInfo is the recursive type model shared by params and returns
+// (alias of the legacy descriptor type until that package is absorbed).
+type TypeInfo = descriptor.TypeInfo
+
 // Mode is the data-flow contract of one scope (a step list). Pipe scopes
 // chain implicitly in declaration order; graph scopes derive a dependency
 // DAG from declared references and run independent steps concurrently.

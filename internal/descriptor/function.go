@@ -10,7 +10,10 @@ type FunctionDescriptor struct {
 	SourceHash          string
 	SpellHash           string
 	Params              []ParamDescriptor
-	// Return type coming soon
+	// Returns is the function's declared return type; nil means
+	// unannotated (Unknown), which downstream validation treats as
+	// compatible with everything — annotations only ever add checking.
+	Returns *TypeInfo `json:",omitempty"`
 }
 
 type ParamDescriptor struct {
@@ -35,5 +38,6 @@ const (
 	TypeKindMap TypeKind = "map"
 	TypeKindStruct TypeKind = "struct"
 	TypeKindOptional TypeKind = "optional"
+	TypeKindNone TypeKind = "none"
 	TypeKindUnknown TypeKind = "unknown"
 )

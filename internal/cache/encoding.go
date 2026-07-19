@@ -20,10 +20,13 @@ import (
 //
 // scroll-id is the hash of the scroll path
 
-// CACHE_VERSION 2: Pipelines hold ir.Pipeline (ir.Step field names) in
-// place of the old PipelineDescriptor. Caches written by other versions
-// are discarded on read and rebuilt by the next reconcile.
-const CACHE_VERSION = 2
+// CACHE_VERSION history — caches written by other versions are
+// discarded on read and rebuilt by the next reconcile:
+//   2: Pipelines hold ir.Pipeline in place of the old PipelineDescriptor.
+//   3: FunctionDescriptor gains Returns. Without the bump, cached
+//      descriptors would keep a nil Returns forever (source hashes are
+//      unchanged, so nothing would re-extract).
+const CACHE_VERSION = 3
 
 type DescriptorCache struct {
 	Version    int                                      `json:"version"`

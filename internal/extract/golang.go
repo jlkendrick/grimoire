@@ -12,12 +12,47 @@ var goConfig = grammarConfig{
 	functionNodeType: "function_declaration",
 	parametersField:  "parameters",
 	extractParam:     extractGoParam,
+	extractReturn:    extractGoReturn,
 }
 
 type GoExtractor struct{}
 
-func (a *GoExtractor) GenerateDescriptor_ParamsOnly(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
-	return generateDescriptorBase_ParamsOnly(goConfig, abs_path_to_function, funcName)
+func (a *GoExtractor) GenerateDescriptor(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
+	return generateDescriptorBase(goConfig, abs_path_to_function, funcName)
+}
+
+// extractGoReturn reads a function_declaration's result. A single type
+// yields that type; the idiomatic (T, error) pair yields T (the wrapper
+// surfaces the error separately, so T is what flows between steps); any
+// other multi-value result is outside the v1 inventory and yields nil
+// (Unknown). No result clause yields nil.
+func extractGoReturn(fnNode *sitter.Node, src []byte) *descriptor.TypeInfo {
+	result := fnNode.ChildByFieldName("result")
+	if result == nil {
+		return nil
+	}
+	if result.Type() != "parameter_list" {
+		// Bare type: func f() int
+		return classifyGoType(string(result.Content(src)))
+	}
+
+	var types []string
+	for i := 0; i < int(result.NamedChildCount()); i++ {
+		child := result.NamedChild(i)
+		if child.Type() != "parameter_declaration" {
+			continue
+		}
+		if typeNode := child.ChildByFieldName("type"); typeNode != nil {
+			types = append(types, string(typeNode.Content(src)))
+		}
+	}
+	switch {
+	case len(types) == 1:
+		return classifyGoType(types[0])
+	case len(types) == 2 && types[1] == "error":
+		return classifyGoType(types[0])
+	}
+	return nil
 }
 
 func extractGoParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor {

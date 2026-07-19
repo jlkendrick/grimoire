@@ -40,6 +40,13 @@ func classifyPythonType(raw string) *descriptor.TypeInfo {
 	switch s {
 	case "str", "int", "float", "bool":
 		return &descriptor.TypeInfo{Kind: descriptor.TypeKindPrimitive, Name: s}
+	case "None":
+		return &descriptor.TypeInfo{Kind: descriptor.TypeKindNone, Name: s}
+	case "list", "List":
+		// Bare container: element type unknown (nil Element).
+		return &descriptor.TypeInfo{Kind: descriptor.TypeKindList, Name: s}
+	case "dict", "Dict":
+		return &descriptor.TypeInfo{Kind: descriptor.TypeKindMap, Name: s}
 	}
 	return &descriptor.TypeInfo{Kind: descriptor.TypeKindStruct, Name: s}
 }

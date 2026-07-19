@@ -67,12 +67,23 @@ var pythonConfig = grammarConfig{
 	functionNodeType: "function_definition",
 	parametersField:  "parameters",
 	extractParam:     extractPythonParam,
+	extractReturn:    extractPythonReturn,
 }
 
 type PythonExtractor struct{}
 
-func (a *PythonExtractor) GenerateDescriptor_ParamsOnly(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
-	return generateDescriptorBase_ParamsOnly(pythonConfig, abs_path_to_function, funcName)
+func (a *PythonExtractor) GenerateDescriptor(abs_path_to_function, funcName string) (descriptor.FunctionDescriptor, error) {
+	return generateDescriptorBase(pythonConfig, abs_path_to_function, funcName)
+}
+
+// extractPythonReturn reads the `-> T` annotation off a function_definition
+// node. Unannotated functions return nil (Unknown).
+func extractPythonReturn(fnNode *sitter.Node, src []byte) *descriptor.TypeInfo {
+	rt := fnNode.ChildByFieldName("return_type")
+	if rt == nil {
+		return nil
+	}
+	return classifyPythonType(string(rt.Content(src)))
 }
 
 func extractPythonParam(n *sitter.Node, src []byte) []descriptor.ParamDescriptor {
