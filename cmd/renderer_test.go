@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	runenv "github.com/jlkendrick/grimoire/internal/runenv"
 )
 
 var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*m`)
@@ -17,9 +19,9 @@ func TestRenderer_PlainSequential(t *testing.T) {
 
 	r.spellStart(1, "fetch")
 	r.spellStderr(1, "chatter line")
-	r.spellFinish(1, "fetch", map[string]any{"ok": true}, "python 3.12", nil)
+	r.spellFinish(1, "fetch", runenv.FinishInfo{Out: map[string]any{"ok": true}, RuntimeVersion: "python 3.12"})
 	r.spellStart(2, "double")
-	r.spellFinish(2, "double", 6.0, "python 3.12", nil)
+	r.spellFinish(2, "double", runenv.FinishInfo{Out: 6.0, RuntimeVersion: "python 3.12"})
 	if err := r.present(map[string]any{"v": 6.0}); err != nil {
 		t.Fatal(err)
 	}
@@ -53,9 +55,9 @@ func TestRenderer_GroupedCompletionsAreNamed(t *testing.T) {
 
 	r.spellStart(1, "alpha")
 	r.spellStart(2, "beta") // overlap: both spells are grouped from here on
-	r.spellFinish(1, "alpha", 1.0, "", nil)
+	r.spellFinish(1, "alpha", runenv.FinishInfo{Out: 1.0})
 	// beta finishes alone, but it ran concurrently — named style sticks.
-	r.spellFinish(2, "beta", 2.0, "", nil)
+	r.spellFinish(2, "beta", runenv.FinishInfo{Out: 2.0})
 
 	e := stripANSI(errB.String())
 	if !strings.Contains(e, "✓ alpha → 1") || !strings.Contains(e, "✓ beta → 2") {
@@ -68,7 +70,7 @@ func TestRenderer_ErrorCompletion(t *testing.T) {
 	r := newRenderer(&out, &errB, false, 1)
 
 	r.spellStart(1, "boom")
-	r.spellFinish(1, "boom", nil, "", &testError{})
+	r.spellFinish(1, "boom", runenv.FinishInfo{Err: &testError{}})
 
 	e := stripANSI(errB.String())
 	if !strings.Contains(e, "✗ boom") {

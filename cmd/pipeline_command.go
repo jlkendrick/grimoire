@@ -73,7 +73,7 @@ func buildPipelineCommand(pipeline ir.Pipeline, descriptor_cache *cache.Descript
 				OnSpellStderr: r.spellStderr,
 				OnSpellFinish: r.spellFinish,
 			}
-			env := runenv.New(descriptor_cache, spellIndex, r.present, obs)
+			env := runenv.New(descriptor_cache, spellIndex, runenv.Config{Present: r.present, Observer: obs})
 			g, err := graph.BuildPipeline(&pipeline, env)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)

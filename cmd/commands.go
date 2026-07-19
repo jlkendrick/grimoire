@@ -31,7 +31,7 @@ func GenerateCommands(descriptor_cache *cache.DescriptorCache, resolvedNames map
 		return function_descriptors[i].CommandName < function_descriptors[j].CommandName
 	})
 	for _, fd := range function_descriptors {
-		command, err := buildFunctionCommand(fd)
+		command, err := buildFunctionCommand(fd, descriptor_cache, spellIndex)
 		if err != nil {
 			return nil, err
 		}

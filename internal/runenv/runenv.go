@@ -33,16 +33,36 @@ import (
 type Observer struct {
 	OnSpellStart  func(id int, spell string)
 	OnSpellStderr func(id int, line string)
-	// OnSpellFinish carries the decoded return value (nil on error) and
-	// the runtime-version string reported by the adapter (may be empty).
-	OnSpellFinish func(id int, spell string, out any, runtimeVersion string, err error)
+	OnSpellFinish func(id int, spell string, res FinishInfo)
+}
+
+// FinishInfo is everything a finished spell reports: the decoded return
+// value (nil on error), the adapter's runtime-version string, and the
+// environment cache status — both may be empty.
+type FinishInfo struct {
+	Out            any
+	RuntimeVersion string
+	CacheStatus    string
+	Err            error
+}
+
+// Config tunes a real Env's presentation-facing behavior. Present
+// receives every printed value in declaration order; Observer may be
+// nil (spell stderr then passes straight through to os.Stderr).
+// Framing lets runtime.Run print its own provisioning/casting lines —
+// the bare-spell UX; ritual runs leave it false in favor of the
+// renderer.
+type Config struct {
+	Present  func(v any) error
+	Observer *Observer
+	Framing  bool
 }
 
 // New builds a graph.Env backed by the real runtime. dc is the invoking
 // scroll's descriptor cache; spells supplies cross-scroll resolution for
-// dot-form spell names and may be nil when none are expected. present
-// receives every printed value in declaration order. obs may be nil.
-func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, present func(v any) error, obs *Observer) graph.Env {
+// dot-form spell names and may be nil when none are expected.
+func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, cfg Config) graph.Env {
+	obs := cfg.Observer
 	var spellCounter atomic.Int64
 	return graph.Env{
 		ResolveSpell: func(name string) (*ir.Function, error) {
@@ -65,8 +85,6 @@ func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, present func(v a
 		// scheduler stops launching new nodes, but an in-flight subprocess
 		// runs to completion — same behavior as the old engine. Plumbing
 		// ctx into process kill is a runtime-layer rewrite concern.
-		// RunResult.Runtime (the version string the CLI shows) is dropped
-		// here for now; it returns with the observer.
 		RunSpell: func(_ context.Context, fn *ir.Function, payload map[string]any) (any, error) {
 			id := int(spellCounter.Add(1))
 			if obs != nil && obs.OnSpellStart != nil {
@@ -83,24 +101,29 @@ func New(dc *cache.DescriptorCache, spells *resolve.SpellIndex, present func(v a
 			}
 
 			res, err := runtime.Run(fn, payload, &runtime.RunOptions{
-				SuppressFraming: true,
+				SuppressFraming: !cfg.Framing,
 				OnStderrLine:    onStderr,
 			})
 			if err != nil {
 				if obs != nil && obs.OnSpellFinish != nil {
-					obs.OnSpellFinish(id, fn.CommandName, nil, "", err)
+					obs.OnSpellFinish(id, fn.CommandName, FinishInfo{Err: err})
 				}
 				return nil, err
 			}
 
 			out, err := decodeReturnValue(res.Output)
 			if obs != nil && obs.OnSpellFinish != nil {
-				obs.OnSpellFinish(id, fn.CommandName, out, res.Runtime, err)
+				obs.OnSpellFinish(id, fn.CommandName, FinishInfo{
+					Out:            out,
+					RuntimeVersion: res.Runtime,
+					CacheStatus:    res.CacheStatus,
+					Err:            err,
+				})
 			}
 			return out, err
 		},
 
-		Present: present,
+		Present: cfg.Present,
 	}
 }
 

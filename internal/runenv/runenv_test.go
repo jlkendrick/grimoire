@@ -59,10 +59,10 @@ def double(n: int = 0):
 	}
 
 	var prints []any
-	env := New(dc, nil, func(v any) error {
+	env := New(dc, nil, Config{Present: func(v any) error {
 		prints = append(prints, v)
 		return nil
-	}, nil)
+	}})
 
 	p := &ir.Pipeline{Command: "demo", Steps: []ir.Step{
 		{Spell: "fetch", Id: "check"},
@@ -206,10 +206,10 @@ rituals:
 	}
 
 	var prints []any
-	env := New(dc, nil, func(v any) error {
+	env := New(dc, nil, Config{Present: func(v any) error {
 		prints = append(prints, v)
 		return nil
-	}, nil)
+	}})
 	pipeline := dc.Pipelines["fan"]
 	g, err := graph.BuildPipeline(&pipeline, env)
 	if err != nil {
@@ -256,10 +256,10 @@ func TestRealPipeline_ElseBranch(t *testing.T) {
 	}
 
 	var prints []any
-	env := New(dc, nil, func(v any) error {
+	env := New(dc, nil, Config{Present: func(v any) error {
 		prints = append(prints, v)
 		return nil
-	}, nil)
+	}})
 
 	p := &ir.Pipeline{Command: "demo", Steps: []ir.Step{
 		{Spell: "fetch", Id: "check"},
@@ -342,15 +342,15 @@ def quiet(n: int = 0):
 		OnSpellStderr: func(id int, line string) {
 			record(event{kind: "stderr", id: id, line: line})
 		},
-		OnSpellFinish: func(id int, spell string, out any, rt string, err error) {
-			if err != nil {
-				t.Errorf("finish err for %s: %v", spell, err)
+		OnSpellFinish: func(id int, spell string, res FinishInfo) {
+			if res.Err != nil {
+				t.Errorf("finish err for %s: %v", spell, res.Err)
 			}
-			record(event{kind: "finish", id: id, spell: spell, out: out, rt: rt})
+			record(event{kind: "finish", id: id, spell: spell, out: res.Out, rt: res.RuntimeVersion})
 		},
 	}
 
-	env := New(dc, nil, func(any) error { return nil }, obs)
+	env := New(dc, nil, Config{Present: func(any) error { return nil }, Observer: obs})
 	p := ir.FromRitual(&scroll.Ritual{Command: "chain", Steps: []scroll.Step{
 		{Spell: "loud"},
 		{Spell: "quiet"},

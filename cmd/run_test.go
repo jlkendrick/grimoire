@@ -188,14 +188,23 @@ func TestRun_OutputCorrect(t *testing.T) {
 		parent.AddCommand(cm)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		parent.SetArgs([]string{"greet", "--name", "test"})
 		if err := parent.Execute(); err != nil {
 			t.Fatalf("parent.Execute: %v", err)
 		}
 	})
-	if !strings.Contains(stdout, "hello test") {
-		t.Errorf("expected stdout to contain 'hello test', got:\n%s", stdout)
+	// The stdout discipline: user prints are chatter and stream on
+	// stderr; stdout carries only the JSON return value — and greet
+	// returns nothing, so no stray "null" either.
+	if !strings.Contains(stderr, "hello test") {
+		t.Errorf("expected stderr to stream the user print 'hello test', got:\n%s", stderr)
+	}
+	if strings.Contains(stdout, "hello test") {
+		t.Errorf("user print leaked onto stdout:\n%s", stdout)
+	}
+	if strings.Contains(stdout, "null") {
+		t.Errorf("nil return must print nothing, got:\n%s", stdout)
 	}
 }
 
@@ -680,5 +689,65 @@ def echo_val(val: str):
 	})
 	if !strings.Contains(stdout, "got:from-a") {
 		t.Errorf("expected echo_val to receive emit_a output via prev_result, got:\n%s", stdout)
+	}
+}
+
+// TestRun_SpellReturnValueOnStdout is the other half of the stdout
+// discipline: a spell that RETURNS a value puts exactly its canonical
+// JSON on stdout.
+func TestRun_SpellReturnValueOnStdout(t *testing.T) {
+	if !pythonAvailable() {
+		t.Skip("python3 not on PATH")
+	}
+	setupTestEnv(t)
+	dir := withScrollDir(t)
+
+	scrollPath := filepath.Join(dir, "scroll.yaml")
+	writeFile(t, scrollPath, "spells:\n  - command: answer\n    path: answer.py\n    function: answer\n")
+	srcPath := filepath.Join(dir, "answer.py")
+	writeFile(t, srcPath, `def answer(n: int = 1):
+    return {"n": n, "ok": True}
+`)
+
+	srcHash, err := utils.HashFile(srcPath)
+	if err != nil {
+		t.Fatalf("HashFile: %v", err)
+	}
+	writeCacheDirect(t, scrollPath, map[string]desc.FunctionDescriptor{
+		"answer": {
+			CommandName:         "answer",
+			FunctionName:        "answer",
+			AbsPathToSourceFile: srcPath,
+			RelPathToSourceFile: "answer.py",
+			ScrollPath:          scrollPath,
+			Interpreter:         "python3",
+			SourceHash:          srcHash,
+			Params: []desc.ParamDescriptor{
+				{Name: "n", ResolvedType: &desc.TypeInfo{Kind: desc.TypeKindPrimitive, Name: "int"}, Default: 1},
+			},
+		},
+	})
+
+	c, err := cache.ReadDescriptorCache(scrollPath)
+	if err != nil {
+		t.Fatalf("ReadDescriptorCache: %v", err)
+	}
+	commands, err := GenerateCommands(c, nil, "", nil)
+	if err != nil {
+		t.Fatalf("GenerateCommands: %v", err)
+	}
+	parent := &cobra.Command{Use: "test"}
+	for _, cm := range commands {
+		parent.AddCommand(cm)
+	}
+
+	stdout, _ := captureOutput(t, func() {
+		parent.SetArgs([]string{"answer", "--n", "21"})
+		if err := parent.Execute(); err != nil {
+			t.Fatalf("parent.Execute: %v", err)
+		}
+	})
+	if !strings.Contains(stdout, `{"n":21,"ok":true}`) {
+		t.Errorf("stdout = %q, want the canonical JSON return", stdout)
 	}
 }

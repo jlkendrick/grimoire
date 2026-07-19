@@ -9,6 +9,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	runenv "github.com/jlkendrick/grimoire/internal/runenv"
 	utils "github.com/jlkendrick/grimoire/internal/utils"
 )
 
@@ -40,7 +41,7 @@ type renderer struct {
 	started  int // the k
 	inflight map[int]*spellView
 	sp       *utils.Spinner
-	runtimes []string
+	statuses []string // distinct runtime versions + cache statuses, first-seen
 	seen     map[string]bool
 }
 
@@ -92,25 +93,27 @@ func (r *renderer) spellStderr(id int, line string) {
 	}
 }
 
-func (r *renderer) spellFinish(id int, name string, out any, runtimeVersion string, err error) {
+func (r *renderer) spellFinish(id int, name string, res runenv.FinishInfo) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	v := r.inflight[id]
 	delete(r.inflight, id)
-	if runtimeVersion != "" && !r.seen[runtimeVersion] {
-		r.seen[runtimeVersion] = true
-		r.runtimes = append(r.runtimes, runtimeVersion)
+	for _, s := range []string{res.CacheStatus, res.RuntimeVersion} {
+		if s != "" && !r.seen[s] {
+			r.seen[s] = true
+			r.statuses = append(r.statuses, s)
+		}
 	}
 
 	r.clearLive()
 	switch {
-	case err != nil:
+	case res.Err != nil:
 		fmt.Fprintf(r.errW, "  %s %s\n\n", dim_style("✗"), dim_style(name))
 	case v != nil && v.grouped:
-		fmt.Fprintf(r.errW, "  %s %s %s\n\n", accent_style("✓"), name, dim_style("→ "+previewOf(out)))
+		fmt.Fprintf(r.errW, "  %s %s %s\n\n", accent_style("✓"), name, dim_style("→ "+previewOf(res.Out)))
 	default:
-		fmt.Fprintf(r.errW, "  %s %s\n\n", accent_style("→"), dim_style(previewOf(out)))
+		fmt.Fprintf(r.errW, "  %s %s\n\n", accent_style("→"), dim_style(previewOf(res.Out)))
 	}
 	r.refreshLive()
 }
@@ -140,7 +143,7 @@ func (r *renderer) footer(seconds float64) {
 	r.clearLive()
 
 	parts := []string{fmt.Sprintf("%.2fs", seconds)}
-	parts = append(parts, r.runtimes...)
+	parts = append(parts, r.statuses...)
 	fmt.Fprintf(r.errW, "\n%s %s\n", accent_style("◈"), dim_style(strings.Join(parts, " · ")))
 }
 
